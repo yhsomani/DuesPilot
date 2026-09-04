@@ -17,7 +17,11 @@ export default function PaymentsPage() {
         <p className="mt-2 text-sm text-gray-500 max-w-sm mx-auto">
           Record payments, match them to invoices, and track reconciliation. Import bank statements to auto-match.
         </p>
-        <button className="mt-4 rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700">
+        <button
+          disabled
+          className="mt-4 rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white opacity-50 cursor-not-allowed"
+          title="Payment recording is not connected yet"
+        >
           Record payment
         </button>
       </div>

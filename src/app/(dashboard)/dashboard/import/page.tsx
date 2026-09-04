@@ -2,6 +2,8 @@
 
 import { useState, useCallback } from "react";
 import Papa from "papaparse";
+import { apiPost } from "@/lib/api";
+import type { ImportResult } from "@/lib/types";
 
 type Step = "upload" | "mapping" | "preview" | "done";
 
@@ -53,6 +55,8 @@ export default function ImportPage() {
     phone: "",
   });
   const [uploading, setUploading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [result, setResult] = useState<ImportResult | null>(null);
 
   const parseCSV = useCallback((file: File) => {
     Papa.parse(file, {
@@ -64,7 +68,7 @@ export default function ImportPage() {
 
         const hdrs = results.meta.fields || [];
         setHeaders(hdrs);
-        setRows(data.slice(0, 50));
+        setRows(data);
 
         const autoMap: Partial<ColumnMapping> = {};
         hdrs.forEach((h) => {
@@ -118,9 +122,20 @@ export default function ImportPage() {
 
   const handleImport = async () => {
     setUploading(true);
-    await new Promise((r) => setTimeout(r, 2000));
-    setUploading(false);
-    setStep("done");
+    setError(null);
+    try {
+      const res = await apiPost<{ rows: ParsedRow[]; mapping: ColumnMapping }, ImportResult>(
+        "/api/import",
+        { rows, mapping }
+      );
+      setResult(res);
+      setStep("done");
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Import failed. Please try again.");
+      setStep("preview");
+    } finally {
+      setUploading(false);
+    }
   };
 
   return (
@@ -360,10 +375,16 @@ export default function ImportPage() {
                 : `Import ${rows.length} invoices`}
             </button>
           </div>
+
+          {error && (
+            <div className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
+              {error}
+            </div>
+          )}
         </div>
       )}
 
-      {step === "done" && (
+      {step === "done" && result && (
         <div className="rounded-xl border border-green-200 bg-green-50 p-8 text-center">
           <div className="mx-auto h-12 w-12 rounded-full bg-green-100 flex items-center justify-center mb-4">
             <svg
@@ -382,7 +403,14 @@ export default function ImportPage() {
           </div>
           <h3 className="text-lg font-bold text-gray-900">Import successful!</h3>
           <p className="mt-2 text-sm text-gray-600">
-            {rows.length} invoices imported. Your collection queue is ready.
+            {result.invoicesCreated} invoices imported (
+            {result.customersCreated} customers created,{" "}
+            {new Intl.NumberFormat("en-IN", {
+              style: "currency",
+              currency: "INR",
+              maximumFractionDigits: 0,
+            }).format(result.totalAmount)}{" "}
+            total). Your collection queue is ready.
           </p>
           <a
             href="/dashboard/queue"

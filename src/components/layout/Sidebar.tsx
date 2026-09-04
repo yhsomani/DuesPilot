@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useSession, signOut } from "next-auth/react";
 import { cn } from "@/lib/utils";
 import {
   LayoutGrid,
@@ -15,6 +16,7 @@ import {
   Send,
   BarChart3,
   Settings,
+  LogOut,
   type LucideIcon,
 } from "lucide-react";
 
@@ -54,6 +56,16 @@ const navigation = [
 
 export function Sidebar() {
   const pathname = usePathname();
+  const { data: session } = useSession();
+  const user = session?.user;
+  const displayName = user?.name || "User";
+  const email = user?.email || "";
+  const initials = displayName
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((p) => p[0]?.toUpperCase() ?? "")
+    .join("");
 
   return (
     <aside className="hidden lg:flex lg:flex-col lg:w-60 border-r border-gray-100 bg-white">
@@ -98,13 +110,22 @@ export function Sidebar() {
       <div className="border-t border-gray-100 px-3 py-3">
         <div className="flex items-center gap-3 rounded-lg px-3 py-2 hover:bg-gray-50 cursor-pointer transition-colors">
           <div className="h-8 w-8 rounded-full bg-blue-100 flex items-center justify-center">
-            <span className="text-blue-700 font-semibold text-xs">YS</span>
+            <span className="text-blue-700 font-semibold text-xs">{initials}</span>
           </div>
           <div className="flex-1 min-w-0">
-            <p className="text-sm font-medium text-gray-900 truncate">Yash</p>
-            <p className="text-xs text-gray-500 truncate">yash@company.com</p>
+            <p className="text-sm font-medium text-gray-900 truncate">
+              {displayName}
+            </p>
+            <p className="text-xs text-gray-500 truncate">{email}</p>
           </div>
         </div>
+        <button
+          onClick={() => signOut({ callbackUrl: "/login" })}
+          className="mt-1 w-full flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium text-gray-500 hover:bg-red-50 hover:text-red-600 transition-colors"
+        >
+          <LogOut className="h-4 w-4" />
+          Sign out
+        </button>
       </div>
     </aside>
   );

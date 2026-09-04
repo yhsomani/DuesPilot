@@ -17,7 +17,11 @@ export default function DisputesPage() {
         <p className="mt-2 text-sm text-gray-500 max-w-sm mx-auto">
           Track reasons: PO mismatch, GRN missing, quality dispute, quantity dispute. Resolve before chasing payment.
         </p>
-        <button className="mt-4 rounded-lg bg-purple-600 px-4 py-2 text-sm font-medium text-white hover:bg-purple-700">
+        <button
+          disabled
+          className="mt-4 rounded-lg bg-purple-600 px-4 py-2 text-sm font-medium text-white opacity-50 cursor-not-allowed"
+          title="Dispute logging is not connected yet"
+        >
           Log dispute
         </button>
       </div>

@@ -17,7 +17,11 @@ export default function CommunicationsPage() {
         <p className="mt-2 text-sm text-gray-500 max-w-sm mx-auto">
           View all outbound and inbound messages across channels. Track delivery, reads, and responses.
         </p>
-        <button className="mt-4 rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700">
+        <button
+          disabled
+          className="mt-4 rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white opacity-50 cursor-not-allowed"
+          title="Messaging is not connected yet"
+        >
           Send message
         </button>
       </div>
