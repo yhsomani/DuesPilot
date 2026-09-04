@@ -1,0 +1,320 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum Role {
+  OWNER
+  ADMIN
+  FINANCE_MANAGER
+  COLLECTOR
+  SALES
+  VIEWER
+}
+
+enum InvoiceStatus {
+  DRAFT
+  OPEN
+  DUE_SOON
+  OVERDUE
+  DISPUTED
+  PROMISED
+  PROMISE_BROKEN
+  PARTIALLY_PAID
+  PAID
+  CANCELLED
+}
+
+enum PromiseStatus {
+  ACTIVE
+  KEPT
+  BROKEN
+  RENEGOTIATED
+}
+
+enum CommunicationChannel {
+  EMAIL
+  WHATSAPP
+  CALL
+  SMS
+  MANUAL
+}
+
+enum MessageStatus {
+  PENDING
+  SENT
+  DELIVERED
+  READ
+  FAILED
+}
+
+enum Priority {
+  HIGH
+  MEDIUM
+  LOW
+}
+
+model User {
+  id                      String             @id @default(cuid())
+  email                   String             @unique
+  name                    String?
+  passwordHash            String?
+  image                   String?
+  role                    Role               @default(VIEWER)
+  emailVerified           DateTime?
+  organization            Organization?      @relation(fields: [organizationId], references: [id])
+  organizationId          String?
+  accounts                Account[]
+  sessions                Session[]
+  createdAt               DateTime           @default(now())
+  updatedAt               DateTime           @updatedAt
+}
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String?
+  access_token      String?
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String?
+  session_state     String?
+  user              User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model VerificationToken {
+  identifier String
+  token      String
+  expires    DateTime
+  @@unique([identifier, token])
+}
+
+model Organization {
+  id              String         @id @default(cuid())
+  name            String
+  gstin           String?
+  industry        String?
+  city            String?
+  users           User[]
+  customers       Customer[]
+  usersCount      Int            @default(1)
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+}
+
+model Customer {
+  id                    String          @id @default(cuid())
+  organizationId        String
+  organization          Organization    @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  name                  String
+  email                 String?
+  phone                 String?
+  gstin                 String?
+  riskScore             Int?           @default(0)
+  status                String         @default("active")
+  notes                 String?
+  contacts              Contact[]
+  invoices              Invoice[]
+  promisesToPay         PromiseToPay[]
+  collectionEvents      CollectionEvent[]
+  payments              Payment[]
+  totalOutstanding      Float          @default(0)
+  totalOverdue          Float          @default(0)
+  lastPaymentAt         DateTime?
+  createdAt             DateTime       @default(now())
+  updatedAt             DateTime       @updatedAt
+}
+
+model Contact {
+  id             String   @id @default(cuid())
+  customerId     String
+  customer       Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  name           String
+  email          String?
+  phone          String?
+  designation    String?
+  isPrimary      Boolean  @default(false)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+}
+
+model Invoice {
+  id                String               @id @default(cuid())
+  organizationId    String
+  customerId        String
+  customer          Customer             @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  invoiceNumber     String
+  invoiceDate       DateTime
+  dueDate           DateTime
+  amount            Float
+  outstandingAmount Float                @default(0)
+  status            InvoiceStatus        @default(OPEN)
+  currency          String               @default("INR")
+  notes             String?
+  source            String               @default("csv")
+  items             InvoiceItem[]
+  payments          PaymentAllocation[]
+  promisesToPay     PromiseToPay[]
+  collectionEvents  CollectionEvent[]
+  dispute           Dispute?
+  externalId        String?
+  createdAt         DateTime             @default(now())
+  updatedAt         DateTime             @updatedAt
+  @@unique([organizationId, invoiceNumber])
+}
+
+model InvoiceItem {
+  id        String  @id @default(cuid())
+  invoiceId String
+  invoice   Invoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  description String
+  quantity  Float?
+  unitPrice Float?
+  taxRate   Float?
+  amount    Float
+}
+
+model Payment {
+  id                String              @id @default(cuid())
+  organizationId    String
+  customerId        String
+  customer          Customer            @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  reference         String?
+  amount            Float
+  paymentDate       DateTime
+  mode              String?
+  status            String              @default("received")
+  allocations       PaymentAllocation[]
+  createdAt         DateTime            @default(now())
+  updatedAt         DateTime            @updatedAt
+}
+
+model PaymentAllocation {
+  id        String   @id @default(cuid())
+  paymentId String
+  payment   Payment  @relation(fields: [paymentId], references: [id], onDelete: Cascade)
+  invoiceId String
+  invoice   Invoice  @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  amount    Float
+  createdAt DateTime @default(now())
+}
+
+model PromiseToPay {
+  id             String         @id @default(cuid())
+  organizationId String
+  customerId     String
+  customer       Customer       @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  invoiceId      String?
+  invoice        Invoice?       @relation(fields: [invoiceId], references: [id], onDelete: SetNull)
+  amount         Float
+  promiseDate    DateTime
+  source         String         @default("manual")
+  confidence     Int            @default(50)
+  status         PromiseStatus  @default(ACTIVE)
+  note           String?
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+}
+
+model Dispute {
+  id          String    @id @default(cuid())
+  invoiceId   String    @unique
+  invoice     Invoice   @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  reason      String
+  category    String?
+  status      String    @default("open")
+  notes       String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  resolvedAt  DateTime?
+}
+
+model Message {
+  id                String            @id @default(cuid())
+  organizationId    String
+  customerId        String?
+  invoiceId         String?
+  channel           CommunicationChannel
+  direction         String            @default("outbound")
+  subject           String?
+  body              String
+  recipient         String
+  status            MessageStatus     @default(PENDING)
+  externalId        String?
+  sentAt            DateTime?
+  createdAt         DateTime          @default(now())
+}
+
+model CollectionEvent {
+  id             String    @id @default(cuid())
+  organizationId String
+  customerId     String
+  customer       Customer  @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  invoiceId      String?
+  invoice        Invoice?  @relation(fields: [invoiceId], references: [id], onDelete: SetNull)
+  type           String
+  description    String
+  metadata       Json?
+  createdAt      DateTime  @default(now())
+  createdById    String?
+}
+
+model CollectionWorkflow {
+  id             String  @id @default(cuid())
+  organizationId String
+  name           String
+  description    String?
+  rules          Json
+  enabled        Boolean @default(true)
+  actions        WorkflowAction[]
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+}
+
+model WorkflowAction {
+  id             String               @id @default(cuid())
+  workflowId     String
+  workflow       CollectionWorkflow   @relation(fields: [workflowId], references: [id], onDelete: Cascade)
+  trigger        Json
+  action         Json
+  orderIndex     Int
+  enabled        Boolean              @default(true)
+}
+
+model IntegrationCredential {
+  id             String   @id @default(cuid())
+  organizationId String
+  provider       String
+  credentials    Json
+  enabled        Boolean  @default(false)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+}
+
+model AuditLog {
+  id             String   @id @default(cuid())
+  organizationId String
+  userId         String?
+  action         String
+  entityType     String?
+  entityId       String?
+  metadata       Json?
+  ipAddress      String?
+  createdAt      DateTime @default(now())
+}
