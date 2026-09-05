@@ -26,7 +26,7 @@ export const PATCH = withAuth(async (req, ctx, params) => {
   const forbidden = requireRole(ctx, [ROLES.OWNER, ROLES.ADMIN]);
   if (forbidden) return forbidden;
 
-  const targetId = params?.id;
+  const targetId = params?.userId || params?.id;
   if (!targetId) return err("Missing user id", 400);
 
   const body = await readJson(req);
@@ -77,7 +77,7 @@ export const DELETE = withAuth(async (req, ctx, params) => {
   const forbidden = requireRole(ctx, [ROLES.OWNER]);
   if (forbidden) return forbidden;
 
-  const targetId = params?.id;
+  const targetId = params?.userId || params?.id;
   if (!targetId) return err("Missing user id", 400);
   if (targetId === ctx.userId) {
     return err("You cannot remove your own account this way", 400);

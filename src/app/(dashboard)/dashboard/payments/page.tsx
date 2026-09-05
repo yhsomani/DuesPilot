@@ -40,11 +40,33 @@ export default function PaymentsPage() {
   const [error, setError] = useState<string | null>(null);
   const [retryKey, setRetryKey] = useState(0);
 
-  const fetchPayments = async () =>
-    Promise.all([
-      api<PaymentRow[]>("/api/payments"),
-      api<CustomerSummary[]>("/api/customers"),
+  const fetchPayments = async () => {
+    const [pRaw, cRaw] = await Promise.all([
+      api<Record<string, unknown> | Record<string, unknown>[]>("/api/payments"),
+      api<Record<string, unknown> | CustomerSummary[]>("/api/customers"),
     ]);
+
+    const pList: Record<string, unknown>[] = Array.isArray(pRaw)
+      ? pRaw
+      : ((pRaw?.items || pRaw?.payments || []) as Record<string, unknown>[]);
+    const cList: CustomerSummary[] = Array.isArray(cRaw)
+      ? cRaw
+      : ((cRaw?.items || cRaw?.customers || []) as CustomerSummary[]);
+
+    const normalizedPayments: PaymentRow[] = pList.map((p) => ({
+      id: String(p.id || ""),
+      customerId: String(p.customerId || ""),
+      customer: String(p.customer || p.customerName || "Customer"),
+      reference: (p.reference as string) || null,
+      amount: Number(p.amount || 0),
+      paymentDate: String(p.paymentDate || p.date || new Date().toISOString()),
+      mode: String(p.mode || p.method || "Bank Transfer"),
+      status: (p.status as PaymentRow["status"]) || "completed",
+      allocations: Array.isArray(p.allocations) ? (p.allocations as PaymentRow["allocations"]) : [],
+    }));
+
+    return [normalizedPayments, cList] as [PaymentRow[], CustomerSummary[]];
+  };
 
   const load = async () => {
     const [p, c] = await fetchPayments();

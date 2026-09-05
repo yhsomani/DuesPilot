@@ -1,136 +1,135 @@
-import { err, ok, readJson, requireRole, withAuth, ACTION_ROLES } from "@/lib/server-context";
+import { NextResponse } from "next/server";
+import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { writeAudit } from "@/lib/audit";
+import type { Prisma } from "@/generated/prisma/client";
 import { DEFAULT_CADENCE_RULES, WorkflowRule } from "@/lib/workflows";
-import { z } from "zod";
+import { writeAudit } from "@/lib/audit";
 
-const workflowRuleSchema = z.object({
-  id: z.string().min(1),
-  name: z.string().min(1),
-  triggerType: z.enum(["DUE_SOON", "OVERDUE", "PROMISE_BROKEN", "HIGH_RISK"]),
-  daysRelative: z.number(),
-  minAmount: z.number().optional(),
-  maxAmount: z.number().optional(),
-  minRiskScore: z.number().optional(),
-  channel: z.enum(["EMAIL", "WHATSAPP", "SMS", "TASK"]),
-  templateId: z.string().optional(),
-  templateName: z.string().optional(),
-  includePaymentLink: z.boolean().optional(),
-  enabled: z.boolean(),
-  cooldownHours: z.number().optional(),
-});
+export async function GET() {
+  const session = await auth();
+  if (!session?.user?.organizationId) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
 
-const createWorkflowSchema = z.object({
-  name: z.string().min(1, "Workflow name is required"),
-  description: z.string().optional().nullable(),
-  enabled: z.boolean().default(true),
-  rules: z.array(workflowRuleSchema).min(1, "At least one rule is required"),
-});
-
-export const GET = withAuth(async (_req, ctx) => {
-  const customWorkflows = await prisma.collectionWorkflow.findMany({
-    where: { organizationId: ctx.organizationId },
-    orderBy: { createdAt: "desc" },
+  const organizationId = session.user.organizationId;
+  const workflows = await prisma.collectionWorkflow.findMany({
+    where: { organizationId },
+    orderBy: { createdAt: "asc" },
   });
 
-  if (customWorkflows.length === 0) {
-    // Return standard system default cadence workflow if tenant hasn't defined custom ones yet
-    const systemDefault = {
-      id: "system_default_cadence",
-      name: "Standard B2B Dunning Cadence",
-      description: "Default progressive escalation cadence from T-3 days to T+45 days statutory notice",
-      enabled: true,
-      rules: DEFAULT_CADENCE_RULES,
-      isSystemDefault: true,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-    };
-
-    return ok({
-      workflows: [systemDefault],
-      defaultRules: DEFAULT_CADENCE_RULES,
-      activeCount: DEFAULT_CADENCE_RULES.filter((r) => r.enabled).length,
-      totalRulesCount: DEFAULT_CADENCE_RULES.length,
+  if (workflows.length === 0) {
+    // Return standard system default workflow
+    return NextResponse.json({
+      workflows: [
+        {
+          id: "wf_default",
+          name: "Standard MSME 45-Day Dunning Cadence",
+          description: "Automated multi-channel escalation aligned with MSMED Act 2006",
+          enabled: true,
+          isSystemDefault: true,
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+          rules: DEFAULT_CADENCE_RULES,
+        },
+      ],
     });
   }
 
-  const formatted = customWorkflows.map((w) => ({
-    id: w.id,
-    name: w.name,
-    description: w.description,
-    enabled: w.enabled,
-    rules: w.rules as unknown as WorkflowRule[],
-    isSystemDefault: false,
-    createdAt: w.createdAt.toISOString(),
-    updatedAt: w.updatedAt.toISOString(),
-  }));
+  return NextResponse.json({ workflows });
+}
 
-  const totalRules = formatted.reduce((acc, w) => acc + (Array.isArray(w.rules) ? w.rules.length : 0), 0);
-  const activeRules = formatted.reduce(
-    (acc, w) => acc + (Array.isArray(w.rules) ? w.rules.filter((r) => r.enabled).length : 0),
-    0
-  );
-
-  return ok({
-    workflows: formatted,
-    defaultRules: DEFAULT_CADENCE_RULES,
-    activeCount: activeRules,
-    totalRulesCount: totalRules,
-  });
-});
-
-export const POST = withAuth(async (req, ctx) => {
-  const forbidden = requireRole(ctx, ACTION_ROLES);
-  if (forbidden) return forbidden;
-
-  const body = await readJson(req);
-  if (!body) return err("Invalid JSON body", 400);
-
-  const parsed = createWorkflowSchema.safeParse(body);
-  if (!parsed.success) {
-    return err(parsed.error.issues[0]?.message ?? "Invalid workflow configuration", 400);
+export async function POST(req: Request) {
+  const session = await auth();
+  if (!session?.user?.organizationId) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const { name, description, enabled, rules } = parsed.data;
+  const organizationId = session.user.organizationId;
+  const body = await req.json();
 
-  const workflow = await prisma.collectionWorkflow.create({
+  // If payload is a single rule to add to default or existing workflow
+  if (body.name && (body.triggerType || body.channel)) {
+    const newRule: WorkflowRule = {
+      id: `rule_${Date.now()}`,
+      name: body.name,
+      triggerType: body.triggerType || "OVERDUE",
+      daysRelative: Number(body.daysRelative ?? 7),
+      channel: body.channel || "WHATSAPP",
+      minAmount: body.minAmount ? Number(body.minAmount) : undefined,
+      maxAmount: body.maxAmount ? Number(body.maxAmount) : undefined,
+      minRiskScore: body.minRiskScore ? Number(body.minRiskScore) : undefined,
+      templateId: body.templateId || undefined,
+      templateName: body.templateName || undefined,
+      includePaymentLink: body.includePaymentLink ?? true,
+      enabled: body.enabled ?? true,
+      cooldownHours: Number(body.cooldownHours ?? 24),
+    };
+
+    // Find existing workflow or create one
+    let workflow = await prisma.collectionWorkflow.findFirst({
+      where: { organizationId },
+    });
+
+    if (!workflow) {
+      workflow = await prisma.collectionWorkflow.create({
+        data: {
+          organizationId,
+          name: "Custom Dunning Cadence",
+          description: "Tenant customized multi-channel dunning workflow",
+          enabled: true,
+          rules: [...DEFAULT_CADENCE_RULES, newRule] as unknown as Prisma.InputJsonValue,
+        },
+      });
+    } else {
+      const existingRules = Array.isArray(workflow.rules) ? (workflow.rules as unknown as WorkflowRule[]) : [];
+      workflow = await prisma.collectionWorkflow.update({
+        where: { id: workflow.id },
+        data: {
+          rules: [...existingRules, newRule] as unknown as Prisma.InputJsonValue,
+        },
+      });
+    }
+
+    await writeAudit({
+      organizationId,
+      userId: session.user.id || null,
+      action: "WORKFLOW_RULE_CREATED",
+      entityType: "collection_workflow",
+      entityId: workflow.id,
+      metadata: { ruleName: newRule.name, channel: newRule.channel },
+    });
+
+    return NextResponse.json(
+      {
+        workflow: {
+          ...workflow,
+          ...body,
+          id: workflow.id,
+        },
+      },
+      { status: 201 }
+    );
+  }
+
+  // Full workflow creation
+  const createdWorkflow = await prisma.collectionWorkflow.create({
     data: {
-      organizationId: ctx.organizationId,
-      name,
-      description: description || null,
-      enabled,
-      rules: rules as any, // eslint-disable-line @typescript-eslint/no-explicit-any
+      organizationId,
+      name: body.name || "Custom Dunning Cadence",
+      description: body.description || "",
+      enabled: body.enabled ?? true,
+      rules: body.rules || DEFAULT_CADENCE_RULES,
     },
   });
 
-  await writeAudit(
-    {
-      organizationId: ctx.organizationId,
-      userId: ctx.userId,
-      action: "WORKFLOW_CREATE",
-      entityType: "workflow",
-      entityId: workflow.id,
-      metadata: {
-        name,
-        rulesCount: rules.length,
-        enabled,
-      },
-    },
-    req
-  );
+  await writeAudit({
+    organizationId,
+    userId: session.user.id || null,
+    action: "WORKFLOW_CREATED",
+    entityType: "collection_workflow",
+    entityId: createdWorkflow.id,
+    metadata: { name: createdWorkflow.name },
+  });
 
-  return ok(
-    {
-      workflow: {
-        id: workflow.id,
-        name: workflow.name,
-        description: workflow.description,
-        enabled: workflow.enabled,
-        rules: workflow.rules as unknown as WorkflowRule[],
-        createdAt: workflow.createdAt.toISOString(),
-        updatedAt: workflow.updatedAt.toISOString(),
-      },
-    },
-    201
-  );
-});
+  return NextResponse.json({ workflow: createdWorkflow }, { status: 201 });
+}

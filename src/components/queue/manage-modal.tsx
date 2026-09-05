@@ -46,33 +46,6 @@ export function AllActionsModal({ item, onClose, onDone }: Props) {
     return () => document.removeEventListener("keydown", onKey);
   }, [onClose]);
 
-  const managePromise = async (
-    action: "mark_broken" | "mark_kept" | "add_note"
-  ) => {
-    if (!note.trim()) return;
-    setSaving(true);
-    setError(null);
-    try {
-      const endpoint = item.promiseId
-        ? `/api/promises/${item.promiseId}/manage`
-        : null;
-      if (endpoint) {
-        await apiPost(endpoint, { action, note });
-      } else {
-        await apiPost("/api/collection-events", {
-          customerId: item.customerId,
-          type: "NOTE",
-          description: note,
-        });
-      }
-      onDone();
-    } catch (e) {
-      setError(e instanceof ApiError ? e.message : "Failed to save note");
-    } finally {
-      setSaving(false);
-    }
-  };
-
   return (
     <div
       className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/40 p-4 backdrop-blur-xs animate-in fade-in duration-150"
@@ -246,7 +219,7 @@ export function AllActionsModal({ item, onClose, onDone }: Props) {
             <Button
               disabled={!note.trim()}
               loading={saving}
-              onClick={() => managePromise("add_note")}
+              onClick={() => logEvent("NOTE", note)}
               className="w-full"
             >
               Save Customer Note

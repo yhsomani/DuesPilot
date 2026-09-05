@@ -7,6 +7,7 @@ import { api, apiPost, apiPatch, apiDel, ApiError } from "@/lib/api";
 import { SendReminderModal } from "@/components/queue/send-reminder-modal";
 import { LegalNoticeModal } from "@/components/legal/legal-notice-modal";
 import { PaymentPlanModal } from "@/components/promises/payment-plan-modal";
+import { AICopilotModal } from "@/components/copilot/ai-copilot-modal";
 import type {
   CustomerContact,
   CustomerDetailData,
@@ -33,6 +34,7 @@ import {
   X,
   MessageSquare,
   PhoneCall,
+  Sparkles,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -92,6 +94,7 @@ export default function CustomerDetailPage({
   const [invoiceForReminder, setInvoiceForReminder] = useState<CustomerInvoice | null>(null);
   const [isLegalNoticeOpen, setIsLegalNoticeOpen] = useState(false);
   const [isPaymentPlanOpen, setIsPaymentPlanOpen] = useState(false);
+  const [isCopilotOpen, setIsCopilotOpen] = useState(false);
 
   const load = async () => {
     const data = await api<CustomerDetailData>(`/api/customers/${id}`);
@@ -252,6 +255,16 @@ export default function CustomerDetailPage({
           </div>
 
           <div className="flex flex-wrap items-center gap-2">
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => setIsCopilotOpen(true)}
+              className="gap-1.5 border-indigo-200 bg-indigo-50/70 text-indigo-700 hover:bg-indigo-100/80 shadow-2xs"
+            >
+              <Sparkles className="h-3.5 w-3.5 text-indigo-600" />
+              <span>AI Copilot</span>
+            </Button>
+
             <Button
               size="sm"
               onClick={() => {
@@ -678,6 +691,29 @@ export default function CustomerDetailPage({
           onSuccess={async () => {
             setIsLegalNoticeOpen(false);
             await load();
+          }}
+        />
+      )}
+
+      {/* AI Copilot Modal */}
+      {isCopilotOpen && customer && (
+        <AICopilotModal
+          isOpen={true}
+          customerId={customer.id}
+          customerName={customer.name}
+          onClose={() => setIsCopilotOpen(false)}
+          onPromiseExtracted={async (promise) => {
+            try {
+              await apiPost("/api/promises", {
+                customerId: customer.id,
+                amount: promise.amount,
+                promiseDate: promise.promiseDate,
+                notes: promise.notes,
+              });
+              await load();
+            } catch (err) {
+              console.error("Failed to record promise", err);
+            }
           }}
         />
       )}

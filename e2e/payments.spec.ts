@@ -30,17 +30,17 @@ test.describe("Payments Register & Invoice Allocation Reconciliation", () => {
     // Table rows
     await expect(page.getByText("Raj Steel & Forgings Pvt Ltd")).toBeVisible();
     await expect(page.getByText("ABC Engineering Works")).toBeVisible();
-    await expect(page.getByText("UTR-9827364819")).toBeVisible();
+    await expect(page.getByText("UTR994827110")).toBeVisible();
 
     // Filter by Needs Allocation
     await page.getByRole("button", { name: /Needs Allocation/i }).click();
-    await expect(page.getByText("ABC Engineering Works")).toBeVisible();
-    await expect(page.getByText("Raj Steel & Forgings Pvt Ltd")).not.toBeVisible();
+    await expect(page.getByText("Raj Steel & Forgings Pvt Ltd")).toBeVisible();
+    await expect(page.getByText("ABC Engineering Works")).not.toBeVisible();
 
     // Filter by Fully Reconciled
     await page.getByRole("button", { name: /Fully Reconciled/i }).click();
-    await expect(page.getByText("Raj Steel & Forgings Pvt Ltd")).toBeVisible();
-    await expect(page.getByText("ABC Engineering Works")).not.toBeVisible();
+    await expect(page.getByText("ABC Engineering Works")).toBeVisible();
+    await expect(page.getByText("Raj Steel & Forgings Pvt Ltd")).not.toBeVisible();
 
     // Reset to All
     await page.getByRole("button", { name: /All Payments/i }).click();
@@ -132,17 +132,17 @@ test.describe("Payments Register & Invoice Allocation Reconciliation", () => {
       });
     });
 
-    await page.route("**/api/customers/cust_2", async (route) => {
+    await page.route("**/api/customers/cust_1", async (route) => {
       await route.fulfill({
         status: 200,
         contentType: "application/json",
         body: JSON.stringify({
-          ...MOCK_CUSTOMERS[1],
+          ...MOCK_CUSTOMERS[0],
           invoices: [
             {
-              id: "inv_2",
-              number: "INV-2026-094",
-              outstanding: 110000,
+              id: "inv_1",
+              number: "INV-2026-089",
+              outstanding: 480000,
             },
           ],
         }),
@@ -161,23 +161,23 @@ test.describe("Payments Register & Invoice Allocation Reconciliation", () => {
 
     await page.goto("/dashboard/payments");
 
-    // Click Allocate button on ABC Engineering (which has unallocated balance)
+    // Click Allocate button on Raj Steel (which has unallocated balance)
     await page.getByRole("button", { name: /Allocate/i }).first().click();
 
     const dialog = page.getByRole("dialog");
     await expect(dialog).toBeVisible();
     await expect(dialog.getByText("Allocate Payment Credit")).toBeVisible();
-    await expect(dialog.getByText("INV-2026-094")).toBeVisible();
+    await expect(dialog.getByText("INV-2026-089")).toBeVisible();
 
     // Input allocation amount
     const allocInput = dialog.getByPlaceholder("0");
-    await allocInput.fill("60000");
+    await allocInput.fill("50000");
 
     // Apply allocation
     await dialog.getByRole("button", { name: /Apply Allocation/i }).click();
 
     expect(allocatedBody).toMatchObject({
-      allocations: [{ invoiceId: "inv_2", amount: 60000 }],
+      allocations: [{ invoiceId: "inv_1", amount: 50000 }],
     });
   });
 });

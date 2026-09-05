@@ -22,6 +22,35 @@ test.describe("MSME Statutory Penal Interest & Legal Notices", () => {
       });
     });
 
+    await page.route("**/api/legal/notice*", async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({
+          referenceNumber: "DP-NOT-CUST-123456",
+          title: "STATUTORY DEMAND NOTICE UNDER SECTIONS 15 & 16 OF MSMED ACT, 2006",
+          subject: "Statutory Demand Notice for Outstanding Principal of ₹4,80,000",
+          body: "Formal legal demand notice text for Raj Steel & Forgings Pvt Ltd",
+          claimSummary: {
+            totalOutstanding: 480000,
+            totalPenalInterest: 5599,
+            totalStatutoryClaim: 485599,
+            statutoryAnnualRate: 20.25,
+            invoices: [
+              {
+                invoiceNumber: "INV-2026-089",
+                principalAmount: 480000,
+                outstandingAmount: 480000,
+                overdueDays: 21,
+                penalInterest: 5599,
+                totalClaim: 485599,
+              },
+            ],
+          },
+        }),
+      });
+    });
+
     await page.route("**/api/invoices/inv_1", async (route) => {
       await route.fulfill({
         status: 200,
@@ -52,7 +81,7 @@ test.describe("MSME Statutory Penal Interest & Legal Notices", () => {
     // Legal Notice modal opens
     const modal = page.getByRole("dialog");
     await expect(modal).toBeVisible();
-    await expect(modal.getByText(/MSME Statutory Notice/i)).toBeVisible();
+    await expect(modal.getByText(/Statutory Legal Notice/i)).toBeVisible();
 
     // Close modal
     await modal.getByRole("button", { name: /Cancel|Close/i }).first().click();

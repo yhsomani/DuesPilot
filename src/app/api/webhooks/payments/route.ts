@@ -1,26 +1,20 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { createHmac, timingSafeEqual } from "crypto";
 import { writeAudit } from "@/lib/audit";
+import {
+  parsePaymentWebhookPayload,
+  verifyGatewaySignature,
+  reconcileInvoicePayment,
+  type PaymentGateway,
+} from "@/lib/payment-webhooks";
 
 export const dynamic = "force-dynamic";
-
-function verifyHmacSignature(rawBody: string, signature: string, secret: string): boolean {
-  try {
-    const expected = createHmac("sha256", secret).update(rawBody).digest("hex");
-    const a = Buffer.from(signature);
-    const b = Buffer.from(expected);
-    if (a.length !== b.length) return false;
-    return timingSafeEqual(a, b);
-  } catch {
-    return false;
-  }
-}
 
 export async function POST(req: Request) {
   try {
     const rawBody = await req.text();
-    let body: any = {}; // eslint-disable-line @typescript-eslint/no-explicit-any
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    let body: any = {};
 
     try {
       body = JSON.parse(rawBody);
@@ -28,59 +22,88 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
     }
 
-    // 1. Signature Verification for Razorpay if secret configured
-    const razorpaySignature = req.headers.get("x-razorpay-signature");
-    const webhookSecret = process.env.RAZORPAY_WEBHOOK_SECRET;
+    const headers: Record<string, string> = {};
+    req.headers.forEach((val, key) => {
+      headers[key.toLowerCase()] = val;
+    });
 
-    if (razorpaySignature && webhookSecret) {
-      const isValid = verifyHmacSignature(rawBody, razorpaySignature, webhookSecret);
-      if (!isValid) {
-        return NextResponse.json({ error: "Invalid signature" }, { status: 401 });
-      }
-    }
-
-    let invoiceId: string | null = null;
-    let invoiceNumber: string | null = null;
-    let amountPaid: number = 0;
-    let paymentRef: string | null = null;
-    let paymentMode = "UPI";
-    let provider = "generic";
-    let orgId: string | null = null;
-
-    // 2. Razorpay payload format (payment_link.paid / payment.captured)
-    if (body.event && body.payload) {
+    // 1. Identify Gateway Provider & Verify Signature
+    let provider: PaymentGateway = "generic";
+    if (headers["x-razorpay-signature"] || body.event?.startsWith("payment") || body.event?.startsWith("order")) {
       provider = "razorpay";
-      if (body.event === "payment_link.paid" || body.event === "payment.captured") {
-        const plink = body.payload.payment_link?.entity;
-        const payment = body.payload.payment?.entity;
+    } else if (headers["x-webhook-signature"] || body.type?.includes("PAYMENT") || body.data?.payment) {
+      provider = "cashfree";
+    } else if (headers["stripe-signature"] || body.object === "event" || body.type?.startsWith("payment_intent") || body.type?.startsWith("charge")) {
+      provider = "stripe";
+    }
 
-        if (plink?.notes?.invoiceId) invoiceId = plink.notes.invoiceId;
-        if (plink?.notes?.invoiceNumber) invoiceNumber = plink.notes.invoiceNumber;
-        if (plink?.notes?.organizationId) orgId = plink.notes.organizationId;
+    // Verify cryptographic signature if secret is configured in environment
+    const webhookSecret =
+      (provider === "razorpay" && process.env.RAZORPAY_WEBHOOK_SECRET) ||
+      (provider === "cashfree" && process.env.CASHFREE_WEBHOOK_SECRET) ||
+      (provider === "stripe" && process.env.STRIPE_WEBHOOK_SECRET) ||
+      process.env.WEBHOOK_SECRET;
 
-        if (payment?.notes?.invoiceId) invoiceId = payment.notes.invoiceId;
-        if (payment?.notes?.invoiceNumber) invoiceNumber = payment.notes.invoiceNumber;
-        if (payment?.notes?.organizationId) orgId = payment.notes.organizationId;
-
-        // Razorpay amounts are in paise (e.g. 50000 = ₹500)
-        const rawAmount = payment?.amount ?? plink?.amount_paid ?? plink?.amount ?? 0;
-        amountPaid = rawAmount > 0 ? rawAmount / 100 : 0;
-        paymentRef = payment?.id || plink?.id || `rzp_${Date.now()}`;
-        paymentMode = payment?.method?.toUpperCase() || "ONLINE";
+    if (webhookSecret) {
+      const isValid = verifyGatewaySignature(provider, rawBody, headers, webhookSecret);
+      if (!isValid) {
+        return NextResponse.json({ error: "Invalid webhook signature" }, { status: 401 });
       }
     }
-    // 3. Cashfree / Stripe / Generic JSON format
-    else {
-      invoiceId = body.invoiceId || body.invoice_id || null;
-      invoiceNumber = body.invoiceNumber || body.invoice_number || null;
-      amountPaid = Number(body.amount ?? body.amountPaid ?? 0);
-      paymentRef = body.reference || body.paymentId || body.transactionId || `pay_${Date.now()}`;
-      paymentMode = body.mode || body.paymentMode || "UPI";
-      orgId = body.organizationId || null;
-      provider = body.provider || "generic";
+
+    // 2. Parse & Normalize Payload
+    const parsed = parsePaymentWebhookPayload(body, headers);
+
+    // 3. Handle Non-Success Events (Failures / Refunds)
+    if (parsed.eventType === "PAYMENT_FAILED") {
+      if (parsed.customerId || parsed.invoiceId) {
+        // Record failed attempt in Collection Events if we have customer context
+        const orgId = parsed.organizationId;
+        if (orgId && parsed.customerId) {
+          await prisma.collectionEvent.create({
+            data: {
+              organizationId: orgId,
+              customerId: parsed.customerId,
+              invoiceId: parsed.invoiceId || null,
+              type: "payment_failed",
+              description: `Payment attempt of ₹${parsed.amount.toLocaleString("en-IN")} failed via ${parsed.paymentMode} (${parsed.provider}): ${parsed.failureReason || "Transaction declined"}`,
+              metadata: {
+                reference: parsed.paymentRef,
+                amount: parsed.amount,
+                failureReason: parsed.failureReason,
+                provider: parsed.provider,
+              },
+            },
+          });
+        }
+      }
+
+      return NextResponse.json({
+        ok: true,
+        processed: true,
+        eventType: "PAYMENT_FAILED",
+        reason: parsed.failureReason || "Payment failed",
+      });
     }
 
-    if (!invoiceId && !invoiceNumber) {
+    if (parsed.eventType === "REFUND") {
+      return NextResponse.json({
+        ok: true,
+        processed: true,
+        eventType: "REFUND",
+        paymentRef: parsed.paymentRef,
+      });
+    }
+
+    if (parsed.eventType !== "PAYMENT_SUCCESS") {
+      return NextResponse.json({
+        ok: true,
+        ignored: true,
+        reason: `Ignored unhandled event type: ${parsed.rawEvent || parsed.eventType}`,
+      });
+    }
+
+    if (!parsed.invoiceId && !parsed.invoiceNumber) {
       return NextResponse.json({
         ok: true,
         ignored: true,
@@ -88,18 +111,18 @@ export async function POST(req: Request) {
       });
     }
 
-    if (amountPaid <= 0) {
+    if (parsed.amount <= 0) {
       return NextResponse.json({
         ok: true,
         ignored: true,
-        reason: "Zero or invalid payment amount",
+        reason: "Zero or invalid payment amount in payload",
       });
     }
 
-    // 4. Idempotency Check: Don't reconcile the same paymentRef twice
-    if (paymentRef) {
+    // 4. Idempotency Verification
+    if (parsed.paymentRef) {
       const existingPayment = await prisma.payment.findFirst({
-        where: { reference: paymentRef },
+        where: { reference: parsed.paymentRef },
       });
       if (existingPayment) {
         return NextResponse.json({
@@ -111,12 +134,19 @@ export async function POST(req: Request) {
       }
     }
 
-    // 5. Lookup Invoice
+    // 5. Lookup Target Invoice
     const invoice = await prisma.invoice.findFirst({
       where: {
         OR: [
-          ...(invoiceId ? [{ id: invoiceId }] : []),
-          ...(invoiceNumber ? [{ invoiceNumber, ...(orgId ? { organizationId: orgId } : {}) }] : []),
+          ...(parsed.invoiceId ? [{ id: parsed.invoiceId }] : []),
+          ...(parsed.invoiceNumber
+            ? [
+                {
+                  invoiceNumber: parsed.invoiceNumber,
+                  ...(parsed.organizationId ? { organizationId: parsed.organizationId } : {}),
+                },
+              ]
+            : []),
         ],
       },
       include: {
@@ -135,28 +165,43 @@ export async function POST(req: Request) {
         ok: true,
         matched: false,
         reason: "Invoice not found for reconciliation",
-        invoiceId,
-        invoiceNumber,
+        invoiceId: parsed.invoiceId,
+        invoiceNumber: parsed.invoiceNumber,
       });
     }
 
     const organizationId = invoice.organizationId;
     const customerId = invoice.customerId;
-    const currentOutstanding = invoice.outstandingAmount;
-    const newOutstanding = Math.max(0, Math.round((currentOutstanding - amountPaid) * 100) / 100);
-    const newStatus = newOutstanding <= 0 ? "PAID" : "PARTIALLY_PAID";
 
-    // 6. Execute Transactional Database Updates
+    // 6. Calculate Reconciliation
+    const reconciliation = reconcileInvoicePayment({
+      invoice: {
+        id: invoice.id,
+        invoiceNumber: invoice.invoiceNumber,
+        amount: invoice.amount,
+        outstandingAmount: invoice.outstandingAmount,
+        organizationId: invoice.organizationId,
+        customerId: invoice.customerId,
+        status: invoice.status,
+      },
+      amountPaid: parsed.amount,
+      paymentRef: parsed.paymentRef,
+      paymentMode: parsed.paymentMode,
+      provider: parsed.provider,
+      promisesToPay: invoice.customer.promisesToPay,
+    });
+
+    // 7. Atomic Database Execution
     const result = await prisma.$transaction(async (tx) => {
       // Create Payment record
       const payment = await tx.payment.create({
         data: {
           organizationId,
           customerId,
-          reference: paymentRef,
-          amount: amountPaid,
+          reference: parsed.paymentRef,
+          amount: parsed.amount,
           paymentDate: new Date(),
-          mode: paymentMode,
+          mode: parsed.paymentMode,
           status: "received",
         },
       });
@@ -166,16 +211,16 @@ export async function POST(req: Request) {
         data: {
           paymentId: payment.id,
           invoiceId: invoice.id,
-          amount: amountPaid,
+          amount: parsed.amount,
         },
       });
 
-      // Update Invoice balance and status
+      // Update Invoice outstanding balance & status
       const updatedInvoice = await tx.invoice.update({
         where: { id: invoice.id },
         data: {
-          outstandingAmount: newOutstanding,
-          status: newStatus,
+          outstandingAmount: reconciliation.newBalance,
+          status: reconciliation.newInvoiceStatus,
         },
       });
 
@@ -200,17 +245,12 @@ export async function POST(req: Request) {
         },
       });
 
-      // Check and fulfill active promises to pay
-      for (const p of invoice.customer.promisesToPay) {
-        if (p.invoiceId === invoice.id || !p.invoiceId) {
-          if (amountPaid >= p.amount * 0.9) {
-            // Settle promise if payment covers at least 90%
-            await tx.promiseToPay.update({
-              where: { id: p.id },
-              data: { status: "KEPT" },
-            });
-          }
-        }
+      // Settle resolved promises to pay
+      if (reconciliation.resolvedPromiseIds.length > 0) {
+        await tx.promiseToPay.updateMany({
+          where: { id: { in: reconciliation.resolvedPromiseIds } },
+          data: { status: "KEPT" },
+        });
       }
 
       // Record CollectionEvent on Customer Timeline
@@ -220,16 +260,17 @@ export async function POST(req: Request) {
           customerId,
           invoiceId: invoice.id,
           type: "payment_received",
-          description: `Online payment received ₹${amountPaid.toLocaleString("en-IN")} via ${paymentMode} (${provider})`,
+          description: `Instant online settlement received ₹${parsed.amount.toLocaleString("en-IN")} via ${parsed.paymentMode} (${parsed.provider})`,
           metadata: {
             paymentId: payment.id,
-            reference: paymentRef,
-            amount: amountPaid,
-            mode: paymentMode,
-            provider,
-            previousBalance: currentOutstanding,
-            newBalance: newOutstanding,
-            invoiceStatus: newStatus,
+            reference: parsed.paymentRef,
+            amount: parsed.amount,
+            mode: parsed.paymentMode,
+            provider: parsed.provider,
+            previousBalance: reconciliation.previousBalance,
+            newBalance: reconciliation.newBalance,
+            invoiceStatus: reconciliation.newInvoiceStatus,
+            resolvedPromiseIds: reconciliation.resolvedPromiseIds,
           },
         },
       });
@@ -237,7 +278,7 @@ export async function POST(req: Request) {
       return { payment, updatedInvoice };
     });
 
-    // Write Audit Log
+    // 8. Record Audit Log
     await writeAudit({
       organizationId,
       userId: null,
@@ -247,11 +288,11 @@ export async function POST(req: Request) {
       metadata: {
         invoiceId: invoice.id,
         invoiceNumber: invoice.invoiceNumber,
-        amount: amountPaid,
-        mode: paymentMode,
-        provider,
-        reference: paymentRef,
-        newStatus,
+        amount: parsed.amount,
+        mode: parsed.paymentMode,
+        provider: parsed.provider,
+        reference: parsed.paymentRef,
+        newStatus: reconciliation.newInvoiceStatus,
       },
     });
 
@@ -261,10 +302,11 @@ export async function POST(req: Request) {
       paymentId: result.payment.id,
       invoiceId: invoice.id,
       invoiceNumber: invoice.invoiceNumber,
-      amount: amountPaid,
-      previousBalance: currentOutstanding,
-      newBalance: newOutstanding,
-      status: newStatus,
+      amount: parsed.amount,
+      previousBalance: reconciliation.previousBalance,
+      newBalance: reconciliation.newBalance,
+      status: reconciliation.newInvoiceStatus,
+      resolvedPromises: reconciliation.resolvedPromiseIds.length,
     });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Internal Server Error";

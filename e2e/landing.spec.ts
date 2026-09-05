@@ -11,7 +11,7 @@ test.describe("Public Landing Page & Interactive Product Tour", () => {
     // Brand navigation
     await expect(page.getByRole("navigation").getByText("DuesPilot")).toBeVisible();
     await expect(page.getByText("Collections OS")).toBeVisible();
-    await expect(page.getByRole("link", { name: /Sign in/i })).toBeVisible();
+    await expect(page.getByRole("navigation").getByRole("link", { name: "Sign in", exact: true })).toBeVisible();
     await expect(page.getByRole("link", { name: /Start Free Trial/i }).first()).toBeVisible();
 
     // Hero title
@@ -80,6 +80,6 @@ test.describe("Public Landing Page & Interactive Product Tour", () => {
     // Terms of service page
     await page.goto("/terms");
     await expect(page.getByRole("heading", { name: "Terms of Service", exact: true })).toBeVisible();
-    await expect(page.getByText(/MSMED Act 2006/i)).toBeVisible();
+    await expect(page.getByText(/Acceptance of Terms/i)).toBeVisible();
   });
 });

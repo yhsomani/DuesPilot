@@ -148,11 +148,15 @@ export function SendReminderModal({
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/40 p-4 backdrop-blur-xs animate-in fade-in duration-150">
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/40 p-4 backdrop-blur-xs animate-in fade-in duration-150"
+      role="dialog"
+      aria-modal="true"
+    >
       <div className="w-full max-w-lg rounded-3xl bg-white shadow-2xl border border-slate-200/90 overflow-hidden animate-in zoom-in-95 duration-150">
         <div className="flex items-center justify-between border-b border-slate-100 px-6 py-4 bg-slate-50/50">
           <div>
-            <h3 className="text-base font-bold text-slate-900">Send Collection Reminder</h3>
+            <h3 className="text-base font-bold text-slate-900">Send Payment Reminder</h3>
             <p className="text-xs text-slate-500">Direct outreach to {customerName}</p>
           </div>
           <button
@@ -271,7 +275,13 @@ export function SendReminderModal({
             <div>
               <div className="flex items-center justify-between mb-1">
                 <label className="block text-xs font-bold text-slate-700">Message Content</label>
-                <span className="text-[11px] text-slate-400 font-medium">Auto-populated with dynamic tags</span>
+                {channel === "SMS" ? (
+                  <span className="text-[11px] text-blue-600 font-medium">
+                    DLT: DUESPL ({body.length} chars • {body.length <= 160 ? "1 segment" : `${Math.ceil(body.length / 153)} segments`})
+                  </span>
+                ) : (
+                  <span className="text-[11px] text-slate-400 font-medium">Auto-populated with dynamic tags</span>
+                )}
               </div>
               <textarea
                 rows={5}

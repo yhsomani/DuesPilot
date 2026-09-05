@@ -45,7 +45,7 @@ export function NotificationBell() {
 
   useEffect(() => {
     api<NotificationRow[]>("/api/notifications")
-      .then(setNotifications)
+      .then((res) => setNotifications(Array.isArray(res) ? res : []))
       .catch(() => setNotifications([]));
   }, []);
 
@@ -60,7 +60,8 @@ export function NotificationBell() {
     return () => document.removeEventListener("mousedown", onClick);
   }, [open]);
 
-  const visible = (notifications ?? []).filter((n) => !dismissed.has(n.id));
+  const list = Array.isArray(notifications) ? notifications : [];
+  const visible = list.filter((n) => n && n.id && !dismissed.has(n.id));
   const unread = visible.length;
 
   return (
@@ -117,7 +118,7 @@ export function NotificationBell() {
           ) : (
             <ul className="max-h-96 overflow-y-auto divide-y divide-slate-100">
               {visible.map((n) => {
-                const config = kindConfig[n.kind] || kindConfig.system;
+                const config = (n.kind && kindConfig[n.kind]) ? kindConfig[n.kind] : kindConfig.system;
                 const Icon = config.icon;
                 return (
                   <li key={n.id} className={cn("p-3.5 transition-colors hover:bg-slate-50/80", config.bg)}>

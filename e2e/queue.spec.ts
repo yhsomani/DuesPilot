@@ -40,8 +40,8 @@ test.describe("Smart Collections Queue & Quick Dunning Actions", () => {
     await expect(modal.getByText("Send Payment Reminder")).toBeVisible();
 
     // Channels are selectable
-    await expect(modal.getByText(/WhatsApp/i)).toBeVisible();
-    await expect(modal.getByText(/Email/i)).toBeVisible();
+    await expect(modal.getByRole("button", { name: "WhatsApp" })).toBeVisible();
+    await expect(modal.getByRole("button", { name: "Email" })).toBeVisible();
 
     // Close modal
     await modal.getByRole("button", { name: /Cancel/i }).click();
@@ -138,6 +138,9 @@ test.describe("Smart Collections Queue & Quick Dunning Actions", () => {
       customerId: "cust_1",
       type: "CALL",
     });
+
+    // Reset loggedEvent before testing the second action
+    loggedEvent = null;
 
     // Reopen and switch to Note tab
     await takeActionBtn.click();

@@ -214,8 +214,8 @@ test.describe("Settings & Workspace Administration", () => {
     await page.getByRole("button", { name: /Team & Access/i }).click();
 
     await expect(page.getByRole("heading", { name: "Active Workspace Team Members" })).toBeVisible();
-    await expect(page.getByText("Yash Somani")).toBeVisible();
-    await expect(page.getByText("Pooja Mehta")).toBeVisible();
+    await expect(page.getByRole("table").getByText("Yash Somani")).toBeVisible();
+    await expect(page.getByRole("table").getByText("Pooja Mehta")).toBeVisible();
 
     // Fill Invite form
     await page.getByPlaceholder(/Full Name/i).fill("Arjun Patel");
@@ -262,13 +262,13 @@ test.describe("Settings & Workspace Administration", () => {
 
     // Current Plan Header
     await expect(page.getByRole("heading", { name: "Starter Plan" })).toBeVisible();
-    await expect(page.getByText("ACTIVE")).toBeVisible();
+    await expect(page.getByText("ACTIVE", { exact: true }).first()).toBeVisible();
 
     // Usage Quotas
     await expect(page.getByText("Resource Usage & Quotas")).toBeVisible();
-    await expect(page.getByText("Active Invoices")).toBeVisible();
-    await expect(page.getByText("Team Seats")).toBeVisible();
-    await expect(page.getByText("Messages Sent (Month)")).toBeVisible();
+    await expect(page.getByText("Active Invoices", { exact: true })).toBeVisible();
+    await expect(page.getByText("Team Seats", { exact: true })).toBeVisible();
+    await expect(page.getByText("Messages Sent (Month)", { exact: true })).toBeVisible();
 
     // Available Plans Grid
     await expect(page.getByRole("heading", { name: "Available Plans" })).toBeVisible();
@@ -277,7 +277,7 @@ test.describe("Settings & Workspace Administration", () => {
 
     // Toggle Annual Billing Cycle
     await page.getByRole("button", { name: /Annual/i }).click();
-    await expect(page.getByText("Save 17%")).toBeVisible();
+    await expect(page.getByText("Save 17%").first()).toBeVisible();
 
     // Upgrade to Growth Plan
     const upgradeGrowthBtn = page.getByRole("button", { name: /Upgrade to Growth/i });

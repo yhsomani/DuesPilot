@@ -27,17 +27,17 @@ test.describe("Navigation, Responsive Layout & Global Search", () => {
     await page.goto("/dashboard");
 
     // Check sidebar navigation links
-    await expect(page.getByRole("link", { name: /Dashboard/i })).toBeVisible();
-    await expect(page.getByRole("link", { name: /Smart Queue/i })).toBeVisible();
-    await expect(page.getByRole("link", { name: /Invoices/i })).toBeVisible();
-    await expect(page.getByRole("link", { name: /Customers/i })).toBeVisible();
-    await expect(page.getByRole("link", { name: /Promises to Pay/i })).toBeVisible();
-    await expect(page.getByRole("link", { name: /Payments/i })).toBeVisible();
-    await expect(page.getByRole("link", { name: /Disputes/i })).toBeVisible();
-    await expect(page.getByRole("link", { name: /Communications/i })).toBeVisible();
-    await expect(page.getByRole("link", { name: /Cadence Workflows/i })).toBeVisible();
-    await expect(page.getByRole("link", { name: /Analytics/i })).toBeVisible();
-    await expect(page.getByRole("link", { name: /Settings/i })).toBeVisible();
+    await expect(page.getByRole("link", { name: "Dashboard" }).first()).toBeVisible();
+    await expect(page.getByRole("link", { name: "Collection Queue" }).first()).toBeVisible();
+    await expect(page.getByRole("link", { name: "Invoices", exact: true }).first()).toBeVisible();
+    await expect(page.getByRole("link", { name: "Customers" }).first()).toBeVisible();
+    await expect(page.getByRole("link", { name: "Promises" }).first()).toBeVisible();
+    await expect(page.getByRole("link", { name: "Payments" }).first()).toBeVisible();
+    await expect(page.getByRole("link", { name: "Disputes" }).first()).toBeVisible();
+    await expect(page.getByRole("link", { name: "Communications" }).first()).toBeVisible();
+    await expect(page.getByRole("link", { name: "Workflows" }).first()).toBeVisible();
+    await expect(page.getByRole("link", { name: "Analytics" }).first()).toBeVisible();
+    await expect(page.getByRole("link", { name: "Settings" }).first()).toBeVisible();
   });
 
   test("responsive mobile header and slide-over navigation drawer open on mobile viewports", async ({
@@ -57,21 +57,21 @@ test.describe("Navigation, Responsive Layout & Global Search", () => {
     await page.goto("/dashboard");
 
     // Mobile header is visible with hamburger button
-    const menuBtn = page.getByRole("button", { name: /Toggle navigation menu/i });
+    const menuBtn = page.getByRole("button", { name: /Open navigation menu/i });
     await expect(menuBtn).toBeVisible();
 
     // Click menu button to open slide-over drawer
     await menuBtn.click();
 
     // Drawer should show navigation links
-    await expect(page.getByRole("link", { name: /Smart Queue/i })).toBeVisible();
-    await expect(page.getByRole("link", { name: /Invoices/i })).toBeVisible();
+    await expect(page.getByRole("link", { name: "Collection Queue", exact: true })).toBeVisible();
+    await expect(page.getByRole("link", { name: "Invoices", exact: true })).toBeVisible();
 
-    // Close drawer by clicking close button or backdrop
-    const closeBtn = page.getByRole("button", { name: /Close menu/i });
-    if (await closeBtn.isVisible()) {
-      await closeBtn.click();
-    }
+    // Close drawer by clicking close button
+    const closeBtn = page.getByRole("button", { name: "Close menu" });
+    await expect(closeBtn).toBeVisible();
+    await closeBtn.click();
+    await expect(closeBtn).not.toBeVisible();
   });
 
   test("global command palette search modal opens via shortcut and displays instant results", async ({

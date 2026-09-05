@@ -422,8 +422,10 @@ export default function SettingsPage() {
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">Company Name *</label>
+                <label htmlFor="company-name" className="block text-xs font-bold text-slate-700 mb-1">Company Name *</label>
                 <input
+                  id="company-name"
+                  aria-label="Company Name *"
                   type="text"
                   required
                   value={name}
@@ -433,8 +435,10 @@ export default function SettingsPage() {
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">GSTIN (India)</label>
+                <label htmlFor="gstin" className="block text-xs font-bold text-slate-700 mb-1">GSTIN (India)</label>
                 <input
+                  id="gstin"
+                  aria-label="GSTIN (India)"
                   type="text"
                   placeholder="27AABCU9603R1ZM"
                   value={gstin}
@@ -444,8 +448,10 @@ export default function SettingsPage() {
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">Industry Sector</label>
+                <label htmlFor="industry" className="block text-xs font-bold text-slate-700 mb-1">Industry Sector</label>
                 <select
+                  id="industry"
+                  aria-label="Industry Sector"
                   value={industry}
                   onChange={(e) => setIndustry(e.target.value)}
                   className="w-full rounded-xl border border-slate-200 bg-slate-50/50 px-3 py-2 text-xs font-medium focus:bg-white focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 transition-all"

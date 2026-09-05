@@ -1,10 +1,10 @@
 import { err, ok, requireRole, withAuth, ACTION_ROLES } from "@/lib/server-context";
 import { prisma } from "@/lib/prisma";
 import { sendEmail } from "@/lib/email";
+import { sendWhatsAppMessage } from "@/lib/whatsapp";
 import { writeAudit } from "@/lib/audit";
 
-export const GET = withAuth(async (_req, ctx, rawParams) => {
-  const params = await rawParams;
+export const GET = withAuth(async (_req, ctx, params) => {
   const messageId = params?.id;
   if (!messageId) return err("Message ID required", 400);
 
@@ -16,11 +16,10 @@ export const GET = withAuth(async (_req, ctx, rawParams) => {
   return ok({ message });
 });
 
-export const POST = withAuth(async (req, ctx, rawParams) => {
+export const POST = withAuth(async (req, ctx, params) => {
   const forbidden = requireRole(ctx, ACTION_ROLES);
   if (forbidden) return forbidden;
 
-  const params = await rawParams;
   const messageId = params?.id;
   if (!messageId) return err("Message ID required", 400);
 
@@ -42,6 +41,14 @@ export const POST = withAuth(async (req, ctx, rawParams) => {
     sendSuccess = emailResult.success;
     externalId = emailResult.messageId;
     errorMessage = emailResult.error;
+  } else if (message.channel === "WHATSAPP") {
+    const waResult = await sendWhatsAppMessage({
+      to: message.recipient,
+      message: message.body,
+    });
+    sendSuccess = waResult.success;
+    externalId = waResult.messageId;
+    errorMessage = waResult.error;
   } else {
     externalId = `sim_${message.channel.toLowerCase()}_${Date.now()}`;
   }

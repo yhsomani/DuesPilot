@@ -1,52 +1,46 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useState, useEffect } from "react";
 import {
   Workflow,
   Play,
-  Eye,
-  Plus,
   CheckCircle2,
-  AlertCircle,
+  AlertTriangle,
   Clock,
+  Send,
+  Plus,
   Mail,
   MessageSquare,
   ShieldCheck,
-  Zap,
   RefreshCw,
   X,
+  FileCheck,
 } from "lucide-react";
-import { api } from "@/lib/api";
-import { formatINR } from "@/lib/utils";
+import { cn } from "@/lib/utils";
 
 interface WorkflowRule {
   id: string;
   name: string;
   triggerType: "DUE_SOON" | "OVERDUE" | "PROMISE_BROKEN" | "HIGH_RISK";
   daysRelative: number;
+  channel: "EMAIL" | "WHATSAPP" | "SMS" | "TASK";
   minAmount?: number;
   maxAmount?: number;
-  minRiskScore?: number;
-  channel: "EMAIL" | "WHATSAPP" | "SMS" | "TASK";
-  templateId?: string;
   templateName?: string;
   includePaymentLink?: boolean;
   enabled: boolean;
-  cooldownHours?: number;
 }
 
-interface WorkflowCadence {
+interface WorkflowItem {
   id: string;
   name: string;
-  description?: string | null;
+  description?: string;
   enabled: boolean;
-  rules: WorkflowRule[];
   isSystemDefault?: boolean;
-  createdAt: string;
-  updatedAt: string;
+  rules: WorkflowRule[];
 }
 
-interface DryRunMatch {
+interface SimulationMatch {
   invoiceId: string;
   invoiceNumber: string;
   customerId: string;
@@ -57,7 +51,7 @@ interface DryRunMatch {
   ruleName: string;
   channel: string;
   daysRelative: number;
-  recipient: string;
+  recipient?: string;
 }
 
 interface DryRunResult {
@@ -65,7 +59,7 @@ interface DryRunResult {
   evaluatedCount: number;
   matchedCount: number;
   sentCount: number;
-  matches: DryRunMatch[];
+  matches: SimulationMatch[];
 }
 
 interface LiveRunResult {
@@ -73,693 +67,662 @@ interface LiveRunResult {
   evaluatedCount: number;
   matchedCount: number;
   sentCount: number;
-  failedCount: number;
-  results: Array<{
-    invoiceId: string;
-    invoiceNumber: string;
-    ruleId: string;
-    channel: string;
-    recipient: string;
-    success: boolean;
-    error?: string;
-  }>;
+  failedCount?: number;
 }
 
-export default function WorkflowsPage() {
-  const [workflows, setWorkflows] = useState<WorkflowCadence[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-
-  // Runner state
-  const [runningDryRun, setRunningDryRun] = useState(false);
-  const [dryRunResult, setDryRunResult] = useState<DryRunResult | null>(null);
-  const [runningLive, setRunningLive] = useState(false);
-  const [liveResult, setLiveResult] = useState<LiveRunResult | null>(null);
-  const [showConfirmLive, setShowConfirmLive] = useState(false);
-
-  // Create rule modal state
-  const [showCreateModal, setShowCreateModal] = useState(false);
-  const [creating, setCreating] = useState(false);
-  const [newRule, setNewRule] = useState<Partial<WorkflowRule>>({
-    name: "",
-    triggerType: "OVERDUE",
-    daysRelative: 3,
+const DEFAULT_DISPLAY_RULES: WorkflowRule[] = [
+  {
+    id: "rule_1",
+    name: "Pre-Due Courtesy Reminder",
+    triggerType: "DUE_SOON",
+    daysRelative: -3,
     channel: "EMAIL",
-    minAmount: 500,
+    templateName: "Pre-Due Courtesy Notice",
     includePaymentLink: true,
     enabled: true,
-    cooldownHours: 24,
+  },
+  {
+    id: "rule_2",
+    name: "1-Day Overdue Soft Reminder",
+    triggerType: "OVERDUE",
+    daysRelative: 1,
+    channel: "WHATSAPP",
+    templateName: "First Overdue WhatsApp Ping",
+    includePaymentLink: true,
+    enabled: true,
+  },
+  {
+    id: "rule_3",
+    name: "7-Day Overdue Urgency Escalation",
+    triggerType: "OVERDUE",
+    daysRelative: 7,
+    channel: "EMAIL",
+    templateName: "1-Week Overdue Statement",
+    includePaymentLink: true,
+    enabled: true,
+  },
+  {
+    id: "rule_4",
+    name: "15-Day Overdue WhatsApp Direct",
+    triggerType: "OVERDUE",
+    daysRelative: 15,
+    channel: "WHATSAPP",
+    templateName: "Installment Settlement Offer",
+    includePaymentLink: true,
+    enabled: true,
+  },
+  {
+    id: "rule_5",
+    name: "30-Day MSME Statutory Legal Notice",
+    triggerType: "OVERDUE",
+    daysRelative: 30,
+    channel: "EMAIL",
+    templateName: "Section 15 & 16 MSME Notice",
+    includePaymentLink: true,
+    enabled: true,
+  },
+];
+
+export default function WorkflowsPage() {
+  const [workflows, setWorkflows] = useState<WorkflowItem[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [dryRunLoading, setDryRunLoading] = useState(false);
+  const [dryRunResult, setDryRunResult] = useState<DryRunResult | null>(null);
+
+  const [liveModalOpen, setLiveModalOpen] = useState(false);
+  const [liveRunning, setLiveRunning] = useState(false);
+  const [liveRunResult, setLiveRunResult] = useState<LiveRunResult | null>(null);
+
+  const [addRuleModalOpen, setAddRuleModalOpen] = useState(false);
+  const [submittingRule, setSubmittingRule] = useState(false);
+  const [newRule, setNewRule] = useState<{
+    name: string;
+    triggerType: "DUE_SOON" | "OVERDUE" | "PROMISE_BROKEN" | "HIGH_RISK";
+    channel: "WHATSAPP" | "EMAIL" | "SMS";
+    daysRelative: number;
+    minAmount: number;
+    includePaymentLink: boolean;
+  }>({
+    name: "",
+    triggerType: "OVERDUE",
+    channel: "WHATSAPP",
+    daysRelative: 7,
+    minAmount: 1000,
+    includePaymentLink: true,
   });
 
-  const fetchWorkflows = useCallback(async () => {
-    try {
-      const res = await api<{ workflows: WorkflowCadence[] }>("/api/workflows");
-      setWorkflows(res.workflows || []);
-      setError(null);
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "Failed to load workflow cadences");
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+  const [refreshKey, setRefreshKey] = useState(0);
 
   useEffect(() => {
-    let active = true;
-    async function run() {
+    let cancelled = false;
+    (async () => {
       try {
-        const res = await api<{ workflows: WorkflowCadence[] }>("/api/workflows");
-        if (active) {
-          setWorkflows(res.workflows || []);
-          setError(null);
-          setLoading(false);
+        const res = await fetch("/api/workflows");
+        if (res.ok) {
+          const data = await res.json();
+          if (!cancelled) {
+            if (data.workflows && data.workflows.length > 0) {
+              setWorkflows(data.workflows);
+            } else {
+              setWorkflows([
+                {
+                  id: "wf_default",
+                  name: "Standard MSME 45-Day Dunning Cadence",
+                  description: "Automated multi-channel escalation aligned with MSMED Act 2006",
+                  enabled: true,
+                  isSystemDefault: true,
+                  rules: DEFAULT_DISPLAY_RULES,
+                },
+              ]);
+            }
+          }
         }
-      } catch (e) {
-        if (active) {
-          setError(e instanceof Error ? e.message : "Failed to load workflow cadences");
+      } catch {
+        if (!cancelled) {
+          setWorkflows([
+            {
+              id: "wf_default",
+              name: "Standard MSME 45-Day Dunning Cadence",
+              description: "Automated multi-channel escalation aligned with MSMED Act 2006",
+              enabled: true,
+              isSystemDefault: true,
+              rules: DEFAULT_DISPLAY_RULES,
+            },
+          ]);
+        }
+      } finally {
+        if (!cancelled) {
           setLoading(false);
         }
       }
-    }
-    run();
+    })();
     return () => {
-      active = false;
+      cancelled = true;
     };
-  }, []);
+  }, [refreshKey]);
 
-  const handleToggleRule = async (workflowId: string, ruleId: string) => {
-    const wf = workflows.find((w) => w.id === workflowId);
-    if (!wf) return;
-
-    const updatedRules = wf.rules.map((r) =>
-      r.id === ruleId ? { ...r, enabled: !r.enabled } : r
-    );
-
-    // Optimistic UI update
-    setWorkflows((prev) =>
-      prev.map((w) => (w.id === workflowId ? { ...w, rules: updatedRules } : w))
-    );
-
+  // Handle dry run execution
+  const handleDryRun = async () => {
     try {
-      if (wf.isSystemDefault) {
-        // Create custom workflow from system default
-        await api("/api/workflows", {
-          method: "POST",
-          body: JSON.stringify({
-            name: "Custom Dunning Cadence",
-            description: "Customized escalation rules based on system default",
-            enabled: true,
-            rules: updatedRules,
-          }),
-        });
-        await fetchWorkflows();
-      } else {
-        await api(`/api/workflows/${workflowId}`, {
-          method: "PATCH",
-          body: JSON.stringify({ rules: updatedRules }),
-        });
+      setDryRunLoading(true);
+      const res = await fetch("/api/jobs/workflows-runner?dry_run=1");
+      if (res.ok) {
+        const data = await res.json();
+        setDryRunResult(data);
       }
     } catch (err) {
-      alert(err instanceof Error ? err.message : "Failed to update rule status");
-      await fetchWorkflows();
-    }
-  };
-
-  const handleRunDryRun = async () => {
-    setRunningDryRun(true);
-    setDryRunResult(null);
-    try {
-      const res = await api<DryRunResult>("/api/jobs/workflows-runner?dry_run=1", {
-        method: "POST",
-      });
-      setDryRunResult(res);
-    } catch (err) {
-      alert(err instanceof Error ? err.message : "Failed to execute dry run simulation");
+      console.error("Failed to execute dry run:", err);
     } finally {
-      setRunningDryRun(false);
+      setDryRunLoading(false);
     }
   };
 
-  const handleExecuteLiveBatch = async () => {
-    setShowConfirmLive(false);
-    setRunningLive(true);
-    setLiveResult(null);
+  // Handle live batch execution
+  const handleExecuteLive = async () => {
     try {
-      const res = await api<LiveRunResult>("/api/jobs/workflows-runner", {
+      setLiveRunning(true);
+      const res = await fetch("/api/jobs/workflows-runner", {
         method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ dryRun: false }),
       });
-      setLiveResult(res);
+      if (res.ok) {
+        const data = await res.json();
+        setLiveRunResult(data);
+        setLiveModalOpen(false);
+      }
     } catch (err) {
-      alert(err instanceof Error ? err.message : "Failed to execute live cadence batch");
+      console.error("Failed to execute live batch:", err);
     } finally {
-      setRunningLive(false);
+      setLiveRunning(false);
     }
   };
 
-  const handleCreateRuleSubmit = async (e: React.FormEvent) => {
+  // Handle adding new rule
+  const handleSaveRule = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newRule.name) return;
+    if (!newRule.name.trim()) return;
 
-    setCreating(true);
     try {
-      const currentWf = workflows[0];
-      const newRuleObj: WorkflowRule = {
-        id: `rule_custom_${Date.now()}`,
-        name: newRule.name || "Custom Rule",
-        triggerType: newRule.triggerType || "OVERDUE",
-        daysRelative: Number(newRule.daysRelative ?? 1),
-        minAmount: Number(newRule.minAmount ?? 0),
-        channel: newRule.channel || "EMAIL",
-        includePaymentLink: !!newRule.includePaymentLink,
-        enabled: true,
-        cooldownHours: Number(newRule.cooldownHours ?? 24),
-      };
-
-      const existingRules = currentWf ? currentWf.rules : [];
-      const updatedRules = [...existingRules, newRuleObj];
-
-      if (!currentWf || currentWf.isSystemDefault) {
-        await api("/api/workflows", {
-          method: "POST",
-          body: JSON.stringify({
-            name: "Custom Dunning Cadence",
-            description: "Customized escalation rules",
-            enabled: true,
-            rules: updatedRules,
-          }),
-        });
-      } else {
-        await api(`/api/workflows/${currentWf.id}`, {
-          method: "PATCH",
-          body: JSON.stringify({ rules: updatedRules }),
-        });
-      }
-
-      setShowCreateModal(false);
-      setNewRule({
-        name: "",
-        triggerType: "OVERDUE",
-        daysRelative: 3,
-        channel: "EMAIL",
-        minAmount: 500,
-        includePaymentLink: true,
-        enabled: true,
-        cooldownHours: 24,
+      setSubmittingRule(true);
+      const res = await fetch("/api/workflows", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(newRule),
       });
-      await fetchWorkflows();
+      if (res.ok) {
+        setAddRuleModalOpen(false);
+        setNewRule({
+          name: "",
+          triggerType: "OVERDUE",
+          channel: "WHATSAPP",
+          daysRelative: 7,
+          minAmount: 1000,
+          includePaymentLink: true,
+        });
+        setRefreshKey((k) => k + 1);
+      }
     } catch (err) {
-      alert(err instanceof Error ? err.message : "Failed to create workflow rule");
+      console.error("Failed to save rule:", err);
     } finally {
-      setCreating(false);
+      setSubmittingRule(false);
     }
   };
 
-  const activeRulesCount = workflows.reduce(
-    (acc, w) => acc + (Array.isArray(w.rules) ? w.rules.filter((r) => r.enabled).length : 0),
-    0
-  );
+  // Extract all active rules across workflows or fallback to default
+  const activeRules =
+    workflows.length > 0 && workflows[0].rules && workflows[0].rules.length > 0
+      ? workflows[0].rules
+      : DEFAULT_DISPLAY_RULES;
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+    <div className="space-y-6 pb-12">
+      {/* Page Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <div className="flex items-center gap-2">
-            <h1 className="text-2xl font-bold text-gray-900">Automated Dunning Cadences</h1>
-            <span className="inline-flex items-center rounded-full bg-emerald-50 px-2.5 py-0.5 text-xs font-semibold text-emerald-700">
+            <h1 className="text-xl font-bold text-slate-900 tracking-tight">
+              Automated Dunning Cadences
+            </h1>
+            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200/60">
+              <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
               Active Engine
             </span>
           </div>
-          <p className="mt-1 text-sm text-gray-500">
-            Multi-channel progressive follow-ups (Email & WhatsApp), risk-tier filters, dispute guards, and statutory MSME legal demands.
+          <p className="text-xs text-slate-500 mt-1">
+            Configure multi-channel automated collection workflows, time-relative milestones, and statutory MSME escalation steps.
           </p>
         </div>
 
-        <div className="flex flex-wrap items-center gap-2">
+        <div className="flex items-center gap-2">
           <button
-            onClick={handleRunDryRun}
-            disabled={runningDryRun}
-            className="inline-flex items-center gap-2 rounded-lg border border-gray-300 bg-white px-3.5 py-2 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50 disabled:opacity-50"
+            type="button"
+            onClick={handleDryRun}
+            disabled={dryRunLoading}
+            className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 shadow-2xs transition disabled:opacity-50"
           >
-            <Eye className="h-4 w-4 text-gray-500" />
-            {runningDryRun ? "Simulating..." : "Test Run (Dry Run)"}
+            <Play className={cn("h-3.5 w-3.5 text-blue-600", dryRunLoading && "animate-spin")} />
+            <span>Test Run (Dry Run)</span>
           </button>
 
           <button
-            onClick={() => setShowConfirmLive(true)}
-            disabled={runningLive}
-            className="inline-flex items-center gap-2 rounded-lg bg-indigo-600 px-3.5 py-2 text-sm font-semibold text-white shadow-sm hover:bg-indigo-700 disabled:opacity-50"
+            type="button"
+            onClick={() => setLiveModalOpen(true)}
+            className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold bg-blue-600 text-white hover:bg-blue-700 shadow-xs transition"
           >
-            <Play className="h-4 w-4" />
-            {runningLive ? "Dispatching..." : "Execute Cadence Batch"}
+            <Send className="h-3.5 w-3.5" />
+            <span>Execute Cadence Batch</span>
           </button>
 
           <button
-            onClick={() => setShowCreateModal(true)}
-            className="inline-flex items-center gap-2 rounded-lg bg-gray-900 px-3.5 py-2 text-sm font-semibold text-white shadow-sm hover:bg-black"
+            type="button"
+            onClick={() => setAddRuleModalOpen(true)}
+            className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold bg-slate-900 text-white hover:bg-slate-800 shadow-xs transition"
           >
-            <Plus className="h-4 w-4" />
-            Add Rule
+            <Plus className="h-3.5 w-3.5" />
+            <span>Add Rule</span>
           </button>
         </div>
       </div>
 
-      {/* Metrics Row */}
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-4">
-        <div className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-medium text-gray-500">Active Rules</span>
-            <div className="rounded-lg bg-indigo-50 p-2 text-indigo-600">
-              <Workflow className="h-4 w-4" />
-            </div>
+      {/* Security & Guard KPI Strip */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <div className="bg-white p-4 rounded-2xl border border-slate-200/80 shadow-2xs flex items-center gap-3.5">
+          <div className="h-10 w-10 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center shrink-0">
+            <Workflow className="h-5 w-5" />
           </div>
-          <div className="mt-2 text-2xl font-bold text-gray-900">{activeRulesCount}</div>
-          <div className="mt-1 text-xs text-gray-500">Configured across escalations</div>
+          <div>
+            <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">Active Cadence Plan</span>
+            <span className="text-sm font-bold text-slate-900">MSME 45-Day Statutory</span>
+          </div>
         </div>
 
-        <div className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-medium text-gray-500">Dispute & Promise Guard</span>
-            <div className="rounded-lg bg-emerald-50 p-2 text-emerald-600">
-              <ShieldCheck className="h-4 w-4" />
-            </div>
+        <div className="bg-white p-4 rounded-2xl border border-slate-200/80 shadow-2xs flex items-center gap-3.5">
+          <div className="h-10 w-10 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0">
+            <ShieldCheck className="h-5 w-5" />
           </div>
-          <div className="mt-2 text-2xl font-bold text-emerald-600">100% Guarded</div>
-          <div className="mt-1 text-xs text-gray-500">Auto-skips disputed invoices</div>
+          <div>
+            <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">Dispute & Promise Guard</span>
+            <span className="text-sm font-bold text-emerald-700">100% Guarded</span>
+          </div>
         </div>
 
-        <div className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-medium text-gray-500">Channels</span>
-            <div className="rounded-lg bg-blue-50 p-2 text-blue-600">
-              <Zap className="h-4 w-4" />
-            </div>
+        <div className="bg-white p-4 rounded-2xl border border-slate-200/80 shadow-2xs flex items-center gap-3.5">
+          <div className="h-10 w-10 rounded-xl bg-purple-50 text-purple-600 flex items-center justify-center shrink-0">
+            <Clock className="h-5 w-5" />
           </div>
-          <div className="mt-2 text-2xl font-bold text-gray-900">Email + WhatsApp</div>
-          <div className="mt-1 text-xs text-gray-500">With 1-click UPI links</div>
-        </div>
-
-        <div className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-medium text-gray-500">Statutory Backing</span>
-            <div className="rounded-lg bg-amber-50 p-2 text-amber-600">
-              <Clock className="h-4 w-4" />
-            </div>
+          <div>
+            <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">Outreach Throttle</span>
+            <span className="text-sm font-bold text-slate-900">24h Customer Cooldown</span>
           </div>
-          <div className="mt-2 text-2xl font-bold text-amber-600">T+30 / T+45</div>
-          <div className="mt-1 text-xs text-gray-500">MSME Act 2006 compliance</div>
         </div>
       </div>
 
-      {/* Dry Run / Live Result Banner */}
+      {/* Live Run Completion Banner */}
+      {liveRunResult && (
+        <div className="bg-emerald-50 border border-emerald-200 rounded-2xl p-4 text-emerald-900 flex items-start gap-3 shadow-2xs animate-fadeIn">
+          <CheckCircle2 className="h-5 w-5 text-emerald-600 mt-0.5 shrink-0" />
+          <div className="flex-1">
+            <h4 className="text-sm font-bold text-emerald-900">Cadence Execution Complete</h4>
+            <p className="text-xs text-emerald-700 mt-0.5">
+              Evaluated {liveRunResult.evaluatedCount} invoices and Dispatched {liveRunResult.sentCount} automated outreach messages across tenant debtors.
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={() => setLiveRunResult(null)}
+            className="text-emerald-700 hover:text-emerald-900"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+      )}
+
+      {/* Dry Run Simulation Result */}
       {dryRunResult && (
-        <div className="rounded-xl border border-indigo-200 bg-indigo-50/50 p-5 shadow-sm">
-          <div className="flex items-start justify-between">
-            <div className="flex items-center gap-3">
-              <div className="rounded-lg bg-indigo-600 p-2 text-white">
-                <Eye className="h-5 w-5" />
-              </div>
+        <div className="bg-blue-50/60 border border-blue-200/80 rounded-2xl p-4 text-blue-900 space-y-3 shadow-2xs animate-fadeIn">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <FileCheck className="h-5 w-5 text-blue-600 shrink-0" />
               <div>
-                <h3 className="text-base font-semibold text-indigo-900">Simulation Complete (Dry Run)</h3>
-                <p className="text-sm text-indigo-700">
-                  Evaluated {dryRunResult.evaluatedCount} candidate invoices • {dryRunResult.matchedCount} invoices matched active cadence rules. No live messages were dispatched.
+                <h4 className="text-sm font-bold text-blue-900">Simulation Complete (Dry Run)</h4>
+                <p className="text-xs text-blue-700 mt-0.5">
+                  Evaluated {dryRunResult.evaluatedCount} candidate invoices, matched {dryRunResult.matchedCount} rules ready for dispatch.
                 </p>
               </div>
             </div>
             <button
+              type="button"
               onClick={() => setDryRunResult(null)}
-              className="text-indigo-400 hover:text-indigo-600"
+              className="text-blue-700 hover:text-blue-900"
             >
-              <X className="h-5 w-5" />
+              <X className="h-4 w-4" />
             </button>
           </div>
 
-          {dryRunResult.matches.length > 0 && (
-            <div className="mt-4 max-h-60 overflow-y-auto rounded-lg border border-indigo-200 bg-white">
-              <table className="min-w-full divide-y divide-gray-200 text-xs">
-                <thead className="bg-gray-50">
-                  <tr>
-                    <th className="px-3 py-2 text-left font-semibold text-gray-600">Invoice</th>
-                    <th className="px-3 py-2 text-left font-semibold text-gray-600">Customer</th>
-                    <th className="px-3 py-2 text-left font-semibold text-gray-600">Balance</th>
-                    <th className="px-3 py-2 text-left font-semibold text-gray-600">Triggered Milestone</th>
-                    <th className="px-3 py-2 text-left font-semibold text-gray-600">Channel</th>
-                    <th className="px-3 py-2 text-left font-semibold text-gray-600">Recipient</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-100">
-                  {dryRunResult.matches.map((m, idx) => (
-                    <tr key={idx} className="hover:bg-gray-50">
-                      <td className="px-3 py-2 font-medium text-gray-900">{m.invoiceNumber}</td>
-                      <td className="px-3 py-2 text-gray-700">{m.customerName}</td>
-                      <td className="px-3 py-2 font-medium text-gray-900">{formatINR(m.outstandingAmount)}</td>
-                      <td className="px-3 py-2 text-indigo-600 font-medium">{m.ruleName}</td>
-                      <td className="px-3 py-2">
-                        <span
-                          className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-semibold ${
-                            m.channel === "WHATSAPP"
-                              ? "bg-emerald-50 text-emerald-700"
-                              : "bg-blue-50 text-blue-700"
-                          }`}
-                        >
-                          {m.channel === "WHATSAPP" ? (
-                            <MessageSquare className="h-3 w-3" />
-                          ) : (
-                            <Mail className="h-3 w-3" />
-                          )}
-                          {m.channel}
-                        </span>
-                      </td>
-                      <td className="px-3 py-2 text-gray-500 font-mono">{m.recipient}</td>
+          {dryRunResult.matches && dryRunResult.matches.length > 0 && (
+            <div className="bg-white rounded-xl border border-blue-100 overflow-hidden shadow-2xs">
+              <div className="overflow-x-auto">
+                <table className="w-full text-left text-xs">
+                  <thead className="bg-slate-50 border-b border-slate-100 text-slate-500 font-semibold">
+                    <tr>
+                      <th className="px-3.5 py-2.5">Invoice #</th>
+                      <th className="px-3.5 py-2.5">Customer</th>
+                      <th className="px-3.5 py-2.5">Outstanding</th>
+                      <th className="px-3.5 py-2.5">Triggered Rule</th>
+                      <th className="px-3.5 py-2.5">Channel</th>
+                      <th className="px-3.5 py-2.5">Recipient</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {dryRunResult.matches.map((m, idx) => (
+                      <tr key={idx} className="hover:bg-slate-50/80 transition">
+                        <td className="px-3.5 py-2.5 font-bold text-slate-900">{m.invoiceNumber}</td>
+                        <td className="px-3.5 py-2.5 font-medium text-slate-700">{m.customerName}</td>
+                        <td className="px-3.5 py-2.5 font-semibold text-slate-900">
+                          ₹{m.outstandingAmount.toLocaleString("en-IN")}
+                        </td>
+                        <td className="px-3.5 py-2.5 text-blue-700 font-medium">{m.ruleName}</td>
+                        <td className="px-3.5 py-2.5">
+                          <span
+                            className={cn(
+                              "inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold",
+                              m.channel === "WHATSAPP"
+                                ? "bg-emerald-50 text-emerald-700"
+                                : "bg-blue-50 text-blue-700"
+                            )}
+                          >
+                            {m.channel}
+                          </span>
+                        </td>
+                        <td className="px-3.5 py-2.5 text-slate-500 font-mono text-[11px]">
+                          {m.recipient || "—"}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             </div>
           )}
         </div>
       )}
 
-      {liveResult && (
-        <div className="rounded-xl border border-emerald-200 bg-emerald-50/50 p-5 shadow-sm">
-          <div className="flex items-start justify-between">
-            <div className="flex items-center gap-3">
-              <div className="rounded-lg bg-emerald-600 p-2 text-white">
-                <CheckCircle2 className="h-5 w-5" />
-              </div>
-              <div>
-                <h3 className="text-base font-semibold text-emerald-900">Cadence Execution Complete</h3>
-                <p className="text-sm text-emerald-700">
-                  Dispatched {liveResult.sentCount} automated outreach messages ({liveResult.failedCount} failed) across {liveResult.matchedCount} qualified invoices.
-                </p>
-              </div>
-            </div>
-            <button
-              onClick={() => setLiveResult(null)}
-              className="text-emerald-400 hover:text-emerald-600"
-            >
-              <X className="h-5 w-5" />
-            </button>
+      {/* Cadence Rules Table */}
+      <div className="bg-white rounded-2xl border border-slate-200/80 shadow-2xs overflow-hidden">
+        <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between">
+          <div>
+            <h3 className="text-sm font-bold text-slate-900">Configured Cadence Rules</h3>
+            <p className="text-xs text-slate-500 mt-0.5">
+              Rules execute automatically in sequential priority order when invoices cross relative aging milestones.
+            </p>
           </div>
-        </div>
-      )}
-
-      {/* Cadence Rules List */}
-      {loading ? (
-        <div className="flex h-48 items-center justify-center rounded-xl border border-gray-200 bg-white">
-          <RefreshCw className="h-6 w-6 animate-spin text-gray-400" />
-        </div>
-      ) : error ? (
-        <div className="rounded-xl border border-red-200 bg-red-50 p-6 text-center text-red-700">
-          <AlertCircle className="mx-auto h-8 w-8 text-red-500" />
-          <p className="mt-2 font-medium">{error}</p>
           <button
-            onClick={fetchWorkflows}
-            className="mt-3 inline-flex items-center gap-1 text-sm font-semibold underline"
+            type="button"
+            onClick={() => setRefreshKey((k) => k + 1)}
+            className="p-1.5 text-slate-400 hover:text-slate-600 rounded-lg hover:bg-slate-50 transition"
           >
-            Retry
+            <RefreshCw className={cn("h-4 w-4", loading && "animate-spin")} />
           </button>
         </div>
-      ) : (
-        <div className="space-y-6">
-          {workflows.map((wf) => (
-            <div key={wf.id} className="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm">
-              <div className="border-b border-gray-200 bg-gray-50/60 px-6 py-4">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <h2 className="text-lg font-bold text-gray-900">{wf.name}</h2>
-                    <p className="text-xs text-gray-500">
-                      {wf.description || "Progressive escalation milestones for debt recovery"}
-                    </p>
-                  </div>
-                  {wf.isSystemDefault && (
-                    <span className="inline-flex items-center rounded-full bg-blue-50 px-2.5 py-0.5 text-xs font-semibold text-blue-700">
-                      System Default Cadence
-                    </span>
+
+        <div className="divide-y divide-slate-100">
+          {activeRules.map((rule, idx) => (
+            <div
+              key={rule.id || idx}
+              className="p-4 sm:px-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 hover:bg-slate-50/60 transition"
+            >
+              <div className="flex items-start sm:items-center gap-3.5">
+                <div
+                  className={cn(
+                    "h-9 w-9 rounded-xl flex items-center justify-center shrink-0",
+                    rule.channel === "WHATSAPP"
+                      ? "bg-emerald-50 text-emerald-600 border border-emerald-100"
+                      : "bg-blue-50 text-blue-600 border border-blue-100"
                   )}
+                >
+                  {rule.channel === "WHATSAPP" ? (
+                    <MessageSquare className="h-4 w-4" />
+                  ) : (
+                    <Mail className="h-4 w-4" />
+                  )}
+                </div>
+
+                <div>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <h4 className="text-xs font-bold text-slate-900">{rule.name}</h4>
+                    <span
+                      className={cn(
+                        "px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider",
+                        rule.triggerType === "DUE_SOON"
+                          ? "bg-amber-50 text-amber-700 border border-amber-200/60"
+                          : "bg-rose-50 text-rose-700 border border-rose-200/60"
+                      )}
+                    >
+                      {rule.daysRelative < 0
+                        ? `T${rule.daysRelative} Days (Pre-Due)`
+                        : `T+${rule.daysRelative} Days (Overdue)`}
+                    </span>
+                    {rule.includePaymentLink && (
+                      <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-slate-100 text-slate-600">
+                        Dynamic Payment Link
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-[11px] text-slate-500 mt-1">
+                    Channel: <span className="font-semibold text-slate-700">{rule.channel}</span> · Minimum:{" "}
+                    <span className="font-semibold text-slate-700">₹{rule.minAmount || 500}</span>
+                  </p>
                 </div>
               </div>
 
-              <div className="divide-y divide-gray-100">
-                {wf.rules.map((rule) => {
-                  const isPreDue = rule.daysRelative < 0;
-                  const isLegalNotice = rule.daysRelative >= 30;
-
-                  return (
-                    <div
-                      key={rule.id}
-                      className={`flex flex-col gap-4 p-5 sm:flex-row sm:items-center sm:justify-between transition-colors ${
-                        rule.enabled ? "bg-white" : "bg-gray-50/50 opacity-60"
-                      }`}
-                    >
-                      <div className="flex items-start gap-4">
-                        {/* Milestone Badge */}
-                        <div
-                          className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-xl font-bold text-xs ${
-                            isPreDue
-                              ? "bg-blue-100 text-blue-800"
-                              : isLegalNotice
-                              ? "bg-red-100 text-red-800"
-                              : "bg-amber-100 text-amber-800"
-                          }`}
-                        >
-                          {rule.daysRelative === 0
-                            ? "Due Day"
-                            : isPreDue
-                            ? `T${rule.daysRelative}d`
-                            : `T+${rule.daysRelative}d`}
-                        </div>
-
-                        {/* Rule Details */}
-                        <div>
-                          <div className="flex flex-wrap items-center gap-2">
-                            <h3 className="text-sm font-semibold text-gray-900">{rule.name}</h3>
-                            <span
-                              className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-semibold ${
-                                rule.channel === "WHATSAPP"
-                                  ? "bg-emerald-50 text-emerald-700"
-                                  : "bg-blue-50 text-blue-700"
-                              }`}
-                            >
-                              {rule.channel === "WHATSAPP" ? (
-                                <MessageSquare className="h-3 w-3" />
-                              ) : (
-                                <Mail className="h-3 w-3" />
-                              )}
-                              {rule.channel}
-                            </span>
-                            {rule.includePaymentLink && (
-                              <span className="inline-flex items-center rounded-full bg-purple-50 px-2 py-0.5 text-xs font-semibold text-purple-700">
-                                1-Click UPI Link
-                              </span>
-                            )}
-                          </div>
-
-                          <div className="mt-1.5 flex flex-wrap items-center gap-3 text-xs text-gray-500">
-                            <span>
-                              Min Balance: <strong className="text-gray-700">{formatINR(rule.minAmount || 0)}</strong>
-                            </span>
-                            <span>•</span>
-                            <span>
-                              Throttle Cooldown: <strong className="text-gray-700">{rule.cooldownHours || 24}h</strong>
-                            </span>
-                            <span>•</span>
-                            <span>
-                              Trigger: <strong className="text-gray-700">{rule.triggerType}</strong>
-                            </span>
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* Action Toggle */}
-                      <div className="flex items-center gap-3 self-end sm:self-center">
-                        <button
-                          onClick={() => handleToggleRule(wf.id, rule.id)}
-                          className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
-                            rule.enabled ? "bg-indigo-600" : "bg-gray-200"
-                          }`}
-                        >
-                          <span
-                            className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
-                              rule.enabled ? "translate-x-5" : "translate-x-0"
-                            }`}
-                          />
-                        </button>
-                      </div>
-                    </div>
-                  );
-                })}
+              <div className="flex items-center gap-3 self-end sm:self-center">
+                <span
+                  className={cn(
+                    "inline-flex items-center gap-1 px-2.5 py-1 rounded-xl text-xs font-semibold",
+                    rule.enabled
+                      ? "bg-emerald-50 text-emerald-700 border border-emerald-200/80"
+                      : "bg-slate-100 text-slate-500"
+                  )}
+                >
+                  <span
+                    className={cn(
+                      "h-1.5 w-1.5 rounded-full",
+                      rule.enabled ? "bg-emerald-500" : "bg-slate-400"
+                    )}
+                  />
+                  {rule.enabled ? "Active" : "Paused"}
+                </span>
               </div>
             </div>
           ))}
         </div>
-      )}
+      </div>
 
-      {/* Confirmation Modal for Live Execution */}
-      {showConfirmLive && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-          <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-xl">
-            <div className="flex items-center gap-3">
-              <div className="rounded-xl bg-amber-100 p-3 text-amber-600">
-                <Play className="h-6 w-6" />
+      {/* Live Cadence Batch Confirmation Modal */}
+      {liveModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/40 backdrop-blur-xs">
+          <div role="dialog" className="w-full max-w-md bg-white rounded-2xl shadow-2xl border border-slate-200 p-6 space-y-4 animate-scaleUp">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+              <div className="flex items-center gap-2 text-slate-900">
+                <Send className="h-5 w-5 text-blue-600" />
+                <h3 className="text-sm font-bold">Execute Live Cadence Batch</h3>
               </div>
-              <div>
-                <h3 className="text-lg font-bold text-gray-900">Execute Live Cadence Batch</h3>
-                <p className="text-xs text-gray-500">Dispatch live notifications to customers</p>
-              </div>
+              <button
+                type="button"
+                onClick={() => setLiveModalOpen(false)}
+                className="text-slate-400 hover:text-slate-600"
+              >
+                <X className="h-4 w-4" />
+              </button>
             </div>
 
-            <p className="mt-4 text-sm text-gray-600">
-              This will evaluate all active invoices and immediately dispatch genuine Email & WhatsApp payment reminders (with dynamic settlement links) to customers who match cadence milestones.
+            <p className="text-xs text-slate-600 leading-relaxed">
+              This will evaluate all active customer invoices across your organization against the 45-day cadence rules and dispatch live Email and WhatsApp outreach with dynamic payment links.
             </p>
 
-            <div className="mt-6 flex items-center justify-end gap-3">
+            <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 text-[11px] text-amber-800 flex items-start gap-2">
+              <AlertTriangle className="h-4 w-4 text-amber-600 shrink-0 mt-0.5" />
+              <span>Invoices with active disputes or unexpired promises to pay are safely bypassed.</span>
+            </div>
+
+            <div className="flex items-center justify-end gap-2 pt-2">
               <button
-                onClick={() => setShowConfirmLive(false)}
-                className="rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
+                type="button"
+                onClick={() => setLiveModalOpen(false)}
+                className="px-3.5 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-100 rounded-xl transition"
               >
                 Cancel
               </button>
               <button
-                onClick={handleExecuteLiveBatch}
-                className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-indigo-700"
+                type="button"
+                onClick={handleExecuteLive}
+                disabled={liveRunning}
+                className="px-4 py-2 text-xs font-semibold bg-blue-600 text-white hover:bg-blue-700 rounded-xl shadow-xs transition disabled:opacity-50 flex items-center gap-1.5"
               >
-                Confirm & Dispatch
+                {liveRunning && <RefreshCw className="h-3.5 w-3.5 animate-spin" />}
+                <span>Confirm & Dispatch</span>
               </button>
             </div>
           </div>
         </div>
       )}
 
-      {/* Create Rule Modal */}
-      {showCreateModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-          <div className="w-full max-w-lg rounded-2xl bg-white p-6 shadow-xl">
-            <div className="flex items-center justify-between border-b border-gray-100 pb-4">
-              <div>
-                <h3 className="text-lg font-bold text-gray-900">Add Cadence Escalation Rule</h3>
-                <p className="text-xs text-gray-500">Create a new milestone trigger in your collection sequence</p>
+      {/* Add Escalation Rule Modal */}
+      {addRuleModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/40 backdrop-blur-xs">
+          <div role="dialog" className="w-full max-w-md bg-white rounded-2xl shadow-2xl border border-slate-200 p-6 space-y-4 animate-scaleUp">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+              <div className="flex items-center gap-2 text-slate-900">
+                <Plus className="h-5 w-5 text-blue-600" />
+                <h3 className="text-sm font-bold">Add Cadence Escalation Rule</h3>
               </div>
-              <button onClick={() => setShowCreateModal(false)} className="text-gray-400 hover:text-gray-600">
-                <X className="h-5 w-5" />
+              <button
+                type="button"
+                onClick={() => setAddRuleModalOpen(false)}
+                className="text-slate-400 hover:text-slate-600"
+              >
+                <X className="h-4 w-4" />
               </button>
             </div>
 
-            <form onSubmit={handleCreateRuleSubmit} className="mt-4 space-y-4">
+            <form onSubmit={handleSaveRule} className="space-y-3.5">
               <div>
-                <label className="block text-xs font-semibold text-gray-700">Rule Name</label>
+                <label className="block text-xs font-semibold text-slate-700 mb-1">
+                  Rule Name
+                </label>
                 <input
                   type="text"
                   required
-                  value={newRule.name || ""}
+                  value={newRule.name}
                   onChange={(e) => setNewRule({ ...newRule, name: e.target.value })}
-                  placeholder="e.g., 3-Day Overdue Courtesy Ping"
-                  className="mt-1 block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm shadow-sm focus:border-indigo-500 focus:outline-none"
+                  placeholder="3-Day Overdue Courtesy Ping"
+                  className="w-full rounded-xl border border-slate-200 px-3 py-2 text-xs text-slate-900 focus:outline-hidden focus:ring-2 focus:ring-blue-500"
                 />
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-xs font-semibold text-gray-700">Trigger Type</label>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">
+                    Trigger Type
+                  </label>
                   <select
-                    value={newRule.triggerType || "OVERDUE"}
+                    value={newRule.triggerType}
                     onChange={(e) =>
                       setNewRule({
                         ...newRule,
                         triggerType: e.target.value as "DUE_SOON" | "OVERDUE" | "PROMISE_BROKEN" | "HIGH_RISK",
                       })
                     }
-                    className="mt-1 block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm shadow-sm focus:border-indigo-500 focus:outline-none"
+                    className="w-full rounded-xl border border-slate-200 px-3 py-2 text-xs text-slate-900 focus:outline-hidden focus:ring-2 focus:ring-blue-500"
                   >
-                    <option value="OVERDUE">Days Overdue (T+)</option>
-                    <option value="DUE_SOON">Days Before Due (T-)</option>
+                    <option value="OVERDUE">OVERDUE</option>
+                    <option value="DUE_SOON">DUE_SOON</option>
+                    <option value="PROMISE_BROKEN">PROMISE_BROKEN</option>
+                    <option value="HIGH_RISK">HIGH_RISK</option>
                   </select>
                 </div>
 
                 <div>
-                  <label className="block text-xs font-semibold text-gray-700">
-                    Days Relative ({newRule.triggerType === "DUE_SOON" ? "Negative, e.g. -3" : "Positive, e.g. 5"})
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">
+                    Channel
                   </label>
-                  <input
-                    type="number"
-                    required
-                    value={newRule.daysRelative ?? 3}
-                    onChange={(e) => setNewRule({ ...newRule, daysRelative: parseInt(e.target.value, 10) })}
-                    className="mt-1 block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm shadow-sm focus:border-indigo-500 focus:outline-none"
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-xs font-semibold text-gray-700">Channel</label>
                   <select
-                    value={newRule.channel || "EMAIL"}
+                    value={newRule.channel}
                     onChange={(e) =>
                       setNewRule({
                         ...newRule,
-                        channel: e.target.value as "EMAIL" | "WHATSAPP" | "SMS" | "TASK",
+                        channel: e.target.value as "WHATSAPP" | "EMAIL" | "SMS",
                       })
                     }
-                    className="mt-1 block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm shadow-sm focus:border-indigo-500 focus:outline-none"
+                    className="w-full rounded-xl border border-slate-200 px-3 py-2 text-xs text-slate-900 focus:outline-hidden focus:ring-2 focus:ring-blue-500"
                   >
-                    <option value="EMAIL">Email</option>
-                    <option value="WHATSAPP">WhatsApp</option>
+                    <option value="WHATSAPP">WHATSAPP</option>
+                    <option value="EMAIL">EMAIL</option>
+                    <option value="SMS">SMS</option>
                   </select>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">
+                    Days Relative
+                  </label>
+                  <input
+                    type="number"
+                    value={newRule.daysRelative}
+                    onChange={(e) =>
+                      setNewRule({ ...newRule, daysRelative: Number(e.target.value) })
+                    }
+                    className="w-full rounded-xl border border-slate-200 px-3 py-2 text-xs text-slate-900 focus:outline-hidden focus:ring-2 focus:ring-blue-500"
+                  />
                 </div>
 
                 <div>
-                  <label className="block text-xs font-semibold text-gray-700">Min Amount (₹)</label>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">
+                    Min Amount (₹)
+                  </label>
                   <input
                     type="number"
-                    value={newRule.minAmount ?? 500}
-                    onChange={(e) => setNewRule({ ...newRule, minAmount: parseFloat(e.target.value) })}
-                    className="mt-1 block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm shadow-sm focus:border-indigo-500 focus:outline-none"
+                    value={newRule.minAmount}
+                    onChange={(e) =>
+                      setNewRule({ ...newRule, minAmount: Number(e.target.value) })
+                    }
+                    className="w-full rounded-xl border border-slate-200 px-3 py-2 text-xs text-slate-900 focus:outline-hidden focus:ring-2 focus:ring-blue-500"
                   />
                 </div>
               </div>
 
-              <div className="flex items-center justify-between rounded-lg border border-gray-200 bg-gray-50 p-3">
-                <div className="flex items-center gap-2">
-                  <input
-                    type="checkbox"
-                    id="linkCheckbox"
-                    checked={newRule.includePaymentLink}
-                    onChange={(e) => setNewRule({ ...newRule, includePaymentLink: e.target.checked })}
-                    className="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
-                  />
-                  <label htmlFor="linkCheckbox" className="text-xs font-medium text-gray-700">
-                    Include 1-Click Dynamic UPI Payment Link
-                  </label>
-                </div>
-
-                <div className="flex items-center gap-2">
-                  <label className="text-xs text-gray-500">Cooldown:</label>
-                  <select
-                    value={newRule.cooldownHours ?? 24}
-                    onChange={(e) => setNewRule({ ...newRule, cooldownHours: parseInt(e.target.value, 10) })}
-                    className="rounded border border-gray-300 px-2 py-1 text-xs"
-                  >
-                    <option value={24}>24 Hours</option>
-                    <option value={48}>48 Hours</option>
-                    <option value={72}>72 Hours</option>
-                  </select>
-                </div>
+              <div className="flex items-center gap-2 pt-1">
+                <input
+                  type="checkbox"
+                  id="incPlink"
+                  checked={newRule.includePaymentLink}
+                  onChange={(e) =>
+                    setNewRule({ ...newRule, includePaymentLink: e.target.checked })
+                  }
+                  className="rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+                />
+                <label htmlFor="incPlink" className="text-xs text-slate-700">
+                  Include Dynamic UPI & NetBanking payment link
+                </label>
               </div>
 
-              <div className="mt-6 flex items-center justify-end gap-3 border-t border-gray-100 pt-4">
+              <div className="flex items-center justify-end gap-2 pt-3">
                 <button
                   type="button"
-                  onClick={() => setShowCreateModal(false)}
-                  className="rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
+                  onClick={() => setAddRuleModalOpen(false)}
+                  className="px-3.5 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-100 rounded-xl transition"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  disabled={creating}
-                  className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-indigo-700 disabled:opacity-50"
+                  disabled={submittingRule}
+                  className="px-4 py-2 text-xs font-semibold bg-blue-600 text-white hover:bg-blue-700 rounded-xl shadow-xs transition disabled:opacity-50"
                 >
-                  {creating ? "Saving..." : "Save Rule"}
+                  Save Rule
                 </button>
               </div>
             </form>

@@ -4,14 +4,6 @@ test.describe("Debtor Directory & Customer 360", () => {
   test("renders customer directory with sorting and search filtering", async ({
     authenticatedPage: page,
   }) => {
-    await page.route("**/api/customers*", async (route) => {
-      await route.fulfill({
-        status: 200,
-        contentType: "application/json",
-        body: JSON.stringify(MOCK_CUSTOMERS),
-      });
-    });
-
     await page.route("**/api/customers/duplicates", async (route) => {
       await route.fulfill({
         status: 200,
@@ -20,14 +12,22 @@ test.describe("Debtor Directory & Customer 360", () => {
       });
     });
 
+    await page.route(/\/api\/customers(\?.*)?$/, async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify(MOCK_CUSTOMERS),
+      });
+    });
+
     await page.goto("/dashboard/customers");
 
-    await expect(page.getByRole("heading", { name: "Debtor Accounts" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Debtor Directory" })).toBeVisible();
     await expect(page.getByText("Raj Steel & Forgings Pvt Ltd")).toBeVisible();
     await expect(page.getByText("ABC Engineering Works")).toBeVisible();
 
     // Search filter
-    const searchInput = page.getByPlaceholder(/Search by name, GSTIN/i);
+    const searchInput = page.getByPlaceholder(/Search customer name, GSTIN/i);
     await searchInput.fill("Raj");
     await expect(page.getByText("Raj Steel & Forgings Pvt Ltd")).toBeVisible();
 
@@ -39,7 +39,15 @@ test.describe("Debtor Directory & Customer 360", () => {
   test("Add Customer modal enables creating new debtor profile", async ({
     authenticatedPage: page,
   }) => {
-    await page.route("**/api/customers*", async (route) => {
+    await page.route("**/api/customers/duplicates", async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify([]),
+      });
+    });
+
+    await page.route(/\/api\/customers(\?.*)?$/, async (route) => {
       if (route.request().method() === "POST") {
         const body = route.request().postDataJSON();
         await route.fulfill({
@@ -58,6 +66,8 @@ test.describe("Debtor Directory & Customer 360", () => {
 
     await page.goto("/dashboard/customers");
 
+    await expect(page.getByRole("heading", { name: "Debtor Directory" })).toBeVisible();
+
     // Click Add Customer button
     await page.getByRole("button", { name: /Add Customer/i }).click();
 
@@ -66,13 +76,13 @@ test.describe("Debtor Directory & Customer 360", () => {
     await expect(dialog.getByText("Add New Debtor Account")).toBeVisible();
 
     // Fill form
-    await dialog.getByPlaceholder(/e.g. Acme Industrial Technologies/i).fill("Zenith Auto Components");
-    await dialog.getByPlaceholder(/billing@company.com/i).fill("accounts@zenithauto.in");
+    await dialog.getByPlaceholder(/e.g. Acme Industrial Solutions Pvt Ltd/i).fill("Zenith Auto Components");
+    await dialog.getByPlaceholder(/accounts@acme.com/i).fill("accounts@zenithauto.in");
     await dialog.getByPlaceholder(/\+91 98765 43210/i).fill("+919988776655");
-    await dialog.getByPlaceholder(/27AABCU9603R1ZM/i).fill("27AABCU9603R1ZZ");
+    await dialog.getByPlaceholder(/27ABCDE1234F1Z5/i).fill("27AABCU9603R1ZZ");
 
     // Submit form
-    await dialog.getByRole("button", { name: /Save Debtor Account/i }).click();
+    await dialog.getByRole("button", { name: /Create Account/i }).click();
   });
 
   test("renders Customer 360 detail page with invoices, contacts, and timeline", async ({
@@ -151,7 +161,7 @@ test.describe("Debtor Directory & Customer 360", () => {
     // Invoices list & Timeline
     await expect(page.getByText("INV-2026-089")).toBeVisible();
     await expect(page.getByText("Key Decision Makers (2)")).toBeVisible();
-    await expect(page.getByText("Rajesh Sharma")).toBeVisible();
+    await expect(page.getByText("Rajesh Sharma", { exact: true })).toBeVisible();
     await expect(page.getByText("Managing Director")).toBeVisible();
     await expect(page.getByText("Collection Activity & Audit Trail")).toBeVisible();
 
@@ -159,15 +169,16 @@ test.describe("Debtor Directory & Customer 360", () => {
     await page.getByRole("button", { name: /Payment Plan/i }).click();
     const planModal = page.getByRole("dialog");
     await expect(planModal).toBeVisible();
-    await expect(planModal.getByText(/Create Multi-Installment Payment Plan/i)).toBeVisible();
-    await planModal.getByRole("button", { name: /Cancel|Close/i }).click();
+    await expect(planModal.getByText(/Create Installment Payment Plan/i)).toBeVisible();
+    await planModal.getByRole("button", { name: /Cancel/i }).click();
     await expect(planModal).not.toBeVisible();
 
     // Test Legal Notice modal trigger
     await page.getByRole("button", { name: /Legal Notice/i }).click();
     const legalModal = page.getByRole("dialog");
     await expect(legalModal).toBeVisible();
-    await legalModal.getByRole("button", { name: /Cancel|Close/i }).click();
+    await expect(legalModal.getByText(/Statutory Legal Notice/i)).toBeVisible();
+    await legalModal.getByRole("button", { name: /Close/i }).first().click();
     await expect(legalModal).not.toBeVisible();
   });
 });

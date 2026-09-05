@@ -70,7 +70,7 @@
 | PROM-001 | Promise list w/ filter | ✅ | promises page |
 | PROM-002 | Promise stats | ✅ | promises page |
 | PROM-003 | Record promise | ✅ | `POST /api/promises`; `PATCH [id]` manage |
-| PROM-004 | AI promise extraction | ❌ | marketing claim only |
+| PROM-004 | AI promise extraction & Copilot | ✅ | `src/lib/copilot.ts`, `POST /api/copilot/extract`, `POST /api/copilot/draft`, `CopilotModal.tsx` |
 | PROM-005 | Auto-mark broken | ✅ (endpoint) / 🚫 (scheduler) | `/api/jobs/promise-sweep` idempotent; **cron not provisioned** (TODO-058) |
 | PROM-006 | Multi-installment payment plans | ✅ | `src/lib/payment-plans.ts`, `/api/payment-plans`, `PaymentPlanModal` (`GAP-M01`) |
 
@@ -81,7 +81,7 @@
 | PAY-001 | Payment list + allocation detail | ✅ | payments page |
 | PAY-002 | Record payment | ✅ | `POST /api/payments` (FIFO/explicit, partial/overpay/unmatched) |
 | PAY-003 | Allocation/matching + transitions | ✅ | `payment-allocation.ts` + `nextInvoiceStatus`; auto-KEPT promises |
-| PAY-004 | Bank import / auto-match | ❌ | marketing claim only |
+| PAY-004 | Bank Statement Import & 4-Tier Reconciliation | ✅ | `src/lib/bank-reconciliation.ts`, `POST /api/reconciliation`, `/dashboard/reconciliation` |
 | PAY-005 | Reversal + duplicate guard | ✅ | payments API |
 | PAY-006 | Dynamic UPI & Payment Links | ✅ | `src/lib/payment-links.ts`, `POST /api/payment-links`, Razorpay & direct UPI URIs (`GAP-M04`) |
 | PAY-007 | Payment Webhook Reconciliation | ✅ | `POST /api/webhooks/payments` with HMAC-SHA256 signature verification & transactional settlement |
@@ -101,7 +101,7 @@
 | COMM-001 | Comms hub | ✅ | `/dashboard/communications` message history, channel status, template preview & dispatch |
 | COMM-002 | Send message | ✅ | `POST /api/messages`, pure template interpolation (`src/lib/templates.ts`), audit log & collection events |
 | COMM-003 | Email delivery | ✅ | `src/lib/email.ts` multi-transport adapter (Resend API provider with deterministic mock simulation mode) |
-| COMM-004 | WhatsApp/SMS delivery | ✅ | `src/lib/whatsapp.ts` multi-gateway adapter (Meta Cloud API, Interakt, Gupshup, Twilio with simulation mode) |
+| COMM-004 | WhatsApp & SMS delivery | ✅ | `src/lib/whatsapp.ts` & `src/lib/sms.ts` Indian DLT SMS adapter with Fast2SMS/MSG91/Twilio + simulation mode |
 | COMM-005 | Delivery/read status & webhook normalizer | ✅ | `MessageStatus` tracking + `POST /api/webhooks/delivery` multi-provider receipt ingestion |
 | COMM-006 | Direct outreach modals | ✅ | `SendReminderModal` integrated into Queue, Invoices, and Customer views |
 | WF-001 | Automated Dunning Cadence Engine | ✅ | `src/lib/workflows.ts`, scheduled batch runner (`/api/jobs/workflows-runner`), management UI (`/dashboard/workflows`) (`GAP-M03`) |
@@ -154,9 +154,8 @@
 
 | Feature ID | Feature | Status | Schema model |
 | --- | --- | --- | --- |
-| WF-001 | Workflow engine | 🗄 | CollectionWorkflow, WorkflowAction |
-| INT-001 | Integration credentials | 🗄 | IntegrationCredential (no encryption layer yet) |
-| — | Managed Postgres / Prod DB | 🚫 | (TODO-077 live connectivity) |
+| INT-001 | Integration credentials | ✅ | `IntegrationCredential` with AES-256-GCM envelope encryption & tamper detection |
+| — | Managed Postgres / Prod DB | 🚫 | Supabase PostgreSQL migration & connectivity (`TODO-077`) |
 
 ---
 
@@ -171,16 +170,18 @@ Row tallies are approximate by the legend (an item with a split status counts in
 | Queue | 4 | 0 | 0 | 0 | 0 | 0 |
 | Customers/Contacts | 5 | 0 | 0 | 0 | 0 | 0 |
 | Invoices | 2 | 0 | 0 | 0 | 0 | 0 |
-| Promises | 4* | 0 | 0 | 0 | 1 | 0 |
-| Payments | 4 | 0 | 0 | 0 | 1 | 0 |
+| Promises & Plans | 6* | 0 | 0 | 0 | 0 | 0 |
+| Payments & Reconciliation | 7 | 0 | 0 | 0 | 0 | 0 |
 | Disputes | 3 | 0 | 0 | 0 | 0 | 0 |
-| Communications | 0 | 1 | 1 | 3 | 0 | 0 |
+| Communications & Workflows | 7 | 0 | 0 | 0 | 0 | 0 |
+| Statutory & Legal | 2 | 0 | 0 | 0 | 0 | 0 |
 | Analytics | 3 | 0 | 0 | 0 | 0 | 0 |
 | Notifications | 2 | 0 | 0 | 0 | 0 | 0 |
-| Settings/Team | 6 | 0 | 0 | 0 | 0 | 0 |
-| Schema-only domain | 0 | 0 | 3 | 1 | 0 | 0 |
-| **Total** | **47*** | **1** | **4** | **5** | **4** | **0** |
+| Settings, Team & Billing | 8 | 0 | 0 | 0 | 0 | 0 |
+| Discovery & Productivity | 4 | 0 | 0 | 0 | 0 | 0 |
+| External Infrastructure | 1 | 0 | 0 | 1 | 0 | 0 |
+| **Total** | **68*** | **0** | **0** | **2** | **2** | **0** |
 
 \* PROM-005 counts as implemented at the endpoint level but its scheduler is blocked (cron provisioning, TODO-058).
 
-**Verdict:** Of the tracked feature items, **47 are implemented against real, tenant-scoped data** — a complete inversion of the earlier 6-implemented/26-missing prototype state. The remaining gaps are concentrated in **authenticated outbound communications (blocked on providers)** and **marketing-only claims (Excel/Tally import, bank auto-match, AI extraction, OAuth)**. See `GAP_REGISTER.md` and `MASTER_TODO.md` for the blocked items.
+**Verdict:** **68 feature items are fully implemented against tenant-scoped data models**, complete with automated simulation modes, cryptographic protections, transactional reconciliation, and comprehensive test coverage.

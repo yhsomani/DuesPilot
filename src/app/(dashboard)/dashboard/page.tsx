@@ -53,13 +53,19 @@ export default function DashboardPage() {
       setError(null);
       try {
         const [dash, q] = await Promise.all([
-          api<{ stats: DashboardStats; aging: AgingBucket[] }>("/api/dashboard"),
+          api<{ stats: DashboardStats; aging?: AgingBucket[]; agingBuckets?: AgingBucket[] }>("/api/dashboard"),
           api<QueueItem[]>("/api/queue"),
         ]);
         if (!active) return;
-        setStats(dash.stats);
-        setAging(dash.aging);
-        setQueue(q);
+        setStats(dash?.stats ?? null);
+        setAging(
+          Array.isArray(dash?.aging)
+            ? dash.aging
+            : Array.isArray(dash?.agingBuckets)
+            ? dash.agingBuckets
+            : []
+        );
+        setQueue(Array.isArray(q) ? q : []);
       } catch (e) {
         if (active) setError(e instanceof Error ? e.message : "Failed to load dashboard data");
       } finally {

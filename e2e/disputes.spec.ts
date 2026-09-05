@@ -21,13 +21,13 @@ test.describe("Invoice Disputes Ledger & Resolution Management", () => {
     // Table rows
     await expect(page.getByText("INV-2026-089")).toBeVisible();
     await expect(page.getByText("Raj Steel & Forgings Pvt Ltd")).toBeVisible();
-    await expect(page.getByText("Quantity Shortfall")).toBeVisible();
+    await expect(page.getByText("Quality / Defect Issue")).toBeVisible();
 
     // Filter by Open
     await page.getByRole("button", { name: /Open \(/i }).click();
     await expect(page.getByText("INV-2026-089")).toBeVisible();
 
-    // Filter by Resolved
+    // Filter by Resolved (should show empty state since mock dispute is open)
     await page.getByRole("button", { name: /Resolved \(/i }).click();
     await expect(page.getByText("No disputes found")).toBeVisible();
 
@@ -67,7 +67,7 @@ test.describe("Invoice Disputes Ledger & Resolution Management", () => {
     await page.goto("/dashboard/disputes");
 
     // Click Log Dispute button
-    await page.getByRole("button", { name: /Log Dispute/i }).click();
+    await page.getByRole("button", { name: /Log Dispute/i }).first().click();
 
     const dialog = page.getByRole("dialog");
     await expect(dialog).toBeVisible();
@@ -84,13 +84,26 @@ test.describe("Invoice Disputes Ledger & Resolution Management", () => {
     await dialog.getByPlaceholder(/Sales representative checking/i).fill("Awaiting replacement delivery before settlement.");
 
     // Submit
-    await dialog.getByRole("button", { name: /Log Dispute/i }).click();
+    await dialog.getByRole("button", { name: /Log Dispute/i }).last().click();
   });
 
   test("Resolve and Withdraw buttons trigger status update API calls", async ({
     authenticatedPage: page,
   }) => {
-    await page.route("**/api/disputes", async (route) => {
+    let patchedStatus: string | null = null;
+    await page.route("**/api/disputes**", async (route) => {
+      const url = route.request().url();
+      const method = route.request().method();
+      if (url.includes("/api/disputes/disp_1") && method === "PATCH") {
+        const body = route.request().postDataJSON();
+        patchedStatus = body?.status ?? null;
+        await route.fulfill({
+          status: 200,
+          contentType: "application/json",
+          body: JSON.stringify({ id: "disp_1", status: patchedStatus }),
+        });
+        return;
+      }
       await route.fulfill({
         status: 200,
         contentType: "application/json",
@@ -98,26 +111,13 @@ test.describe("Invoice Disputes Ledger & Resolution Management", () => {
       });
     });
 
-    let patchedStatus: string | null = null;
-    await page.route("**/api/disputes/disp_1", async (route) => {
-      if (route.request().method() === "PATCH") {
-        const body = route.request().postDataJSON();
-        patchedStatus = body.status;
-        await route.fulfill({
-          status: 200,
-          contentType: "application/json",
-          body: JSON.stringify({ id: "disp_1", status: patchedStatus }),
-        });
-      }
-    });
-
     await page.goto("/dashboard/disputes");
 
-    // Click Resolve button on open dispute
-    const resolveBtn = page.getByRole("button", { name: /Resolve/i }).first();
+    // Click Resolve button on open dispute (use exact name to avoid matching "Resolved (0)" tab)
+    const resolveBtn = page.getByRole("button", { name: "Resolve", exact: true });
     await expect(resolveBtn).toBeVisible();
     await resolveBtn.click();
 
-    expect(patchedStatus).toBe("resolved");
+    await expect.poll(() => patchedStatus).toBe("resolved");
   });
 });

@@ -7,6 +7,7 @@ import { api, apiPost } from "@/lib/api";
 import type { QueueItem } from "@/lib/types";
 import { AllActionsModal } from "@/components/queue/manage-modal";
 import { SendReminderModal } from "@/components/queue/send-reminder-modal";
+import { AICopilotModal } from "@/components/copilot/ai-copilot-modal";
 import {
   Download,
   Search,
@@ -19,6 +20,7 @@ import {
   RefreshCw,
   SlidersHorizontal,
   X,
+  Sparkles,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -34,6 +36,8 @@ export default function QueuePage() {
   const [search, setSearch] = useState<string>("");
   const [active, setActive] = useState<QueueItem | null>(null);
   const [reminderItem, setReminderItem] = useState<QueueItem | null>(null);
+  const [copilotItem, setCopilotItem] = useState<QueueItem | null>(null);
+  const [copilotGeneralOpen, setCopilotGeneralOpen] = useState(false);
   const [retryKey, setRetryKey] = useState(0);
 
   // Bulk selection
@@ -170,6 +174,16 @@ export default function QueuePage() {
         </div>
 
         <div className="flex items-center gap-2.5">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setCopilotGeneralOpen(true)}
+            className="gap-1.5 shadow-2xs border-indigo-200 bg-indigo-50/50 text-indigo-700 hover:bg-indigo-100 hover:text-indigo-800"
+          >
+            <Sparkles className="h-3.5 w-3.5 text-indigo-600" />
+            <span>AI Copilot</span>
+          </Button>
+
           <Button
             variant="outline"
             size="sm"
@@ -483,6 +497,16 @@ export default function QueuePage() {
                         <Button
                           variant="outline"
                           size="sm"
+                          onClick={() => setCopilotItem(item)}
+                          className="gap-1.5 shadow-2xs border-indigo-200 text-indigo-700 hover:bg-indigo-50"
+                        >
+                          <Sparkles className="h-3.5 w-3.5 text-indigo-600" />
+                          <span>AI Copilot</span>
+                        </Button>
+
+                        <Button
+                          variant="outline"
+                          size="sm"
                           onClick={() => setReminderItem(item)}
                           className="gap-1.5 shadow-2xs border-slate-200 hover:border-blue-300 hover:bg-blue-50/50 hover:text-blue-700"
                         >
@@ -532,6 +556,36 @@ export default function QueuePage() {
             setReminderItem(null);
             load();
           }}
+        />
+      )}
+
+      {/* AI Copilot Modals */}
+      {copilotItem && (
+        <AICopilotModal
+          isOpen={true}
+          customerId={copilotItem.customerId}
+          customerName={copilotItem.customer}
+          onClose={() => setCopilotItem(null)}
+          onPromiseExtracted={async (promise) => {
+            try {
+              await apiPost("/api/promises", {
+                customerId: copilotItem.customerId,
+                amount: promise.amount,
+                promiseDate: promise.promiseDate,
+                notes: promise.notes,
+              });
+              load();
+            } catch (err) {
+              console.error("Failed to record extracted promise", err);
+            }
+          }}
+        />
+      )}
+
+      {copilotGeneralOpen && (
+        <AICopilotModal
+          isOpen={true}
+          onClose={() => setCopilotGeneralOpen(false)}
         />
       )}
     </div>

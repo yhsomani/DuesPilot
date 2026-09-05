@@ -5,36 +5,38 @@ test.describe("Invoices Register & Detail 360", () => {
     authenticatedPage: page,
   }) => {
     await page.route("**/api/invoices*", async (route) => {
+      const list = [
+        {
+          id: "inv_1",
+          number: "INV-2026-089",
+          customerId: "cust_1",
+          customer: "Raj Steel & Forgings Pvt Ltd",
+          amount: 480000,
+          outstanding: 480000,
+          date: "2026-08-01",
+          dueDate: "2026-08-15",
+          daysOverdue: 21,
+          status: "OVERDUE",
+        },
+        {
+          id: "inv_2",
+          number: "INV-2026-094",
+          customerId: "cust_2",
+          customer: "ABC Engineering Works",
+          amount: 220000,
+          outstanding: 110000,
+          date: "2026-08-10",
+          dueDate: "2026-08-25",
+          daysOverdue: 11,
+          status: "PARTIALLY_PAID",
+        },
+      ];
       await route.fulfill({
         status: 200,
         contentType: "application/json",
         body: JSON.stringify({
-          invoices: [
-            {
-              id: "inv_1",
-              number: "INV-2026-089",
-              customerId: "cust_1",
-              customer: "Raj Steel & Forgings Pvt Ltd",
-              amount: 480000,
-              outstanding: 480000,
-              date: "2026-08-01",
-              dueDate: "2026-08-15",
-              daysOverdue: 21,
-              status: "OVERDUE",
-            },
-            {
-              id: "inv_2",
-              number: "INV-2026-094",
-              customerId: "cust_2",
-              customer: "ABC Engineering Works",
-              amount: 220000,
-              outstanding: 110000,
-              date: "2026-08-10",
-              dueDate: "2026-08-25",
-              daysOverdue: 11,
-              status: "PARTIALLY_PAID",
-            },
-          ],
+          items: list,
+          invoices: list,
           total: 2,
           page: 1,
           pageSize: 50,
@@ -56,7 +58,7 @@ test.describe("Invoices Register & Detail 360", () => {
     await expect(page.getByText("INV-2026-089")).toBeVisible();
 
     // Search filter
-    const searchInput = page.getByPlaceholder(/Search by invoice # or debtor/i);
+    const searchInput = page.getByPlaceholder(/Search invoice # or debtor/i);
     await searchInput.fill("INV-2026-089");
     await expect(page.getByText("INV-2026-089")).toBeVisible();
   });
@@ -127,6 +129,26 @@ test.describe("Invoices Register & Detail 360", () => {
       });
     });
 
+    await page.route("**/api/legal/notice*", async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({
+          referenceNumber: "DP/LEGAL/2026/09/001",
+          title: "FORMAL STATUTORY DEMAND NOTICE UNDER SECTIONS 15 & 16 OF MSMED ACT, 2006",
+          subject: "DEMAND FOR PAYMENT OF OVERDUE OPERATIONAL DEBT ALONG WITH COMPOUND INTEREST",
+          body: "Pursuant to Section 15 & 16 of the MSMED Act 2006...",
+          claimSummary: {
+            totalOutstanding: 480000,
+            totalPenalInterest: 24500,
+            totalStatutoryClaim: 504500,
+            statutoryAnnualRate: 20.25,
+            invoices: [],
+          },
+        }),
+      });
+    });
+
     await page.goto("/dashboard/invoices/inv_1");
 
     await expect(page.getByRole("heading", { name: "Invoice #INV-2026-089" })).toBeVisible();
@@ -139,15 +161,15 @@ test.describe("Invoices Register & Detail 360", () => {
     await page.getByRole("button", { name: /Legal Notice/i }).click();
     const legalModal = page.getByRole("dialog");
     await expect(legalModal).toBeVisible();
-    await expect(legalModal.getByText(/MSME Statutory Notice/i)).toBeVisible();
-    await legalModal.getByRole("button", { name: /Cancel|Close/i }).click();
+    await expect(legalModal.getByText(/Statutory Legal Notice/i)).toBeVisible();
+    await legalModal.getByRole("button", { name: /Close|Cancel/i }).first().click();
     await expect(legalModal).not.toBeVisible();
 
     // Open Send Reminder modal from invoice detail
     await page.getByRole("button", { name: /Send Reminder/i }).click();
     const reminderModal = page.getByRole("dialog");
     await expect(reminderModal).toBeVisible();
-    await reminderModal.getByRole("button", { name: /Cancel|Close/i }).click();
+    await reminderModal.getByRole("button", { name: /Cancel|Close/i }).first().click();
     await expect(reminderModal).not.toBeVisible();
   });
 });

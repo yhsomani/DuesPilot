@@ -76,7 +76,7 @@ test.describe("Automated Dunning Cadences & Workflow Execution Engine", () => {
     await expect(page.getByText(/Evaluated 14 candidate invoices/i)).toBeVisible();
     await expect(page.getByText("INV-2026-089")).toBeVisible();
     await expect(page.getByText("Raj Steel & Forgings Pvt Ltd")).toBeVisible();
-    await expect(page.getByText("15-Day Overdue WhatsApp Direct")).toBeVisible();
+    await expect(page.getByRole("cell", { name: "15-Day Overdue WhatsApp Direct" })).toBeVisible();
   });
 
   test("Execute Cadence Batch confirms and dispatches live multi-channel dunning messages", async ({

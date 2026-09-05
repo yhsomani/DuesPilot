@@ -94,16 +94,25 @@ export default function InvoicesPage() {
         if (opts.search) params.set("search", opts.search);
         if (opts.page > 1) params.set("page", String(opts.page));
         const data = await api<{
-          items: InvoiceRow[];
-          total: number;
-          page: number;
-          hasMore: boolean;
-        }>(`/api/invoices?${params.toString()}`);
+          items?: InvoiceRow[];
+          invoices?: InvoiceRow[];
+          total?: number;
+          page?: number;
+          hasMore?: boolean;
+        } | InvoiceRow[]>(`/api/invoices?${params.toString()}`);
         setError(null);
-        setInvoices(data.items);
-        setTotal(data.total);
-        setPage(data.page);
-        setHasMore(data.hasMore);
+        const list: InvoiceRow[] = Array.isArray(data)
+          ? data
+          : Array.isArray(data?.items)
+          ? data.items!
+          : Array.isArray(data?.invoices)
+          ? data.invoices!
+          : [];
+        const meta = Array.isArray(data) ? null : data;
+        setInvoices(list);
+        setTotal(typeof meta?.total === "number" ? meta.total : list.length);
+        setPage(typeof meta?.page === "number" ? meta.page : 1);
+        setHasMore(Boolean(meta?.hasMore));
       } catch (e) {
         setError(e instanceof Error ? e.message : "Failed to load invoices register");
       } finally {
@@ -494,10 +503,11 @@ export default function InvoicesPage() {
 
             <form onSubmit={submitCreate} className="p-5 space-y-3.5 overflow-y-auto flex-1">
               <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">
+                <label htmlFor="create-invoice-customer" className="block text-xs font-bold text-slate-700 mb-1">
                   Customer / Debtor *
                 </label>
                 <select
+                  id="create-invoice-customer"
                   required
                   autoFocus
                   value={createForm.customerId}
@@ -521,10 +531,11 @@ export default function InvoicesPage() {
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">
+                <label htmlFor="create-invoice-number" className="block text-xs font-bold text-slate-700 mb-1">
                   Invoice Number *
                 </label>
                 <input
+                  id="create-invoice-number"
                   required
                   value={createForm.invoiceNumber}
                   onChange={(e) =>
@@ -540,10 +551,11 @@ export default function InvoicesPage() {
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1">
+                  <label htmlFor="create-invoice-date" className="block text-xs font-bold text-slate-700 mb-1">
                     Invoice Date *
                   </label>
                   <input
+                    id="create-invoice-date"
                     type="date"
                     required
                     value={createForm.invoiceDate}
@@ -557,15 +569,19 @@ export default function InvoicesPage() {
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1">
+                  <label htmlFor="create-invoice-due-date" className="block text-xs font-bold text-slate-700 mb-1">
                     Due Date *
                   </label>
                   <input
+                    id="create-invoice-due-date"
                     type="date"
                     required
                     value={createForm.dueDate}
                     onChange={(e) =>
-                      setCreateForm({ ...createForm, dueDate: e.target.value })
+                      setCreateForm({
+                        ...createForm,
+                        dueDate: e.target.value,
+                      })
                     }
                     className="w-full rounded-xl border border-slate-200 bg-slate-50/50 px-3.5 py-2 text-xs font-medium focus:bg-white focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 transition-all"
                   />
@@ -573,28 +589,33 @@ export default function InvoicesPage() {
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">
-                  Total Bill Amount (₹) *
+                <label htmlFor="create-invoice-amount" className="block text-xs font-bold text-slate-700 mb-1">
+                  Invoice Amount (₹) *
                 </label>
                 <input
+                  id="create-invoice-amount"
                   type="number"
                   required
-                  min={0.01}
-                  step="0.01"
+                  min="1"
+                  step="1"
+                  placeholder="50000"
                   value={createForm.amount}
                   onChange={(e) =>
-                    setCreateForm({ ...createForm, amount: e.target.value })
+                    setCreateForm({
+                      ...createForm,
+                      amount: e.target.value,
+                    })
                   }
-                  placeholder="e.g. 125000"
                   className="w-full rounded-xl border border-slate-200 bg-slate-50/50 px-3.5 py-2 text-xs font-mono font-medium focus:bg-white focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 transition-all"
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">
+                <label htmlFor="create-invoice-notes" className="block text-xs font-bold text-slate-700 mb-1">
                   Internal Remarks / PO Reference
                 </label>
                 <textarea
+                  id="create-invoice-notes"
                   rows={2}
                   value={createForm.notes}
                   onChange={(e) =>

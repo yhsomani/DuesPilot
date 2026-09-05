@@ -1,9 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server";
-
-const AUTH_COOKIE_NAME =
-  process.env.NODE_ENV === "production"
-    ? "__Secure-authjs.session-token"
-    : "authjs.session-token";
+import { createClient } from "@/utils/supabase/middleware";
 
 const STATIC_EXT =
   /\.(ico|png|jpg|jpeg|gif|svg|webp|css|woff2?|ttf|otf|eot|map|txt|xml|pdf)$/i;
@@ -28,7 +24,12 @@ export default function proxy(req: NextRequest) {
 
   // Protect dashboard routes — cookie-based session check.
   if (pathname.startsWith("/dashboard")) {
-    const hasSession = req.cookies.has(AUTH_COOKIE_NAME);
+    const hasSession =
+      req.cookies.has("authjs.session-token") ||
+      req.cookies.has("__Secure-authjs.session-token") ||
+      req.cookies.has("next-auth.session-token") ||
+      req.cookies.has("__Secure-next-auth.session-token") ||
+      req.cookies.has("sb-access-token");
     if (!hasSession) {
       const loginUrl = new URL("/login", req.url);
       loginUrl.searchParams.set("callbackUrl", pathname);
@@ -36,9 +37,24 @@ export default function proxy(req: NextRequest) {
     }
   }
 
+  // Synchronize Supabase authentication cookies if configured
+  if (
+    process.env.NEXT_PUBLIC_SUPABASE_URL &&
+    process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY
+  ) {
+    try {
+      const { response } = createClient(req);
+      return response;
+    } catch {
+      return NextResponse.next();
+    }
+  }
+
   return NextResponse.next();
 }
 
 export const config = {
-  matcher: ["/((?!_next/static|_next/image|favicon.ico).*)"],
+  matcher: [
+    "/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)",
+  ],
 };

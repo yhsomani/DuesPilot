@@ -175,14 +175,36 @@ export const MOCK_PROMISES = [
   {
     id: "prom_1",
     customerId: "cust_1",
+    customer: "Raj Steel & Forgings Pvt Ltd",
     customerName: "Raj Steel & Forgings Pvt Ltd",
+    initials: "RS",
     invoiceId: "inv_1",
     invoiceNumber: "INV-2026-089",
     amount: 200000,
+    promiseDate: "2026-09-15",
     promisedDate: "2026-09-15",
-    status: "PENDING",
+    confidence: 80,
+    source: "phone",
+    status: "ACTIVE" as const,
     notes: "Spoke with MD Rajesh Sharma; promised RTGS transfer by 15th",
     createdAt: "2026-09-01T10:00:00.000Z",
+  },
+  {
+    id: "prom_2",
+    customerId: "cust_2",
+    customer: "ABC Engineering Works",
+    customerName: "ABC Engineering Works",
+    initials: "AE",
+    invoiceId: "inv_2",
+    invoiceNumber: "INV-2026-094",
+    amount: 110000,
+    promiseDate: "2026-09-20",
+    promisedDate: "2026-09-20",
+    confidence: 65,
+    source: "whatsapp",
+    status: "ACTIVE" as const,
+    notes: "Follow-up on partial balance settlement",
+    createdAt: "2026-09-02T10:00:00.000Z",
   },
 ];
 
@@ -190,10 +212,13 @@ export const MOCK_PAYMENTS = [
   {
     id: "pay_1",
     customerId: "cust_2",
+    customer: "ABC Engineering Works",
     customerName: "ABC Engineering Works",
     amount: 110000,
     date: "2026-08-28",
+    paymentDate: "2026-08-28",
     method: "RTGS",
+    mode: "RTGS",
     reference: "UTR994827110",
     notes: "Part payment against INV-2026-094",
     status: "completed",
@@ -209,10 +234,13 @@ export const MOCK_PAYMENTS = [
   {
     id: "pay_2",
     customerId: "cust_1",
+    customer: "Raj Steel & Forgings Pvt Ltd",
     customerName: "Raj Steel & Forgings Pvt Ltd",
     amount: 50000,
     date: "2026-09-02",
+    paymentDate: "2026-09-02",
     method: "UPI",
+    mode: "UPI",
     reference: "UPI/39912048",
     notes: "Advance on account",
     status: "completed",
@@ -225,6 +253,7 @@ export const MOCK_DISPUTES = [
     id: "disp_1",
     customerId: "cust_1",
     customerName: "Raj Steel & Forgings Pvt Ltd",
+    customer: "Raj Steel & Forgings Pvt Ltd",
     invoiceId: "inv_1",
     invoiceNumber: "INV-2026-089",
     category: "quality",
@@ -276,40 +305,54 @@ export const MOCK_WORKFLOWS = [
     updatedAt: "2026-09-01T00:00:00.000Z",
     rules: [
       {
-        id: "r_1",
-        name: "Pre-due Courtesy Reminder",
+        id: "rule_1",
+        name: "Pre-Due Courtesy Reminder",
         triggerType: "DUE_SOON",
         daysRelative: -3,
         channel: "EMAIL",
-        enabled: true,
+        templateName: "Pre-Due Courtesy Notice",
         includePaymentLink: true,
+        enabled: true,
       },
       {
-        id: "r_2",
-        name: "Grace Period WhatsApp Notice",
+        id: "rule_2",
+        name: "1-Day Overdue Soft Reminder",
         triggerType: "OVERDUE",
         daysRelative: 1,
         channel: "WHATSAPP",
-        enabled: true,
+        templateName: "First Overdue WhatsApp Ping",
         includePaymentLink: true,
+        enabled: true,
       },
       {
-        id: "r_3",
-        name: "First Formal Overdue Follow-up",
+        id: "rule_3",
+        name: "7-Day Overdue Urgency Escalation",
         triggerType: "OVERDUE",
         daysRelative: 7,
-        channel: "WHATSAPP",
-        enabled: true,
+        channel: "EMAIL",
+        templateName: "Urgent Escalation & UPI Link",
         includePaymentLink: true,
+        enabled: true,
       },
       {
-        id: "r_4",
-        name: "Section 15 MSME Statutory Notice",
+        id: "rule_4",
+        name: "15-Day Overdue WhatsApp Direct",
         triggerType: "OVERDUE",
-        daysRelative: 45,
-        channel: "EMAIL",
-        enabled: true,
+        daysRelative: 15,
+        channel: "WHATSAPP",
+        templateName: "Demand Note & UPI Intent",
         includePaymentLink: true,
+        enabled: true,
+      },
+      {
+        id: "rule_5",
+        name: "30-Day MSME Statutory Legal Notice",
+        triggerType: "OVERDUE",
+        daysRelative: 30,
+        channel: "EMAIL",
+        templateName: "Section 15 & 16 MSME Notice",
+        includePaymentLink: true,
+        enabled: true,
       },
     ],
   },
@@ -335,32 +378,42 @@ export const MOCK_TEAM = [
 ];
 
 export const MOCK_ANALYTICS = {
-  dso: 38.5,
-  dsoChange: -4.2,
-  cei: 84.8,
-  totalReceivables: 700000,
-  totalOverdue: 590000,
-  collectedThisMonth: 1250000,
-  forecastRecovery30Days: 450000,
+  kpis: [
+    {
+      label: "Days Sales Outstanding",
+      value: 38.5,
+      suffix: " days",
+      hint: "Approximated as current outstanding ÷ average daily collections (trailing 30 days).",
+    },
+    {
+      label: "Collection Effectiveness Index",
+      value: 84.8,
+      suffix: "%",
+      hint: "Share of this month's receivable flow captured as cash.",
+    },
+    {
+      label: "Promise Adherence",
+      value: 75.0,
+      suffix: "%",
+      hint: "Promises kept ÷ promises resolved.",
+    },
+    {
+      label: "Overdue Ratio",
+      value: 22.4,
+      suffix: "%",
+      hint: "Overdue balance as a share of total outstanding.",
+    },
+  ],
   series: [
-    { period: "May", billed: 1200000, collected: 950000 },
-    { period: "Jun", billed: 1450000, collected: 1100000 },
-    { period: "Jul", billed: 1300000, collected: 1280000 },
-    { period: "Aug", billed: 1600000, collected: 1420000 },
-    { period: "Sep", billed: 1100000, collected: 890000 },
+    { month: "Apr 26", collected: 950000 },
+    { month: "May 26", collected: 1100000 },
+    { month: "Jun 26", collected: 1280000 },
+    { month: "Jul 26", collected: 1420000 },
+    { month: "Aug 26", collected: 1600000 },
+    { month: "Sep 26", collected: 890000 },
   ],
-  agingBuckets: [
-    { label: "Current", amount: 110000, count: 2 },
-    { label: "1-30 days", amount: 220000, count: 1 },
-    { label: "31-60 days", amount: 480000, count: 1 },
-    { label: "61-90 days", amount: 0, count: 0 },
-    { label: "90+ days", amount: 0, count: 0 },
-  ],
-  channelStats: [
-    { channel: "WhatsApp", sent: 84, delivered: 82, collected: 680000, rate: 81 },
-    { channel: "Email", sent: 120, delivered: 118, collected: 420000, rate: 64 },
-    { channel: "Phone Call", sent: 32, delivered: 30, collected: 350000, rate: 75 },
-  ],
+  activePromises: 4,
+  openDisputes: 2,
 };
 
 /**
@@ -368,8 +421,22 @@ export const MOCK_ANALYTICS = {
  * so Playwright tests run fast, isolated, and with zero external database flakiness.
  */
 export async function setupAuthenticatedState(page: Page) {
-  // Set auth cookie
+  // Set auth cookies for NextAuth/AuthJS formats on localhost and 127.0.0.1
   await page.context().addCookies([
+    {
+      name: "authjs.session-token",
+      value: "mock_authenticated_jwt_token_for_e2e_testing",
+      url: "http://localhost:3000",
+      httpOnly: true,
+      sameSite: "Lax",
+    },
+    {
+      name: "next-auth.session-token",
+      value: "mock_authenticated_jwt_token_for_e2e_testing",
+      url: "http://localhost:3000",
+      httpOnly: true,
+      sameSite: "Lax",
+    },
     {
       name: "authjs.session-token",
       value: "mock_authenticated_jwt_token_for_e2e_testing",
@@ -378,7 +445,43 @@ export async function setupAuthenticatedState(page: Page) {
       httpOnly: true,
       sameSite: "Lax",
     },
+    {
+      name: "next-auth.session-token",
+      value: "mock_authenticated_jwt_token_for_e2e_testing",
+      domain: "localhost",
+      path: "/",
+      httpOnly: true,
+      sameSite: "Lax",
+    },
+    {
+      name: "authjs.session-token",
+      value: "mock_authenticated_jwt_token_for_e2e_testing",
+      domain: "127.0.0.1",
+      path: "/",
+      httpOnly: true,
+      sameSite: "Lax",
+    },
+    {
+      name: "next-auth.session-token",
+      value: "mock_authenticated_jwt_token_for_e2e_testing",
+      domain: "127.0.0.1",
+      path: "/",
+      httpOnly: true,
+      sameSite: "Lax",
+    },
   ]);
+
+  // Auth session API
+  await page.route("**/api/auth/session*", async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        user: MOCK_USER,
+        expires: "2099-01-01T00:00:00.000Z",
+      }),
+    });
+  });
 
   // Global search API
   await page.route("**/api/search?*", async (route) => {
@@ -433,6 +536,149 @@ export async function setupAuthenticatedState(page: Page) {
           createdAt: new Date(Date.now() - 3600000).toISOString(),
         },
       ]),
+    });
+  });
+
+  // Default baseline API route fallbacks for authenticated pages
+  await page.route("**/api/dashboard*", async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        stats: {
+          totalReceivables: 4500000,
+          totalOverdue: 2100000,
+          totalDueSoon: 850000,
+          highRisk: 1200000,
+          promiseBroken: 350000,
+          customersOverdue: 14,
+        },
+        aging: [
+          { bucket: "1-30 days", amount: 1200000, count: 5 },
+          { bucket: "31-60 days", amount: 900000, count: 4 },
+          { bucket: "61-90 days", amount: 800000, count: 3 },
+          { bucket: "90+ days", amount: 1600000, count: 2 },
+        ],
+        actionQueue: MOCK_QUEUE,
+        recentEvents: [],
+      }),
+    });
+  });
+
+  await page.route("**/api/queue*", async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify(MOCK_QUEUE),
+    });
+  });
+
+  await page.route("**/api/customers*", async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify(MOCK_CUSTOMERS),
+    });
+  });
+
+  await page.route("**/api/invoices*", async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        items: MOCK_INVOICES,
+        invoices: MOCK_INVOICES,
+        total: MOCK_INVOICES.length,
+        page: 1,
+        pageSize: 50,
+        hasMore: false,
+      }),
+    });
+  });
+
+  await page.route("**/api/promises*", async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify(MOCK_PROMISES),
+    });
+  });
+
+  await page.route("**/api/payments*", async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify(MOCK_PAYMENTS),
+    });
+  });
+
+  await page.route("**/api/disputes*", async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify(MOCK_DISPUTES),
+    });
+  });
+
+  await page.route("**/api/messages*", async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({ messages: MOCK_MESSAGES, items: MOCK_MESSAGES }),
+    });
+  });
+
+  await page.route("**/api/analytics*", async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify(MOCK_ANALYTICS),
+    });
+  });
+
+  await page.route("**/api/settings*", async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify(MOCK_ORGANIZATION),
+    });
+  });
+
+  await page.route("**/api/team*", async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({ team: MOCK_TEAM, members: MOCK_TEAM }),
+    });
+  });
+
+  await page.route("**/api/workflows*", async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({ workflows: MOCK_WORKFLOWS, rules: MOCK_WORKFLOWS[0].rules }),
+    });
+  });
+
+  await page.route("**/api/billing/*", async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        subscription: { plan: "starter", status: "active", currentPeriodEnd: "2027-01-01T00:00:00.000Z" },
+        usage: { invoices: 12, maxInvoices: 50, reminders: 34, maxReminders: 100 },
+      }),
+    });
+  });
+
+  await page.route("**/api/account*", async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        user: MOCK_USER,
+        organization: MOCK_ORGANIZATION,
+      }),
     });
   });
 }

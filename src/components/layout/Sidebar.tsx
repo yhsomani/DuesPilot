@@ -22,6 +22,7 @@ import {
   LogOut,
   Search,
   Workflow,
+  CheckCircle2,
   Menu,
   X,
   type LucideIcon,
@@ -49,6 +50,7 @@ const navigation = [
     label: "Tools",
     items: [
       { name: "Import", href: "/dashboard/import", icon: Upload },
+      { name: "Reconciliation", href: "/dashboard/reconciliation", icon: CheckCircle2 },
       { name: "Communications", href: "/dashboard/communications", icon: Send },
       { name: "Workflows", href: "/dashboard/workflows", icon: Workflow },
       { name: "Analytics", href: "/dashboard/analytics", icon: BarChart3 },

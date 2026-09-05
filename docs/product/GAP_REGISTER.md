@@ -54,6 +54,10 @@
 | GAP-E1 | Legal pages absent | ✅ Static `/privacy` and `/terms` routes with compliance disclosures (TODO-060) |
 | GAP-M01 | Multi-installment payment plans | ✅ Structured settlement schedule engine with calendar remainder math (TODO-088) |
 | GAP-M06 | MSME Statutory Penal Interest | ✅ MSMED Act Sections 15 & 16 (3x RBI rate) compound monthly interest calculator & demand notice generator (TODO-091/092) |
+| GAP-A3 | Indian DLT SMS Gateway Adapter | ✅ TRAI-compliant SMS adapter with 19-digit entity/template ID verification, 6-char alpha headers (`DUESPL`), and GSM-7/Unicode segment calculation (TODO-044) |
+| GAP-A5 | AI Smart Promise Extraction & Dunning Copilot | ✅ Claude AI & rule-based parser for promises (date, amount, confidence) and tone-calibrated dunning generation (TODO-100) |
+| GAP-A7 | Bank Statement 4-Tier Automated Reconciliation | ✅ Ingestion of HDFC, ICICI, SBI, Axis, and generic CSV statements with UTR extraction, exact balance matching, and fuzzy name matching (TODO-101) |
+| GAP-D2 | Playwright End-to-End Test Coverage | ✅ Comprehensive E2E test suites across all 15 user flows including auth, customers, invoices, queue, payments, promises, reconciliation, workflows, and settings |
 
 ---
 
@@ -61,9 +65,7 @@
 
 | ID | Gap | Severity | Evidence | Resolution |
 | --- | --- | --- | --- | --- |
-| GAP-A3 | No SMS provider | 🟠 | TODO-044 Blocked | SMS gateway + DND compliance |
-| GAP-A5 | AI promise extraction | 🟠 | Marketing claim only; no LLM dep | Add LLM + prompt extraction (unprioritized) |
-| GAP-A7 | Bank statement import / auto-match | 🟡 | Marketing claim only | Decide provider + reconcile flow |
+| GAP-A11 | Live Production Gateway API Keys | 🟡 | Multi-provider adapters (Email, WhatsApp, SMS, Gateways, LLM) include deterministic simulation modes; live dispatch requires tenant/platform credentials | Add live production API keys to `.env` |
 
 ## B. Infra & Ops Gaps (Blocked on external provisioning)
 

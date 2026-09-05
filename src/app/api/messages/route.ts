@@ -2,6 +2,7 @@ import { err, ok, readJson, requireRole, withAuth, ACTION_ROLES } from "@/lib/se
 import { prisma } from "@/lib/prisma";
 import { sendEmail } from "@/lib/email";
 import { sendWhatsAppMessage } from "@/lib/whatsapp";
+import { sendSms } from "@/lib/sms";
 import { writeAudit } from "@/lib/audit";
 import { z } from "zod";
 import type { Prisma } from "@/generated/prisma/client";
@@ -146,8 +147,17 @@ export const POST = withAuth(async (req, ctx) => {
     sendSuccess = waResult.success;
     externalId = waResult.messageId;
     errorMessage = waResult.error;
+  } else if (channel === "SMS") {
+    const smsResult = await sendSms({
+      to: recipient,
+      message: messageBody,
+      dltTemplateId: templateId || undefined,
+    });
+    sendSuccess = smsResult.success;
+    externalId = smsResult.messageId;
+    errorMessage = smsResult.error;
   } else {
-    // For SMS / CALL / MANUAL
+    // For CALL / MANUAL
     externalId = `sim_${channel.toLowerCase()}_${Date.now()}`;
   }
 

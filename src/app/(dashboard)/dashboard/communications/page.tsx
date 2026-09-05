@@ -1,8 +1,9 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { DEFAULT_TEMPLATES, interpolateTemplate, type TemplateDefinition } from "@/lib/templates";
+import { api, apiPost } from "@/lib/api";
 import {
   Send,
   Mail,
@@ -82,73 +83,84 @@ export default function CommunicationsPage() {
   const [composeLoading, setComposeLoading] = useState(false);
   const [composeError, setComposeError] = useState<string | null>(null);
   const [composeSuccess, setComposeSuccess] = useState(false);
-
-  const fetchMessages = useCallback(async () => {
-    try {
-      const params = new URLSearchParams();
-      if (channelFilter !== "ALL") params.set("channel", channelFilter);
-      if (statusFilter !== "ALL") params.set("status", statusFilter);
-      if (searchTerm.trim()) params.set("search", searchTerm.trim());
-
-      const res = await fetch(`/api/messages?${params.toString()}`);
-      if (!res.ok) throw new Error("Failed to load communications");
-      const data = await res.json();
-      setMessages(data.messages || []);
-    } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : "Error fetching messages");
-    } finally {
-      setLoading(false);
-    }
-  }, [channelFilter, statusFilter, searchTerm]);
+  const [refreshKey, setRefreshKey] = useState(0);
 
   useEffect(() => {
-    let active = true;
-    async function run() {
+    let cancelled = false;
+    (async () => {
       try {
         const params = new URLSearchParams();
         if (channelFilter !== "ALL") params.set("channel", channelFilter);
         if (statusFilter !== "ALL") params.set("status", statusFilter);
         if (searchTerm.trim()) params.set("search", searchTerm.trim());
+        const qs = params.toString();
 
-        const res = await fetch(`/api/messages?${params.toString()}`);
-        if (!res.ok) throw new Error("Failed to load communications");
-        const data = await res.json();
-        if (active) {
-          setMessages(data.messages || []);
-          setLoading(false);
+        const url = `/api/messages${qs ? `?${qs}` : ""}`;
+        const res = await fetch(url);
+        const json = await res.json();
+        const data = json?.data ?? json;
+        const rawList: Record<string, unknown>[] = Array.isArray(data)
+          ? data
+          : (data?.messages as Record<string, unknown>[]) ||
+            (data?.items as Record<string, unknown>[]) ||
+            (data?.data as Record<string, unknown>[]) ||
+            [];
+        const list: MessageItem[] = rawList.map((m) => ({
+          id: String(m.id || ""),
+          customerId: (m.customerId as string) || null,
+          customerName: (m.customerName as string) || (m.customer as string) || null,
+          invoiceId: (m.invoiceId as string) || null,
+          channel: (m.channel as MessageItem["channel"]) || "EMAIL",
+          direction: (m.direction as string) || "OUTBOUND",
+          subject: (m.subject as string) || null,
+          body: (m.body as string) || "",
+          recipient: (m.recipient as string) || "",
+          status: (m.status as MessageItem["status"]) || "SENT",
+          externalId: (m.externalId as string) || null,
+          sentAt: (m.sentAt as string) || null,
+          createdAt: (m.createdAt as string) || (m.sentAt as string) || new Date().toISOString(),
+        }));
+        if (!cancelled) {
+          setMessages(list);
+          setError(null);
         }
       } catch (err: unknown) {
-        if (active) {
+        if (!cancelled) {
           setError(err instanceof Error ? err.message : "Error fetching messages");
+        }
+      } finally {
+        if (!cancelled) {
           setLoading(false);
         }
       }
-    }
-    run();
+    })();
     return () => {
-      active = false;
+      cancelled = true;
     };
-  }, [channelFilter, statusFilter, searchTerm]);
+  }, [channelFilter, statusFilter, searchTerm, refreshKey]);
 
   // Load customers for compose dropdown
   useEffect(() => {
     let active = true;
     async function loadCustomers() {
       try {
-        const res = await fetch("/api/customers?limit=100");
-        if (res.ok) {
-          const data = await res.json();
-          if (active) {
-            setCustomers(
-              (data.customers || []).map((c: CustomerApiItem) => ({
-                id: c.id,
-                name: c.name,
-                email: c.email || c.contactEmail || null,
-                phone: c.phone || c.contactPhone || null,
-                outstanding: c.outstandingAmount || c.totalOutstanding || 0,
-              }))
-            );
-          }
+        const data = await api<Record<string, unknown>>("/api/customers?limit=100");
+        const list = Array.isArray(data)
+          ? data
+          : (data?.customers as CustomerApiItem[]) ||
+            (data?.items as CustomerApiItem[]) ||
+            (data?.data as CustomerApiItem[]) ||
+            [];
+        if (active) {
+          setCustomers(
+            list.map((c: CustomerApiItem) => ({
+              id: c.id,
+              name: c.name,
+              email: c.email || c.contactEmail || null,
+              phone: c.phone || c.contactPhone || null,
+              outstanding: c.outstandingAmount || c.totalOutstanding || 0,
+            }))
+          );
         }
       } catch {
         // Non-fatal
@@ -220,9 +232,8 @@ export default function CommunicationsPage() {
   async function handleRetry(messageId: string) {
     try {
       setRetryingId(messageId);
-      const res = await fetch(`/api/messages/${messageId}`, { method: "POST" });
-      if (!res.ok) throw new Error("Retry failed");
-      await fetchMessages();
+      await apiPost(`/api/messages/${messageId}`, {});
+      setRefreshKey((k) => k + 1);
     } catch (err: unknown) {
       alert(err instanceof Error ? err.message : "Failed to retry sending");
     } finally {
@@ -249,30 +260,21 @@ export default function CommunicationsPage() {
     setComposeError(null);
 
     try {
-      const res = await fetch("/api/messages", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          customerId: selectedCustomer.id,
-          channel: composeChannel,
-          recipient: composeRecipient.trim(),
-          subject: composeChannel === "EMAIL" ? composeSubject.trim() : null,
-          body: composeBody.trim(),
-          templateId: composeTemplateId,
-          includePaymentLink,
-        }),
+      await apiPost("/api/messages", {
+        customerId: selectedCustomer.id,
+        channel: composeChannel,
+        recipient: composeRecipient.trim(),
+        subject: composeChannel === "EMAIL" ? composeSubject.trim() : null,
+        body: composeBody.trim(),
+        templateId: composeTemplateId,
+        includePaymentLink,
       });
-
-      const data = await res.json();
-      if (!res.ok) {
-        throw new Error(data?.error || "Failed to dispatch message");
-      }
 
       setComposeSuccess(true);
       setTimeout(() => {
         setComposeSuccess(false);
         setIsComposeOpen(false);
-        fetchMessages();
+        setRefreshKey((k) => k + 1);
       }, 1200);
     } catch (err: unknown) {
       setComposeError(err instanceof Error ? err.message : "Failed to dispatch message");
@@ -313,7 +315,7 @@ export default function CommunicationsPage() {
           <Button
             variant="outline"
             size="sm"
-            onClick={() => fetchMessages()}
+            onClick={() => setRefreshKey((k) => k + 1)}
             className="gap-1.5 shadow-2xs"
           >
             <RefreshCw className="h-3.5 w-3.5 text-slate-500" />

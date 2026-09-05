@@ -15,6 +15,9 @@ export interface TemplateDefinition {
   subject: string;
   body: string;
   description: string;
+  dltTemplateId?: string;
+  dltEntityId?: string;
+  dltHeader?: string;
 }
 
 export const TEMPLATE_VARIABLES: TemplateVariable[] = [
@@ -197,6 +200,50 @@ Pay Milestone: {{paymentLink}}
 Thank you,
 Accounts Team`,
     description: "Formal schedule breakdown for multi-installment settlements",
+  },
+  {
+    id: "sms-payment-reminder",
+    name: "SMS: Payment Due Reminder (DLT)",
+    category: "reminder",
+    channel: "SMS",
+    subject: "SMS Reminder",
+    body: "Dear {{contactName}}, gentle reminder that invoice {{invoiceNumber}} for Rs.{{amount}} is due on {{dueDate}}. Pay via {{paymentLink}} - {{companyName}}",
+    description: "TRAI DLT-approved transactional reminder",
+    dltTemplateId: "1107168900000001001",
+    dltHeader: "DUESPL",
+  },
+  {
+    id: "sms-overdue-alert",
+    name: "SMS: Urgent Overdue Alert (DLT)",
+    category: "overdue",
+    channel: "SMS",
+    subject: "SMS Overdue Notice",
+    body: "URGENT: {{contactName}}, invoice {{invoiceNumber}} for Rs.{{outstandingAmount}} is {{daysOverdue}} days overdue. Pay immediately: {{paymentLink}} - {{companyName}}",
+    description: "TRAI DLT-approved overdue notification",
+    dltTemplateId: "1107168900000001002",
+    dltHeader: "DUESPL",
+  },
+  {
+    id: "sms-payment-receipt",
+    name: "SMS: Payment Receipt (DLT)",
+    category: "receipt",
+    channel: "SMS",
+    subject: "SMS Receipt",
+    body: "Payment received! Rs.{{amount}} credited towards invoice {{invoiceNumber}}. Ref: {{paymentReference}}. Thank you - {{companyName}}",
+    description: "TRAI DLT-approved payment allocation receipt",
+    dltTemplateId: "1107168900000001003",
+    dltHeader: "DUESPL",
+  },
+  {
+    id: "sms-msme-statutory-notice",
+    name: "SMS: MSME Statutory Notice (DLT)",
+    category: "demand",
+    channel: "SMS",
+    subject: "SMS MSME Demand",
+    body: "DEMAND NOTICE: {{contactName}}, statutory dues of Rs.{{outstandingAmount}} under MSMED Act 2006. Settle immediately: {{paymentLink}} - {{companyName}}",
+    description: "TRAI DLT-approved formal statutory MSME demand notice",
+    dltTemplateId: "1107168900000001005",
+    dltHeader: "DUESPL",
   },
 ];
 
