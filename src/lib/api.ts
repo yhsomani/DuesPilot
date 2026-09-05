@@ -60,3 +60,7 @@ export async function apiPatch<TReq, TRes>(
 ): Promise<TRes> {
   return api<TRes>(path, { method: "PATCH", body: JSON.stringify(body) });
 }
+
+export async function apiDel<TRes>(path: string): Promise<TRes> {
+  return api<TRes>(path, { method: "DELETE" });
+}

@@ -17,18 +17,10 @@ import type {
   QueuePriority,
 } from "@/lib/types";
 import { InvoiceStatus, PromiseStatus, type Prisma } from "@/generated/prisma/client";
-
-const now = new Date();
-
-function daysOverdue(dueDate: Date): number {
-  const diff = now.getTime() - dueDate.getTime();
-  return Math.max(0, Math.floor(diff / (1000 * 60 * 60 * 24)));
-}
-
-function daysUntilDue(dueDate: Date): number {
-  const diff = dueDate.getTime() - now.getTime();
-  return Math.max(0, Math.ceil(diff / (1000 * 60 * 60 * 24)));
-}
+import { daysOverdue, daysUntilDue } from "@/lib/dates";
+import { computeQueueItem } from "@/lib/queue-item";
+import { computeRiskScore } from "@/lib/risk-score";
+import { consumeIdempotencyKey } from "@/lib/idempotency";
 
 function initials(name: string): string {
   return name
@@ -129,7 +121,14 @@ export async function getQueue(organizationId: string): Promise<QueueItem[]> {
     where: { organizationId },
     include: {
       invoices: {
-        select: { id: true, dueDate: true, amount: true, outstandingAmount: true, status: true },
+        select: {
+          id: true,
+          dueDate: true,
+          amount: true,
+          outstandingAmount: true,
+          status: true,
+          dispute: { select: { id: true } },
+        },
       },
       promisesToPay: {
         select: { id: true, promiseDate: true, amount: true, status: true },
@@ -153,33 +152,28 @@ export async function getQueue(organizationId: string): Promise<QueueItem[]> {
     );
     if (overdueInvoices.length === 0) continue;
 
+    // Skip customers whose only overdue balances are under dispute.
+    const collectibleOverdue = overdueInvoices.filter((i) => !i.dispute);
+    if (collectibleOverdue.length === 0) continue;
+
     const latestPromise = c.promisesToPay[0];
     const lastEvent = c.collectionEvents[0];
-    const mostOverdue = overdueInvoices.reduce((a, b) =>
+    const mostOverdue = collectibleOverdue.reduce((a, b) =>
       daysOverdue(a.dueDate) >= daysOverdue(b.dueDate) ? a : b
     );
-    const totalOverdue = overdueInvoices.reduce((s, i) => s + i.outstandingAmount, 0);
+    const totalOverdue = collectibleOverdue.reduce(
+      (s, i) => s + i.outstandingAmount,
+      0
+    );
     const promiseBroken = latestPromise?.status === PromiseStatus.BROKEN;
 
-    let priority: QueuePriority = "low";
-    const days = daysOverdue(mostOverdue.dueDate);
-    if (promiseBroken || days > 30 || totalOverdue > 400000) priority = "high";
-    else if (days > 7 || (c.riskScore ?? 0) > 70) priority = "medium";
-
-    const status = promiseBroken
-      ? "Promise broken"
-      : lastEvent
-      ? statusView(lastEvent.type)
-      : `${days} days overdue`;
-
-    const nextAction =
-      priority === "high"
-        ? promiseBroken || days > 30
-          ? "Call now"
-          : "Resolve dispute"
-        : priority === "medium"
-        ? "WhatsApp follow-up"
-        : "Send due date notice";
+    const computed = computeQueueItem({
+      promiseBroken,
+      mostOverdueDueDate: mostOverdue.dueDate,
+      totalOverdue,
+      riskScore: c.riskScore ?? 0,
+      lastEventType: lastEvent?.type ?? null,
+    });
 
     items.push({
       id: c.id,
@@ -187,12 +181,14 @@ export async function getQueue(organizationId: string): Promise<QueueItem[]> {
       customer: c.name,
       initials: initials(c.name),
       amount: totalOverdue,
-      daysOverdue: days,
-      status,
+      daysOverdue: computed.daysOverdue,
+      status: computed.status,
       lastAction: lastEvent ? lastEvent.description : "No previous action",
-      nextAction,
-      priority,
+      nextAction: computed.nextAction,
+      priority: computed.priority,
+      why: computed.why,
       promiseBroken,
+      promiseId: promiseBroken ? latestPromise?.id ?? null : null,
     });
   }
 
@@ -204,10 +200,23 @@ export async function getQueue(organizationId: string): Promise<QueueItem[]> {
 /* ------------------------------- Customers ------------------------------- */
 
 export async function listCustomers(
-  organizationId: string
+  organizationId: string,
+  search?: string
 ): Promise<CustomerSummary[]> {
+  const term = search?.trim();
   const customers = await prisma.customer.findMany({
-    where: { organizationId },
+    where: {
+      organizationId,
+      ...(term
+        ? {
+            OR: [
+              { name: { contains: term, mode: "insensitive" } },
+              { email: { contains: term, mode: "insensitive" } },
+              { phone: { contains: term, mode: "insensitive" } },
+            ],
+          }
+        : {}),
+    },
     include: CUSTOMER_SUMMARY,
     orderBy: { totalOutstanding: "desc" },
   });
@@ -330,6 +339,104 @@ export async function listInvoices(
     }));
 }
 
+export interface InvoiceQuery {
+  search?: string;
+  status?: "open" | "overdue" | "due_soon" | "disputed" | "paid" | "promised" | "partial";
+  page?: number;
+  pageSize?: number;
+}
+
+export async function queryInvoices(
+  organizationId: string,
+  q: InvoiceQuery
+): Promise<{ items: InvoiceRow[]; total: number; page: number; pageSize: number; hasMore: boolean }> {
+  const page = Math.max(1, q.page ?? 1);
+  const pageSize = Math.min(200, Math.max(1, q.pageSize ?? 50));
+
+  const now = new Date();
+  const inSevenDays = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
+
+  const statusFilters: Prisma.InvoiceWhereInput[] = [];
+  switch (q.status) {
+    case "open":
+      statusFilters.push({
+        status: { in: [InvoiceStatus.OPEN, InvoiceStatus.DRAFT] },
+        outstandingAmount: { gt: 0 },
+      });
+      break;
+    case "overdue":
+      statusFilters.push({
+        status: { notIn: [InvoiceStatus.PAID, InvoiceStatus.CANCELLED, InvoiceStatus.DISPUTED] },
+        outstandingAmount: { gt: 0 },
+        dueDate: { lt: now },
+      });
+      break;
+    case "due_soon":
+      statusFilters.push({
+        status: { notIn: [InvoiceStatus.PAID, InvoiceStatus.CANCELLED] },
+        outstandingAmount: { gt: 0 },
+        dueDate: { gte: now, lte: inSevenDays },
+      });
+      break;
+    case "disputed":
+      statusFilters.push({ status: InvoiceStatus.DISPUTED });
+      break;
+    case "paid":
+      statusFilters.push({ status: { in: [InvoiceStatus.PAID, InvoiceStatus.CANCELLED] } });
+      break;
+    case "promised":
+      statusFilters.push({ status: { in: [InvoiceStatus.PROMISED, InvoiceStatus.PROMISE_BROKEN] } });
+      break;
+    case "partial":
+      statusFilters.push({ status: InvoiceStatus.PARTIALLY_PAID });
+      break;
+  }
+
+  const where: Prisma.InvoiceWhereInput = {
+    organizationId,
+    AND: [
+      ...statusFilters,
+      q.search?.trim()
+        ? {
+            OR: [
+              { invoiceNumber: { contains: q.search.trim(), mode: "insensitive" } },
+              { customer: { name: { contains: q.search.trim(), mode: "insensitive" } } },
+            ],
+          }
+        : {},
+    ],
+  };
+
+  const [invoices, total] = await Promise.all([
+    prisma.invoice.findMany({
+      where,
+      include: { customer: { select: { name: true } } },
+      orderBy: { dueDate: "asc" },
+      skip: (page - 1) * pageSize,
+      take: pageSize,
+    }),
+    prisma.invoice.count({ where }),
+  ]);
+
+  return {
+    items: invoices.map((inv) => ({
+      id: inv.id,
+      number: inv.invoiceNumber,
+      customer: inv.customer.name,
+      date: inv.invoiceDate.toISOString(),
+      dueDate: inv.dueDate.toISOString(),
+      amount: inv.amount,
+      outstanding: inv.outstandingAmount,
+      status: inv.status,
+      daysOverdue: daysOverdue(inv.dueDate),
+    })),
+    total,
+    page,
+    pageSize,
+    hasMore: page * pageSize < total,
+  };
+}
+
 /* -------------------------------- Promises ------------------------------- */
 
 export async function listPromises(
@@ -356,21 +463,363 @@ export async function listPromises(
   }));
 }
 
+export async function getInvoiceDetail(
+  organizationId: string,
+  invoiceId: string
+): Promise<import("@/lib/types").InvoiceDetail | null> {
+  const inv = await prisma.invoice.findFirst({
+    where: { id: invoiceId, organizationId },
+    include: {
+      customer: { select: { id: true, name: true } },
+      items: true,
+      payments: {
+        include: { payment: true },
+        orderBy: { createdAt: "asc" },
+      },
+      collectionEvents: { orderBy: { createdAt: "asc" } },
+      promisesToPay: { orderBy: { createdAt: "asc" } },
+      dispute: true,
+    },
+  });
+  if (!inv) return null;
+
+  const timeline: import("@/lib/types").InvoiceTimelineEvent[] = [];
+
+  for (const alloc of inv.payments) {
+    const p = alloc.payment;
+    timeline.push({
+      id: alloc.id,
+      date: p.paymentDate.toISOString(),
+      type: "payment",
+      summary: `₹${alloc.amount.toFixed(2)} allocated`,
+      detail: `Payment${p.reference ? ` ref: ${p.reference}` : ""}${p.mode ? ` (${p.mode})` : ""}`,
+    });
+  }
+
+  for (const ev of inv.collectionEvents) {
+    timeline.push({
+      id: ev.id,
+      date: ev.createdAt.toISOString(),
+      type: "event",
+      summary: ev.type,
+      detail: ev.description,
+    });
+  }
+
+  for (const pt of inv.promisesToPay) {
+    timeline.push({
+      id: pt.id,
+      date: pt.promiseDate.toISOString(),
+      type: "promise",
+      summary: `₹${pt.amount.toFixed(2)} by ${new Date(pt.promiseDate).toLocaleDateString("en-IN")}`,
+      detail: pt.note ?? undefined,
+    });
+  }
+
+  if (inv.dispute) {
+    timeline.push({
+      id: inv.dispute.id,
+      date: inv.dispute.createdAt.toISOString(),
+      type: "dispute",
+      summary: inv.dispute.reason,
+      detail: inv.dispute.status,
+    });
+  }
+
+  timeline.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+
+  return {
+    id: inv.id,
+    number: inv.invoiceNumber,
+    customerId: inv.customer.id,
+    customerName: inv.customer.name,
+    date: inv.invoiceDate.toISOString(),
+    dueDate: inv.dueDate.toISOString(),
+    amount: inv.amount,
+    outstanding: inv.outstandingAmount,
+    status: inv.status,
+    currency: inv.currency,
+    notes: inv.notes,
+    items: inv.items.map((i) => ({
+      id: i.id,
+      description: i.description,
+      quantity: i.quantity,
+      unitPrice: i.unitPrice,
+      taxRate: i.taxRate,
+      amount: i.amount,
+    })),
+    allocations: inv.payments.map((a) => ({
+      id: a.id,
+      paymentRef: a.payment.reference ?? null,
+      paymentDate: a.payment.paymentDate.toISOString(),
+      mode: a.payment.mode ?? null,
+      amount: a.amount,
+    })),
+    timeline,
+  };
+}
+
+export async function exportOrganizationData(organizationId: string) {
+  const [
+    org,
+    customers,
+    invoices,
+    invoicesWithItems,
+    payments,
+    allocations,
+    promises,
+    disputes,
+    events,
+    contacts,
+  ] = await Promise.all([
+    prisma.organization.findUnique({
+      where: { id: organizationId },
+      select: { name: true, gstin: true, industry: true, city: true },
+    }),
+    prisma.customer.findMany({
+      where: { organizationId },
+      orderBy: { createdAt: "asc" },
+    }),
+    prisma.invoice.findMany({ where: { organizationId } }),
+    prisma.invoiceItem.findMany({
+      where: { invoice: { organizationId } },
+    }),
+    prisma.payment.findMany({ where: { organizationId } }),
+    prisma.paymentAllocation.findMany({
+      where: { payment: { organizationId } },
+    }),
+    prisma.promiseToPay.findMany({ where: { organizationId } }),
+    prisma.dispute.findMany({
+      where: { invoice: { organizationId } },
+      orderBy: { createdAt: "asc" },
+    }),
+    prisma.collectionEvent.findMany({ where: { organizationId } }),
+    prisma.contact.findMany({ where: { customer: { organizationId } } }),
+  ]);
+
+  return {
+    exportedAt: new Date().toISOString(),
+    organization: org,
+    customers: customers.map((c) => ({
+      ...c,
+      createdAt: c.createdAt.toISOString(),
+      updatedAt: c.updatedAt.toISOString(),
+      lastPaymentAt: c.lastPaymentAt?.toISOString() ?? null,
+    })),
+    invoices: invoices.map((i) => ({
+      ...i,
+      invoiceDate: i.invoiceDate.toISOString(),
+      dueDate: i.dueDate.toISOString(),
+      createdAt: i.createdAt.toISOString(),
+      updatedAt: i.updatedAt.toISOString(),
+    })),
+    invoiceItems: invoicesWithItems,
+    payments: payments.map((p) => ({
+      ...p,
+      paymentDate: p.paymentDate.toISOString(),
+      createdAt: p.createdAt.toISOString(),
+      updatedAt: p.updatedAt.toISOString(),
+    })),
+    allocations: allocations.map((a) => ({
+      ...a,
+      createdAt: a.createdAt.toISOString(),
+    })),
+    promises: promises.map((p) => ({
+      ...p,
+      promiseDate: p.promiseDate.toISOString(),
+      createdAt: p.createdAt.toISOString(),
+      updatedAt: p.updatedAt.toISOString(),
+    })),
+    disputes: disputes.map((d) => ({
+      ...d,
+      createdAt: d.createdAt.toISOString(),
+      resolvedAt: d.resolvedAt?.toISOString() ?? null,
+      updatedAt: d.updatedAt.toISOString(),
+    })),
+    collectionEvents: events.map((e) => ({
+      ...e,
+      createdAt: e.createdAt.toISOString(),
+    })),
+    contacts,
+  };
+}
+
+export interface NotificationRow {
+  id: string;
+  createdAt: string;
+  kind: "promise_broken" | "dispute_open" | "promise_due_today" | "system";
+  title: string;
+  message: string;
+  link?: string;
+}
+
+export async function listNotifications(
+  organizationId: string
+): Promise<NotificationRow[]> {
+  const now = new Date();
+  const SEVEN_DAYS = 7 * 24 * 60 * 60 * 1000;
+
+  const [broken, disputes, duePromises] = await Promise.all([
+    prisma.promiseToPay.findMany({
+      where: {
+        organizationId,
+        status: "BROKEN",
+        updatedAt: { gte: new Date(now.getTime() - SEVEN_DAYS) },
+      },
+      include: { customer: { select: { name: true } } },
+      orderBy: { updatedAt: "desc" },
+      take: 5,
+    }),
+    prisma.dispute.findMany({
+      where: {
+        status: "open",
+        invoice: { organizationId },
+      },
+      include: {
+        invoice: { select: { invoiceNumber: true, customer: { select: { name: true } } } },
+      },
+      orderBy: { createdAt: "desc" },
+      take: 5,
+    }),
+    prisma.promiseToPay.findMany({
+      where: {
+        organizationId,
+        status: "ACTIVE",
+        promiseDate: { lte: now },
+      },
+      include: { customer: { select: { name: true, id: true } } },
+      orderBy: { promiseDate: "asc" },
+      take: 5,
+    }),
+  ]);
+
+  const notifications: NotificationRow[] = [];
+
+  for (const p of broken) {
+    notifications.push({
+      id: p.id,
+      createdAt: p.updatedAt.toISOString(),
+      kind: "promise_broken",
+      title: `Broken promise – ${p.customer.name}`,
+      message: `₹${p.amount.toFixed(2)} promised by ${new Date(p.promiseDate).toLocaleDateString("en-IN")} was not kept.`,
+      link: `/dashboard/promises`,
+    });
+  }
+
+  for (const d of disputes) {
+    notifications.push({
+      id: d.id,
+      createdAt: d.createdAt.toISOString(),
+      kind: "dispute_open",
+      title: `New dispute – ${d.invoice.invoiceNumber}`,
+      message: `${d.invoice.customer.name}: ${d.reason}`,
+      link: `/dashboard/disputes`,
+    });
+  }
+
+  for (const p of duePromises) {
+    notifications.push({
+      id: p.id,
+      createdAt: p.promiseDate.toISOString(),
+      kind: "promise_due_today",
+      title: `Promise due – ${p.customer.name}`,
+      message: `₹${p.amount.toFixed(2)} is due today. Follow up.`,
+      link: `/dashboard/customers/${p.customer.id}`,
+    });
+  }
+
+  notifications.sort(
+    (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+  );
+
+  return notifications.slice(0, 20);
+}
+
+/* -------------------------------- Disputes -------------------------------- */
+
+export async function listDuplicateGroups(
+  organizationId: string
+): Promise<import("@/lib/types").DuplicateGroup[]> {
+  const customers = await prisma.customer.findMany({
+    where: { organizationId },
+    select: {
+      id: true,
+      name: true,
+      totalOutstanding: true,
+      _count: { select: { invoices: true } },
+    },
+  });
+
+  const groups = new Map<
+    string,
+    import("@/lib/types").DuplicateGroup["members"]
+  >();
+  for (const c of customers) {
+    const key = c.name.toLowerCase().replace(/\s+/g, " ").trim();
+    const members = groups.get(key) ?? [];
+    members.push({
+      id: c.id,
+      name: c.name,
+      invoicesCount: c._count.invoices,
+      totalOutstanding: c.totalOutstanding,
+    });
+    groups.set(key, members);
+  }
+
+  return [...groups.entries()]
+    .filter(([, members]) => members.length > 1)
+    .sort((a, b) => b[1][0].totalOutstanding - a[1][0].totalOutstanding)
+    .map(([key, members]) => ({ key, members }));
+}
+
+export async function listDisputes(
+  organizationId: string
+): Promise<import("@/lib/types").DisputeRow[]> {
+  const disputes = await prisma.dispute.findMany({
+    where: { invoice: { organizationId } },
+    include: {
+      invoice: {
+        select: { invoiceNumber: true, customer: { select: { name: true } } },
+      },
+    },
+    orderBy: { createdAt: "desc" },
+  });
+  return disputes.map((d) => ({
+    id: d.id,
+    invoiceId: d.invoiceId,
+    invoiceNumber: d.invoice.invoiceNumber,
+    customer: d.invoice.customer.name,
+    reason: d.reason,
+    category: d.category,
+    status: d.status,
+    notes: d.notes,
+    createdAt: d.createdAt.toISOString(),
+  }));
+}
+
 /* -------------------------------- Settings ------------------------------- */
 
 export async function getOrganizationSettings(
   organizationId: string
 ): Promise<OrganizationSettings | null> {
-  const org = await prisma.organization.findUnique({
-    where: { id: organizationId },
-  });
+  const [org, realUserCount] = await Promise.all([
+    prisma.organization.findUnique({ where: { id: organizationId } }),
+    prisma.user.count({ where: { organizationId } }),
+  ]);
   if (!org) return null;
+  const workingDays = (org.workingDays as { days: number[] } | null)?.days ?? null;
+  const holidays = (org.holidays as string[] | null) ?? null;
   return {
     name: org.name,
     gstin: org.gstin,
     industry: org.industry,
     city: org.city,
-    usersCount: org.usersCount,
+    usersCount: realUserCount,
+    businessHoursStart: org.businessHoursStart,
+    businessHoursEnd: org.businessHoursEnd,
+    workingDays,
+    holidays,
+    automationsPaused: org.automationsPaused,
   };
 }
 
@@ -379,108 +828,188 @@ export async function getOrganizationSettings(
 export async function importReceivables(
   organizationId: string,
   rows: Record<string, string>[],
-  mapping: ImportColumnMapping
+  mapping: ImportColumnMapping,
+  idempotencyKey?: string | null
 ): Promise<ImportResult> {
-  const customersMap = new Map<string, string>();
-  const invoicesCreated: string[] = [];
+  const issues: { row: number; reason: string }[] = [];
+  const MAX_REPORTED_ISSUES = 500;
 
-  for (const row of rows) {
-    const get = (key: keyof ImportColumnMapping) =>
-      row[mapping[key]]?.trim() ?? "";
+  const { customersCreated, invoicesCreated, totalAmount } =
+    await prisma.$transaction(
+      async (tx) => {
+        await consumeIdempotencyKey(
+          tx,
+          organizationId,
+          idempotencyKey,
+          "import:receivables"
+        );
+        const customersMap = new Map<string, string>();
+        const seenInvoices = new Set<string>();
+        const invoicesCreated: string[] = [];
+        let customersCreated = 0;
+        let totalAmount = 0;
 
-    const customerName = get("customerName");
-    const invoiceNumber = get("invoiceNumber");
-    const invoiceDateStr = get("invoiceDate");
-    const dueDateStr = get("dueDate");
-    const amountStr = get("amount");
-    if (!customerName || !invoiceNumber || !dueDateStr || !amountStr) continue;
+        const pushIssue = (row: number, reason: string) => {
+          if (issues.length < MAX_REPORTED_ISSUES) issues.push({ row, reason });
+        };
 
-    const amount = parseAmount(amountStr);
-    if (Number.isNaN(amount) || amount <= 0) continue;
+      for (let i = 0; i < rows.length; i++) {
+        const row = rows[i];
+        const line = i + 2; // 1-based + header row
 
-    // Resolve or create the customer (scoped to this organization).
-    let customerId = customersMap.get(customerName.toLowerCase());
-    if (!customerId) {
-      const existing = await prisma.customer.findFirst({
-        where: { organizationId, name: customerName },
-        select: { id: true },
-      });
-      customerId = existing?.id;
-      if (!customerId) {
-        const created = await prisma.customer.create({
-          data: { organizationId, name: customerName },
+        const get = (key: keyof ImportColumnMapping) =>
+          row[mapping[key]]?.trim() ?? "";
+
+        const customerName = get("customerName");
+        const invoiceNumber = get("invoiceNumber");
+        const invoiceDateStr = get("invoiceDate");
+        const dueDateStr = get("dueDate");
+        const amountStr = get("amount");
+
+        if (!customerName) {
+          pushIssue(line, "Missing customer name");
+          continue;
+        }
+        if (!invoiceNumber) {
+          pushIssue(line, "Missing invoice number");
+          continue;
+        }
+        if (!dueDateStr) {
+          pushIssue(line, "Missing due date");
+          continue;
+        }
+        if (!amountStr) {
+          pushIssue(line, "Missing amount");
+          continue;
+        }
+
+        const amount = parseAmount(amountStr);
+        if (Number.isNaN(amount) || amount <= 0) {
+          pushIssue(line, `Invalid amount "${amountStr}"`);
+          continue;
+        }
+
+        const dueDate = parseDate(dueDateStr);
+        if (!dueDate) {
+          pushIssue(line, `Invalid due date "${dueDateStr}"`);
+          continue;
+        }
+
+        if (seenInvoices.has(invoiceNumber)) {
+          pushIssue(line, `Duplicate invoice number "${invoiceNumber}" in file`);
+          continue;
+        }
+        seenInvoices.add(invoiceNumber);
+
+        // Resolve or create the customer (scoped to this organization).
+        let customerId = customersMap.get(customerName.toLowerCase());
+        if (!customerId) {
+          const existing = await tx.customer.findFirst({
+            where: { organizationId, name: customerName },
+            select: { id: true },
+          });
+          customerId = existing?.id;
+          if (!customerId) {
+            const created = await tx.customer.create({
+              data: { organizationId, name: customerName },
+            });
+            customerId = created.id;
+            customersCreated++;
+          }
+          customersMap.set(customerName.toLowerCase(), customerId);
+        }
+
+        // Skip duplicates already present in this organization.
+        const existingInv = await tx.invoice.findFirst({
+          where: { organizationId, invoiceNumber },
+          select: { id: true },
         });
-        customerId = created.id;
+        if (existingInv) {
+          pushIssue(line, `Invoice "${invoiceNumber}" already exists`);
+          continue;
+        }
+
+        const invoiceDate = parseDate(invoiceDateStr) ?? new Date();
+        const outstanding = parseAmount(get("outstanding")) || amount;
+
+        await tx.invoice.create({
+          data: {
+            organizationId,
+            customerId,
+            invoiceNumber,
+            invoiceDate: invoiceDate,
+            dueDate,
+            amount,
+            outstandingAmount: Math.min(outstanding, amount),
+            status: InvoiceStatus.OPEN,
+            source: "csv",
+          },
+        });
+        invoicesCreated.push(invoiceNumber);
+        totalAmount += amount;
       }
-      customersMap.set(customerName.toLowerCase(), customerId);
-    }
 
-    const dueDate = parseDate(dueDateStr);
-    if (!dueDate) continue;
+      return { customersCreated, invoicesCreated, totalAmount };
+    },
+      { timeout: 60_000 }
+    );
 
-    const invoiceDate = parseDate(invoiceDateStr) ?? new Date();
-
-    // Skip duplicates within the same organization.
-    const existingInv = await prisma.invoice.findFirst({
-      where: { organizationId, invoiceNumber },
-      select: { id: true },
-    });
-    if (existingInv) continue;
-
-    const outstanding = parseAmount(get("outstanding")) || amount;
-
-    await prisma.invoice.create({
-      data: {
-        organizationId,
-        customerId,
-        invoiceNumber,
-        invoiceDate: invoiceDate,
-        dueDate,
-        amount,
-        outstandingAmount: Math.min(outstanding, amount),
-        status: InvoiceStatus.OPEN,
-        source: "csv",
-      },
-    });
-    invoicesCreated.push(invoiceNumber);
+  // Refresh aggregate outstanding/overdue (runs outside the tx, best-effort).
+  if (invoicesCreated.length > 0) {
+    await refreshCustomerTotals(organizationId);
   }
 
-  // Refresh aggregate outstanding/overdue on affected customers.
-  await refreshCustomerTotals(organizationId);
-
-  const totalAmount = invoicesCreated.length
-    ? await prisma.invoice
-        .findMany({
-          where: { organizationId, invoiceNumber: { in: invoicesCreated } },
-          select: { amount: true },
-        })
-        .then((rows) => rows.reduce((s, r) => s + r.amount, 0))
-    : 0;
-
+  const validRows = invoicesCreated.length;
   return {
-    customersCreated: customersMap.size,
-    invoicesCreated: invoicesCreated.length,
+    customersCreated,
+    invoicesCreated: validRows,
     totalAmount,
+    processedRows: rows.length,
+    validRows,
+    skippedRows: rows.length - validRows,
+    issues,
   };
 }
 
-async function refreshCustomerTotals(organizationId: string) {
+export async function refreshCustomerTotals(organizationId: string) {
   const customers = await prisma.customer.findMany({
     where: { organizationId },
     select: { id: true },
   });
   for (const c of customers) {
-    const invs = await prisma.invoice.findMany({
-      where: { customerId: c.id },
-      select: { amount: true, outstandingAmount: true, dueDate: true },
-    });
+    const [invs, promises, payments] = await Promise.all([
+      prisma.invoice.findMany({
+        where: { customerId: c.id },
+        select: { amount: true, outstandingAmount: true, dueDate: true },
+      }),
+      prisma.promiseToPay.findMany({
+        where: { customerId: c.id },
+        select: { status: true },
+      }),
+      prisma.payment.findMany({
+        where: { customerId: c.id },
+        select: { id: true },
+      }),
+    ]);
     const totalOutstanding = invs.reduce((s, i) => s + i.outstandingAmount, 0);
     const totalOverdue = invs
       .filter((i) => i.outstandingAmount > 0 && daysOverdue(i.dueDate) > 0)
       .reduce((s, i) => s + i.outstandingAmount, 0);
+    const maxDaysOverdue = invs
+      .filter((i) => i.outstandingAmount > 0)
+      .reduce((m, i) => Math.max(m, daysOverdue(i.dueDate)), 0);
+    const riskScore = computeRiskScore({
+      totalOutstanding,
+      totalOverdue,
+      maxDaysOverdue,
+      hasBrokenPromise: promises.some(
+        (p) => p.status === PromiseStatus.BROKEN
+      ),
+      hasHistoricalPayment: payments.length > 0,
+    });
     await prisma.customer.update({
       where: { id: c.id },
-      data: { totalOutstanding, totalOverdue },
+      data: { totalOutstanding, totalOverdue, riskScore },
     });
   }
 }

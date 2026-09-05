@@ -4,45 +4,39 @@
 | --- | --- |
 | **Document name** | Product Requirements Document |
 | **Project name** | DuesPilot |
-| **Version** | 1.0.0 |
+| **Version** | 2.0.0 |
 | **Analysis date** | 2026-09-04 |
-| **Status** | DRAFT — reflects current codebase (commit `d037888`), not a target spec |
-| **Source of truth** | Repository at `/Users/yashsomani/OfficeWork-learning/DuesPilot` + GitHub `yhsomani/DuesPilot` |
-| **Scope** | Complete codebase audit → product specification, reverse-engineered from implementation |
-| **Methodology** | Evidence-based bidirectional audit (Documentation ↔ Code ↔ Requirements ↔ Business ↔ UX ↔ Architecture) |
-| **Confidence** | High for implemented behavior; explicit labels (UNVERIFIED / AMBIGUOUS / PROPOSED) where not |
-| **Known limitations** | No runtime/production deployment exists; no external integrations are live; no tests exist |
+| **Status** | CURRENT — reflects the implemented system (Phases 1–15, post-`83e6ebd`) |
+| **Source of truth** | Repository at `C:\Users\yashs\3D Objects\DuesPilot`; statuses per `docs/MASTER_TODO.md` |
+| **Scope** | Full-stack implementation audit → product specification, grounded in shipped code |
+| **Methodology** | Evidence-based bidirectional audit (Requirements ↔ Code ↔ Tests ↔ UX) |
+| **Confidence** | High for implemented behavior; explicit `UNVERIFIED` / `BLOCKED` / `I-cannot-confirm` labels where not |
 
-> Evidence labels used throughout:
-> - **CODEBASE-VERIFIED** — fact directly supported by source code.
-> - **DOCUMENTED-ONLY** — requirement supported only by marketing/docs, no implementation evidence.
-> - **PROPOSED** — improvement not currently required by the implementation.
-> - **UNVERIFIED** — requires external/runtime validation.
-> - **AMBIGUOUS** — product/business intent requires human decision.
+> **Quality gate (verified 2026-09-05):** `npx tsc --noEmit`, `npm run lint`, `npm test` (65/65, 9 files), and `npm run build` all green. All statuses below derive from the authoritative fact sheet and `docs/MASTER_TODO.md`.
 
 ---
 
 ## 1. Executive Summary
 
-DuesPilot is positioned as **"a Collections Operating System for Indian B2B SMEs"** — a web application intended to help small and medium Indian businesses automate the recovery of overdue invoices (accounts receivable / collections).
+DuesPilot is **"a Collections Operating System for Indian B2B SMEs"** — a multi-tenant web application that helps small and medium Indian businesses automate the recovery of overdue invoices (accounts receivable / collections).
 
-As it exists in the repository today, the product is a **functional front-end prototype (high-fidelity UI mock) with a real-but-narrowly-used backend foundation**. The repository contains:
+The repository now contains a **functioning, tenant-scoped full-stack implementation** with:
 
-- A **complete, migrated PostgreSQL schema** (19 tables, 6 enums) modeling the full collections domain: `Organization`, `User`, `Customer`, `Contact`, `Invoice`, `InvoiceItem`, `Payment`, `PaymentAllocation`, `PromiseToPay`, `Dispute`, `Message`, `CollectionEvent`, `CollectionWorkflow`, `WorkflowAction`, `IntegrationCredential`, `AuditLog`, plus standard NextAuth tables (`Account`, `Session`, `VerificationToken`).
-- A **real credentials-based authentication + registration flow** that writes to the database (verified working at runtime during this analysis, `POST /api/register` → 201, login → 302).
-- **17 front-end pages**, all of which render, but **every collection-facing page (Dashboard, Queue, Customers, Invoices, Promises, Analytics, Import, Settings) is a `"use client"` component backed by hardcoded mock data** — none of them read from or write to the database.
-- **No test files, no test framework, no CI/CD, no deployment config, no external provider credentials.**
+- A complete, migrated PostgreSQL schema (**21 models, 6 enums**) across the whole collections domain (`Organization`, `User`, `Customer`, `Contact`, `Invoice`, `InvoiceItem`, `Payment`, `PaymentAllocation`, `PromiseToPay`, `Dispute`, `Message`, `CollectionEvent`, `CollectionWorkflow`, `WorkflowAction`, `IntegrationCredential`, `AuditLog`, `NotificationPreference`, `IdempotencyKey`, plus NextAuth tables).
+- A real credentials auth flow (register with zod + bcrypt cost 12 + rate limiting, login with JWT, logout, password reset), RBAC enforcement, tenant isolation via `withAuth` + `organizationId` scoping.
+- **Real, DB-backed features across every core surface**: import (transactional batch), dashboard aggregates, priority queue, customer/contact CRUD + dedupe/merge, invoices with search/pagination/detail, payments with FIFO/explicit allocation + reversals, promise lifecycle + auto-sweep, collection events, disputes, analytics metrics, in-app notifications, org/settings/team, CSV/JSON export, account deletion.
+- Unit tests (65/65 Vitest, 9 files), CI pipeline (GitHub Actions: quality + integration + build), security headers, rate limiting, structured JSONL logging with request IDs, and a live health endpoint.
 
-**Bottom line:** this is a visually complete, marketing-credible prototype demonstrating the *intended* product experience, with only two real backend capabilities implemented end-to-end (register + login + route protection). The ambitious domain (automated collections, promises, disputes, payments, workflows, WhatsApp/email automation, analytics) is fully modeled in the database but **not connected to any running business logic or UI**.
+**Bottom line:** the product is a **working, tested collections system backed by a real database**, not a mock prototype. The externally-dependent pieces (email/message delivery, WhatsApp/SMS, billing, managed prod infra, Sentry DSN, scheduled cron provisioning, integration + E2E tests) remain **blocked** and are explicitly called out in §10 and §22 below.
 
 ---
 
 ## 2. Product Vision
 
-**CODEBASE-VERIFIED (from marketing copy in `src/app/page.tsx`, `src/app/layout.tsx` metadata):**
+**CODEBASE-VERIFIED:** (from `src/app/page.tsx`, `src/app/layout.tsx` metadata)
 > "Stop chasing overdue invoices manually … DuesPilot tells you who to contact, what to say, when to follow up, and what happened next — from first reminder to payment."
 
-A `Collections Operating System` that converts a messy receivables ledger into a prioritized, automated daily action list for Indian B2B SMEs.
+A Collections Operating System that converts a messy receivables ledger into a prioritized, automated daily action list for Indian B2B SMEs.
 
 ---
 
@@ -55,15 +49,15 @@ To help Indian B2B SMEs recover cash owed to them faster by:
 4. Tracking promise-to-pay and escalation.
 5. Providing collection analytics.
 
-**Implementation status of each mission pillar** is assessed in the Feature Inventory (§10).
+**Implementation status of each mission pillar** is assessed in the Feature Inventory (§10). Pillars 1, 2, 4, and 5 are implemented; pillar 3 (automated email/WhatsApp/SMS delivery) is **blocked** on external providers.
 
 ---
 
 ## 4. Problem Statement
 
-**DOCUMENTED/proposed (from landing page):** Indian MSMEs face chronic delayed payments. The landing page cites market context: ₹55,244 Cr delayed payment claims on MSME Samadhaan, 2,56,892 delayed-payment applications filed, 9.45 Cr Udyam registrations.
+**from landing page (`src/app/page.tsx`):** Indian MSMEs face chronic delayed payments. Landing copy cites market context: ₹55,244 Cr delayed-payment claims on MSME Samadhaan, 2,56,892 delayed-payment applications filed, 9.45 Cr Udyam registrations (**marketing numbers — `UNVERIFIED`**).
 
-**The operational problem the product targets (from UI copy, `src/app/page.tsx`):** SMEs chase overdue invoices manually, buried in aging spreadsheets, not knowing whom to contact, what to say, when to follow up, or what happened previously with each customer.
+**The operational problem targeted:** SMEs chase overdue invoices manually, buried in aging spreadsheets, not knowing whom to contact, what to say, when to follow up, or what happened previously with each customer.
 
 ---
 
@@ -72,49 +66,48 @@ To help Indian B2B SMEs recover cash owed to them faster by:
 ### 5.1 User Roles (from `prisma/schema.prisma` `Role` enum)
 `OWNER`, `ADMIN`, `FINANCE_MANAGER`, `COLLECTOR`, `SALES`, `VIEWER`.
 
-**CODEBASE-VERIFIED caveat:** these six roles exist in the schema and the `User.role` column defaults to `VIEWER`. However:
-- Registration hardcodes a new user's role to `OWNER` (`src/app/api/register/route.ts:46`).
-- **No authorization logic exists anywhere** — the proxy (`src/proxy.ts`) only checks for the presence of a session cookie and does not inspect role; no page, API, or component gates anything by role.
+**Implemented behavior (CODEBASE-VERIFIED):**
+- Registration creates a new account with the owner as `OWNER`.
+- **RBAC is enforced.** Mutating collections routes are gated by `ACTION_ROLES` (promises, payments, collection events, disputes); org settings/import/team are gated by `MANAGE_ROLES` (`OWNER`/`ADMIN`). Team invites + role assignment support `OWNER`/`ADMIN`. GET routes require authentication.
+- **Tenant isolation** is enforced: `withAuth` establishes the tenant, and every query is scoped by `organizationId` in `src/lib/repo.ts`.
 
-### 5.2 Proposed Personas (inferred from roles + UI)
-| Persona | Likely role | Goals |
-| --- | --- | --- |
-| Business Owner | OWNER | See total exposure, approve escalations, manage settings |
-| Finance Manager | FINANCE_MANAGER | Reconcile payments, run aging/analytics |
-| Collector | COLLECTOR | Work the daily queue — call/WhatsApp/email customers |
-| Sales (with credit exposure) | SALES | View customer/order context |
-| Viewer / Auditor | VIEWER | Read-only access |
-
-**Personas are AMBIGUOUS**: the repository defines role *names* but no role-specific behavior, permissions, or workflows. A business decision is required to define what each role can actually do.
+### 5.2 Personas (grounded in roles + permission behavior)
+| Persona | Likely role | Goals | Permissions |
+| --- | --- | --- | --- |
+| Business Owner | OWNER | See total exposure, approve escalations, manage settings/team | Full; manage org, import, team |
+| Finance Manager | FINANCE_MANAGER | Reconcile payments, run aging/analytics + import | Mutating collections actions |
+| Collector | COLLECTOR | Work the daily queue — call/remind customers, record outcomes | Mutating collections actions |
+| Sales (with credit exposure) | SALES | View customer/order context | Read/view (no mutations) |
+| Viewer / Auditor | VIEWER | Read-only access | View (no mutations) |
 
 ---
 
 ## 6. Jobs To Be Done (JTBD)
 
-**CODEBASE-VERIFIED** (visible from screens/marketing):
-1. "When I have a pile of overdue invoices, I want to know **who to chase today**, so I don't waste time."
-2. "When I contact a customer, I want to know **what happened last time**, so I don't repeat myself."
-3. "When a customer promises to pay, I want to **track that they actually pay**, so I can escalate if they don't."
-4. "When I get paid, I want to **match the payment to the invoice**, so my ledger stays accurate."
-5. "When a customer disputes an invoice, I want to **track the reason and resolution**, so I don't keep chasing a disputed amount."
-6. "When I set up, I want to **import my existing receivables quickly**, so I don't key in data again."
+**CODEBASE-VERIFIED** (implemented end-to-end):
+1. "When I have a pile of overdue invoices, I want to know **who to chase today**, so I don't waste time." → real priority **Queue**.
+2. "When I contact a customer, I want to know **what happened last time**, so I don't repeat myself." → customer detail timeline + collection events.
+3. "When a customer promises to pay, I want to **track that they actually pay**, so I can escalate if they don't." → promise lifecycle + auto-sweep to BROKEN.
+4. "When I get paid, I want to **match the payment to the invoice**, so my ledger stays accurate." → FIFO/explicit allocation + invoice status transitions.
+5. "When a customer disputes an invoice, I want to **track the reason and resolution**, so I don't keep chasing a disputed amount." → disputes; disputed balances excluded from queue.
+6. "When I set up, I want to **import my existing receivables quickly**, so I don't key in data again." → transactional import + honest counts.
 
 ---
 
 ## 7. Value Proposition
 
-Import receivables → get a prioritized automated collection queue → automated follow-ups → promise tracking → payment reconciliation → analytics. **Value proposition is fully DOCUMENTED (marketing) but only the import UX skeleton and queue *screens* exist; the automated follow-up, promise extraction, reconciliation, and analytics are not functional.**
+Import receivables → get a prioritized collection queue → promise tracking → payment reconciliation → analytics. The import, queue, promise, payment, dispute, and analytics pillars are **implemented against real tenant data**. Automated outbound follow-up (email/WhatsApp/SMS) and billing remain **blocked** on external providers (see §10, §22).
 
 ---
 
 ## 8. Product Goals & Non-Goals
 
-### 8.1 Product Goals (PROPOSED)
-- G1: Reduce Days Sales Outstanding (DSO) for SME users.
-- G2: Reduce manual effort in collections follow-up.
-- G3: Improve litigation-free recovery rates.
+### 8.1 Product Goals
+- G1: Reduce Days Sales Outstanding (DSO) for SME users — **tracked** via `src/lib/metrics.ts`.
+- G2: Reduce manual effort in collections follow-up — supported by guided queue + actions.
+- G3: Improve litigation-free recovery rates — supported by promise/payment tracking.
 
-### 8.2 Non-Goals (PROPOSED)
+### 8.2 Non-Goals
 - NG1: Not an ERP/accounting system (it *imports* receivables, does not do bookkeeping).
 - NG2: Not a payment gateway (records/matches payments; does not process them).
 - NG3: Not a general CRM (collections-focused).
@@ -123,423 +116,380 @@ Import receivables → get a prioritized automated collection queue → automate
 
 ## 9. Scope & Architecture Overview
 
-### 9.1 In-Scope (current, by implementation evidence)
-- Authentication (credentials), registration, session cookie route protection.
-- 17 marketing/CRUD screens, 15 of which are mock-data prototypes.
-- Imports: client-side CSV parsing + column mapping (no persistence).
-- A fully-migrated relational schema for the collections domain.
+### 9.1 In-Scope (implemented, real DB)
+Auth (register/login/logout/reset), RBAC + tenant isolation, import, dashboard aggregates, queue, customers/contacts + dedupe/merge, invoices (search/pagination/detail), payments (allocation/reversal), promises (+ auto-sweep), collection events, disputes, analytics, notifications, org settings/team, export, account deletion, security/observability, unit tests + CI.
 
 ### 9.2 Architecture (current)
-- **Framework:** Next.js 16.3.4 (App Router, Turbopack), React 19.2.8.
+- **Framework:** Next.js 16 (App Router), React 19.
 - **Language:** TypeScript (strict), `@/*` → `./src/*`.
-- **Styling:** Tailwind CSS v4 (`@import "tailwindcss"` in `globals.css`), CSS variables, Geist fonts.
-- **DB/ORM:** PostgreSQL via Prisma 7 with `@prisma/adapter-pg` driver adapter; generated client at `src/generated/prisma` (ignored by git).
-- **Auth:** NextAuth v5 (`next-auth@5.0.0-beta.32`), JWT session strategy, Credentials provider, bcryptjs hashing.
-- **Route protection:** `src/proxy.ts` (Next.js 16 `proxy` convention) cookie-presence check.
-- **State:** local React `useState` only — no Redux/Zustand/React Query/SWR.
-- **Data flow:** NO server components fetch data for the product pages; every dashboard page renders pre-baked arrays.
+- **Styling:** Tailwind CSS v4, CSS variables, Geist fonts.
+- **DB/ORM:** PostgreSQL via Prisma 7 with `@prisma/adapter-pg` driver adapter; generated client at `src/generated/prisma`.
+- **Auth:** NextAuth v5, JWT session strategy (maxAge 7d), Credentials provider, bcryptjs hashing; env names `AUTH_SECRET`/`AUTH_URL`/`CRON_SECRET`.
+- **Route protection:** `src/proxy.ts` (Next.js 16 `proxy` convention) checks the session cookie; static-extension allowlist (dot-bypass removed).
+- **Rate limiting:** `src/lib/rate-limit.ts` (register 5/10min per IP; global per-user 300/min on mutating auth calls).
+- **Data access:** server-side via `src/lib/repo.ts` (tenant-scoped), plus pure modules `src/lib/queue-item.ts`, `src/lib/payment-allocation.ts`, `src/lib/metrics.ts`, `src/lib/invoice-status.ts`, `src/lib/risk-score.ts`.
+- **State/data flow:** real client→API→DB round trips; loading/error/empty/retry states present.
 
-### 9.3 Routing Map (all routes CODEBASE-VERIFIED)
-| Route | Page | Layout | Protection |
-| --- | --- | --- | --- |
-| `/` | Landing | `src/app/layout.tsx` | Public (proxy allowlist) |
-| `/login` | Login | `(auth)` | Public |
-| `/register` | Register | `(auth)` | Public |
-| `/dashboard` | Dashboard | `(dashboard)` | Protected |
-| `/dashboard/queue` | Collection Queue | `(dashboard)` | Protected |
-| `/dashboard/customers` | Customers | `(dashboard)` | Protected |
-| `/dashboard/customers/[id]` | Customer Detail | `(dashboard)` | Protected |
-| `/dashboard/invoices` | Invoices | `(dashboard)` | Protected |
-| `/dashboard/payments` | Payments (placeholder) | `(dashboard)` | Protected |
-| `/dashboard/promises` | Promises to Pay | `(dashboard)` | Protected |
-| `/dashboard/disputes` | Disputes (placeholder) | `(dashboard)` | Protected |
-| `/dashboard/communications` | Communications (placeholder) | `(dashboard)` | Protected |
-| `/dashboard/import` | Import Receivables | `(dashboard)` | Protected |
-| `/dashboard/analytics` | Analytics | `(dashboard)` | Protected |
-| `/dashboard/settings` | Settings | `(dashboard)` | Protected |
-| `/api/auth/[...nextauth]` | NextAuth handler | — | Public (proxy allowlist) |
-| `/api/register` | Register API | — | Public (proxy allowlist) |
+### 9.3 Routing Map (from `next build`)
+| Route | Page | Protection |
+| --- | --- | --- |
+| `/` | Landing | Public |
+| `/login`, `/register` | Auth | Public |
+| `/forgot-password`, `/reset-password` | Auth (reset flow) | Public |
+| `/dashboard` | Dashboard | Protected |
+| `/dashboard/queue` `promises` `payments` `disputes` `analytics` `import` `settings` | Feature pages | Protected |
+| `/dashboard/customers`, `/dashboard/customers/[id]` | Customers | Protected |
+| `/dashboard/invoices`, `/dashboard/invoices/[id]` | Invoices + detail | Protected |
+| `/dashboard/communications` | Route exists; **email send feature NOT built (BLOCKED)** | Protected |
+| API: `/api/auth/[...nextauth]`, `/api/register`, `/api/dashboard`, `/api/import`, `/api/queue`, `/api/customers[/id][/contacts/...][/duplicates]`, `/api/invoices[/id]`, `/api/payments`, `/api/promises[/id]`, `/api/collection-events`, `/api/disputes[/id]`, `/api/analytics`, `/api/notifications[/preferences]`, `/api/jobs/promise-sweep`, `/api/export`, `/api/account`, `/api/team[/userId]`, `/api/health` | Various | Auth as noted |
 
 ---
 
 ## 10. Feature Inventory
 
-Stable IDs. Full traceability in `REQUIREMENT_TRACEABILITY_MATRIX.md`; status legend: Fully Implemented / Partial / UI Only / Backend Only / Config Only / Documentation Only / Not Implemented.
+Status legend: **Implemented** (real, tenant-scoped, DB-backed) / **Blocked** (external dependency) / **Schema-only** / **Not built**.
 
 ### 10.1 AUTH — Authentication & Accounts
 | ID | Feature | Status | Evidence |
 | --- | --- | --- | --- |
-| AUTH-001 | Credentials registration (creates Organization + User) | **Fully Implemented** | `src/app/api/register/route.ts:13`; verified 201 at runtime |
-| AUTH-002 | Email/password login | **Fully Implemented** | `src/lib/auth.ts:8` Credentials provider, bcrypt compare; verified 302 at runtime |
-| AUTH-003 | Session cookie (JWT) | **Fully Implemented** | `src/lib/auth.ts:47` `strategy: "jwt"` |
-| AUTH-004 | Route protection for `/dashboard/*` | **Fully Implemented (cookie-presence only)** | `src/proxy.ts:27` |
-| AUTH-005 | Registration input validation (client+server) | **Fully Implemented** | zod in `register/page.tsx:8` + `register/route.ts:6` |
-| AUTH-006 | Login input validation (client) | **Fully Implemented** | `login/page.tsx:24-34` |
-| AUTH-007 | Role-based authorization (RBAC) | **Not Implemented** | No role checks anywhere; only schema enum |
-| AUTH-008 | Password recovery / reset | **Not Implemented** | No UI, API, or `VerificationToken` usage code path |
-| AUTH-009 | Email verification | **Not Implemented** | `emailVerified` column exists; no flow |
-| AUTH-010 | Logout | **Partially Implemented** | `signOut` exported in `auth.ts:6` but no button/handler wired in UI; no UI logout control found |
-| AUTH-011 | OAuth / external identity providers | **Not Implemented** | `Account` table exists; no provider configured |
-| AUTH-012 | Invite / manage team members | **Not Implemented** | No UI/API despite `Organization.usersCount` |
+| AUTH-001 | Credentials registration (creates Organization + User) | **Implemented** | zod + bcrypt cost 12 + rate limit 5/10min per IP; `/api/register` |
+| AUTH-002 | Email/password login | **Implemented** | Credentials provider, JWT, maxAge 7d |
+| AUTH-003 | Session cookie (JWT) | **Implemented** | `auth.ts` JWT strategy |
+| AUTH-004 | Route protection for `/dashboard/*` | **Implemented** | `src/proxy.ts` session-cookie check; dot-bypass removed |
+| AUTH-005 | Registration validation | **Implemented** | zod client + server |
+| AUTH-006 | Login validation | **Implemented** | client zod |
+| AUTH-007 | Role-based authorization (RBAC) | **Implemented** | `ACTION_ROLES`/`MANAGE_ROLES` guards; tenant scoping in `src/lib/repo.ts` |
+| AUTH-008 | Password recovery / reset | **Implemented** | forgot/reset flow, hashed 15-min tokens, identity-blind forgot response |
+| AUTH-009 | Email verification | **Blocked/Not built** | `emailVerified` + token exist; flow blocked (TODO-041) |
+| AUTH-010 | Logout | **Implemented** | Sidebar logout → `/login` |
+| AUTH-011 | OAuth / external identity providers | **Not built** | `Account` table present; no provider configured |
+| AUTH-012 | Invite / manage team members | **Implemented** | `/api/team` + `[userId]`; role assignment, last-owner protection, `syncUsersCount` |
 
 ### 10.2 DATA/IMPORT — Receivables Import
 | ID | Feature | Status | Evidence |
 | --- | --- | --- | --- |
-| IMP-001 | CSV upload (drag/drop + browse) | **UI Only** | `import/page.tsx` PapaParse; parses to state |
-| IMP-002 | Column mapping (auto + manual) | **UI Only** | `import/page.tsx:57-98` |
-| IMP-003 | Preview of mapped rows | **UI Only** | `import/page.tsx:305` |
-| IMP-004 | Persist imported invoices/customers | **Not Implemented** | `handleImport` only `setTimeout` + 2s fake; no `fetch`/Prisma write (`import/page.tsx:119`) |
-| IMP-005 | XML/XLSX support (marketing claim) | **Not Implemented** | UI accepts `.csv` only; marketing copy still says "Tally, Excel" |
+| IMP-001 | CSV upload (drag/drop + browse) | **Implemented** | `/dashboard/import` uses PapaParse |
+| IMP-002 | Column mapping (auto + manual) | **Implemented** | import UI |
+| IMP-003 | Preview of mapped rows | **Implemented** | import preview + per-row skip reasons |
+| IMP-004 | Persist imported invoices/customers | **Implemented** | `POST /api/import` transactional batch; customers/invoices/items/promises; per-row validation; in-file + DB dup detection; honest counts |
+| IMP-005 | XML/XLSX/Tally support (marketing claim) | **Not built** | CSV only; Excel/Tally claim not wired |
 
 ### 10.3 QUEUE — Collection Queue
 | ID | Feature | Status | Evidence |
 | --- | --- | --- | --- |
-| QUEUE-001 | Prioritized action list | **UI Only (mock)** | `queue/page.tsx:19` `mockQueue` |
-| QUEUE-002 | Priority filter (all/high/medium/low) | **UI Only (mock)** | `queue/page.tsx:106` |
-| QUEUE-003 | Priority from real data (aging + amount scoring) | **Not Implemented** | `getPriorityColor` util unused by queue; no server data |
-| QUEUE-004 | "Next action" generation | **UI Only (mock)** | `queue/page.tsx` `nextAction` strings |
+| QUEUE-001 | Prioritized action list | **Implemented** | `GET /api/queue` computes priority via `src/lib/queue-item.ts` |
+| QUEUE-002 | Priority filter (all/high/medium/low) | **Implemented** | queue page |
+| QUEUE-003 | Priority from real data (aging + amount scoring) | **Implemented** | `computeQueueItem`/`statusView` pure module; disputed balances excluded |
+| QUEUE-004 | "Why here?" explanation + next action per row | **Implemented** | per-row `why` in queue |
 
 ### 10.4 CUST/INV — Customers & Invoices
 | ID | Feature | Status | Evidence |
 | --- | --- | --- | --- |
-| CUST-001 | Customer list w/ search + sort | **UI Only (mock)** | `customers/page.tsx:21` |
-| CUST-002 | Customer detail w/ invoices, timeline, contacts, notes | **UI Only (mock)** | `customers/[id]/page.tsx:6` — NOTE: renders same mock for every id (`const customer = mockCustomer`) |
-| CUST-003 | Customer CRUD (create/edit) | **Not Implemented** | "Edit" button is a no-op (`customer/[id]/page.tsx:97`) |
-| INV-001 | Invoice list w/ status filter | **UI Only (mock)** | `invoices/page.tsx:20` |
-| INV-002 | Invoice create/edit/pay | **Not Implemented** | No UI/API |
+| CUST-001 | Customer list w/ server-side search | **Implemented** | `GET /api/customers?search=` |
+| CUST-002 | Customer detail w/ invoices, timeline, contacts, notes | **Implemented** | real `[id]` fetch; detail page |
+| CUST-003 | Customer CRUD (create/edit) | **Implemented** | `GET/POST/PATCH /api/customers` + `/[id]`; contacts CRUD |
+| CUST-004 | Dedupe + merge | **Implemented** | `/duplicates` + `mergeCustomers` transaction |
+| INV-001 | Invoice list w/ search + status filter | **Implemented** | `GET /api/invoices` cursor pagination + derived status filter |
+| INV-002 | Invoice CRUD / detail | **Implemented** | `GET /api/invoices/[id]` returns items/allocations/timeline; detail page `/dashboard/invoices/[id]` |
 
 ### 10.5 PROMISE — Promise-to-Pay
 | ID | Feature | Status | Evidence |
 | --- | --- | --- | --- |
-| PROM-001 | Promise list w/ active/kept/broken filter | **UI Only (mock)** | `promises/page.tsx:20` |
-| PROM-002 | Promise stats (active/broken/kept sums) | **UI Only (mock)** | `promises/page.tsx:97` |
-| PROM-003 | Expose/record a promise | **Not Implemented** | No create/update API |
-| PROM-004 | Extract promise from WhatsApp/email (AI) | **Not Implemented** | Marketing claim only; `source` field exists in schema |
-| PROM-005 | Auto-mark broken on missed date | **Not Implemented** | No scheduler |
+| PROM-001 | Promise list w/ active/kept/broken filter | **Implemented** | promises page |
+| PROM-002 | Promise stats (active/broken/kept sums) | **Implemented** | promises page |
+| PROM-003 | Record a promise | **Implemented** | `POST /api/promises` |
+| PROM-004 | Extract promise from WhatsApp/email (AI) | **Not built** | marketing claim; `source` field in schema, no AI |
+| PROM-005 | Auto-mark broken on missed date | **Implemented** | `/api/jobs/promise-sweep` (idempotent, ACTIVE→BROKEN); **cron scheduling NOT provisioned (TODO-058)** — endpoint exists, not yet scheduled |
 
 ### 10.6 PAY — Payments
 | ID | Feature | Status | Evidence |
 | --- | --- | --- | --- |
-| PAY-001 | Payment list | **Not Implemented** | `payments/page.tsx` is empty-state placeholder |
-| PAY-002 | Record payment | **Not Implemented** | Button no-op |
-| PAY-003 | Payment allocation/matching to invoices | **Not Implemented** | Schema `PaymentAllocation` exists; no logic |
-| PAY-004 | Bank statement import / auto-match | **Not Implemented** | Marketing copy only (`payments/page.tsx:18`) |
+| PAY-001 | Payment list + allocation detail | **Implemented** | payments page |
+| PAY-002 | Record payment | **Implemented** | `POST /api/payments`; FIFO/explicit allocation (pure module `payment-allocation.ts`); partial/multi/overpay/unmatched; reversal; duplicate guard |
+| PAY-003 | Payment allocation/matching | **Implemented** | auto-KEPT promises + invoice status transitions via `nextInvoiceStatus` |
+| PAY-004 | Bank statement import / auto-match | **Not built** | marketing copy only |
 
 ### 10.7 DIP — Disputes
 | ID | Feature | Status | Evidence |
 | --- | --- | --- | --- |
-| DIP-001 | Dispute list | **Not Implemented** | `disputes/page.tsx` empty-state placeholder |
-| DIP-002 | Log a dispute | **Not Implemented** | Button no-op; schema `Dispute` exists |
-| DIP-003 | Dispute categories + resolution workflow | **Not Implemented** | Marketing copy only |
+| DIP-001 | Dispute list | **Implemented** | disputes page |
+| DIP-002 | Log a dispute | **Implemented** | `POST /api/disputes` (categories) |
+| DIP-003 | Categories + resolution workflow | **Implemented** | `PATCH /api/disputes/[id]` resolve; disputed balances excluded from queue |
 
 ### 10.8 COMM — Communications
 | ID | Feature | Status | Evidence |
 | --- | --- | --- | --- |
-| COMM-001 | Communication hub (email/WhatsApp/SMS history) | **Not Implemented** | `communications/page.tsx` empty-state placeholder |
-| COMM-002 | Send message | **Not Implemented** | No integration; schema `Message` exists |
-| COMM-003 | Email delivery | **Not Implemented** | No email provider configured |
-| COMM-004 | WhatsApp delivery | **Not Implemented** | No WhatsApp API credentials |
-| COMM-005 | Delivery/read status tracking | **Not Implemented** | `MessageStatus` enum only |
+| COMM-001 | Communication hub | **Route only** | `/dashboard/communications` is a route; **email send NOT built (BLOCKED)** |
+| COMM-002 | Send message | **Not built (Blocked)** | no provider; `Message` model is schema-only |
+| COMM-003 | Email delivery | **Not built (Blocked)** | no email provider (TODO-042) |
+| COMM-004 | WhatsApp delivery | **Not built (Blocked)** | no WhatsApp API (TODO-044) |
+| COMM-005 | Delivery/read status tracking | **Schema-only** | `MessageStatus` enum; no lifecycle code |
 
 ### 10.9 ANALYTICS
 | ID | Feature | Status | Evidence |
 | --- | --- | --- | --- |
-| ANL-001 | KPI cards (DSO, CEI, promise adherence…) | **UI Only (mock)** | `analytics/page.tsx:5` hardcoded |
-| ANL-002 | Monthly collected vs overdue chart | **UI Only (mock)** | `analytics/page.tsx:14` |
-| ANL-003 | Top overdue customers | **UI Only (mock)** | `analytics/page.tsx:80` |
+| ANL-001 | KPI cards (DSO, CEI, promise adherence, overdue ratio) | **Implemented** | `src/lib/metrics.ts` + `GET /api/analytics` |
+| ANL-002 | 6-month collected/overdue trend chart | **Implemented** | analytics page 6-month series |
+| ANL-003 | Top overdue customers / pipeline health | **Implemented** | analytics page |
 
 ### 10.10 SETT
 | ID | Feature | Status | Evidence |
 | --- | --- | --- | --- |
-| SET-001 | Organization settings form | **UI Only** | `settings/page.tsx` `defaultValue="Acme Pvt Ltd"`; no handler |
-| SET-002 | Notification preferences toggles | **UI Only** | `settings/page.tsx:40`; no save |
-| SET-003 | Export all data | **Not Implemented** | Button no-op |
-| SET-004 | Delete account | **Not Implemented** | Button no-op; no deletion API |
-| SET-005 | Save changes | **Not Implemented** | Button no-op |
+| SET-001 | Organization settings (business hours, holidays, working days, automation pause) | **Implemented** | settings GET/PATCH; columns added (migration pending) |
+| SET-002 | Notification preferences toggles | **Implemented** | `GET/PATCH /api/notifications/preferences`; graceful fallback (schema/migration pending) |
+| SET-003 | Export all data | **Implemented** | `GET /api/export?format=csv|json` streams attachment |
+| SET-004 | Delete account | **Implemented** | `DELETE /api/account` purge + cascade; OWNER-only, typed DELETE confirm |
+| SET-005 | Save changes | **Implemented** | settings PATCH persistence |
 
-### 10.11 WF/AUDIT — Workflows & Audit (schema-only)
+### 10.11 WF/AUDIT/INT — Workflows & Audit & Integrations
 | ID | Feature | Status | Evidence |
 | --- | --- | --- | --- |
-| WF-001 | CollectionWorkflow rules + actions | **Schema Only** | `CollectionWorkflow`, `WorkflowAction` models; no execution engine |
-| AUDIT-001 | Audit log capture | **Schema Only** | `AuditLog` model; nothing writes to it |
-| INT-001 | Integration credentials store | **Schema Only** | `IntegrationCredential` model; no read/write code |
+| WF-001 | CollectionWorkflow rules + actions | **Schema-only** | models present; no execution engine (blocked with automation) |
+| AUDIT-001 | Audit log capture | **Implemented** | `src/lib/audit.ts` `writeAudit()` wired into register/import/settings + collections mutations |
+| INT-001 | Integration credentials store | **Schema-only** | `IntegrationCredential` model; no read/write code (no providers) |
 
 ---
 
 ## 11. User Stories
 
-For brevity, consolidated stories with status. Full acceptance criteria traceable to the Feature IDs above.
-
 | Story ID | User | Story | Related Feature | Status |
 | --- | --- | --- | --- | --- |
-| US-AUTH-01 | Prospect | As a prospect I can create an account with name, email, password, and company so I can try the product. | AUTH-001 | **Implemented** |
-| US-AUTH-02 | User | As a user I can log in with my email and password so I can access the dashboard. | AUTH-002 | **Implemented** |
-| US-AUTH-03 | User | As a user I can log out so I can end my session. | AUTH-010 | **Missing** |
-| US-IMP-01 | Owner | As an owner I can upload my receivables CSV and map columns so I can get started. | IMP-001..003 | **UI only** |
-| US-IMP-02 | Owner | As an owner the imported invoices and customers are saved so I can see them in the app. | IMP-004 | **Missing** |
-| US-QUEUE-01 | Collector | As a collector I see today's prioritized actions so I know who to contact. | QUEUE-001 | **UI (mock)** |
-| US-CUST-01 | User | As a user I can open a customer and see their invoices, timeline, and contacts. | CUST-002 | **UI (mock)** |
-| US-PROM-01 | Collector | As a collector I can record when a customer promises to pay so I can follow up. | PROM-003 | **Missing** |
-| US-PAY-01 | Finance | As a finance user I can record and match payments to invoices. | PAY-002/003 | **Missing** |
-| US-ANL-01 | Owner | As an owner I can see collection KPIs and trends. | ANL-001..003 | **UI (mock)** |
+| US-AUTH-01 | Prospect | Create account with name, email, password, company | AUTH-001 | **Implemented** |
+| US-AUTH-02 | User | Log in with email/password to access dashboard | AUTH-002 | **Implemented** |
+| US-AUTH-03 | User | Log out to end session | AUTH-010 | **Implemented** |
+| US-AUTH-04 | User | Recover password via reset | AUTH-008 | **Implemented** |
+| US-IMP-01 | Owner | Upload receivables CSV and map columns | IMP-001..003 | **Implemented** |
+| US-IMP-02 | Owner | Imported invoices/customers are saved and visible | IMP-004 | **Implemented** |
+| US-QUEUE-01 | Collector | See today's prioritized actions + why | QUEUE-001..004 | **Implemented** |
+| US-CUST-01 | User | Open a customer and see invoices, timeline, contacts | CUST-002 | **Implemented** |
+| US-PROM-01 | Collector | Record a promise to pay and track it | PROM-003 | **Implemented** |
+| US-PAY-01 | Finance | Record and match payments to invoices | PAY-002/003 | **Implemented** |
+| US-ANL-01 | Owner | See collection KPIs and trends | ANL-001..003 | **Implemented** |
 
 ---
 
 ## 12. User Flows
 
-### 12.1 Registration (FULLY IMPLEMENTED — verified)
-Trigger → prospect clicks "Get Started"/"Start free trial"/"Import my receivables". → Visit `/register`.
-→ Fill name, email, password, company. → Client zod validation. → `POST /api/register` (JSON).
-→ API zod validation → check duplicate email (409) → bcrypt hash (cost 12) → create `Organization` → create `User` (role OWNER). → 201.
-→ Redirect `/login?registered=true` → sign in → `POST /api/auth/callback/credentials` → JWT cookie → redirect to `/dashboard`.
-Failure paths: validation (400), duplicate (409), server error (500), bad credentials ("Invalid email or password").
-**Retry/recovery:** No password recovery; no email verification.
+### 12.1 Registration (IMPLEMENTED)
+→ Visit `/register`. → Fill name, email, password, company. → Client zod validation. → `POST /api/register` (JSON). → Server zod validation → duplicate email (409) → bcrypt hash (cost 12) → create `Organization` → create `User` (OWNER). Rate limited 5/10min per IP. → Redirect `/login?registered=true` → sign in → JWT cookie → `/dashboard`.
 
-### 12.2 Dashboard access (PARTIALLY IMPLEMENTED)
-Trigger → authenticated navigation to `/dashboard`. → `proxy.ts` checks `authjs.session-token` cookie.
-→ Present → render Dashboard **with mock stats/aging/queue** (no real data).
-Failure: absent cookie → 307 → `/login?callbackUrl=/dashboard`.
-**Gap:** after login, dashboard shows fake numbers, not the user's data.
+### 12.2 Dashboard access (IMPLEMENTED)
+→ Navigate to `/dashboard`. → `src/proxy.ts` checks the session cookie. → Present → render Dashboard with **real aggregates** from `GET /api/dashboard` (first-run onboarding CTA when `totalReceivables=0`). Absent cookie → redirect to `/login`.
 
-### 12.3 Import (UI-ONLY)
-Trigger → visit `/dashboard/import`. → Upload/drop CSV → PapaParse → auto-map → manual map → preview → "Import N invoices".
-→ **Simulates a 2s delay, then shows "Import successful!" — no data is written.** The "View collection queue" link leads to a queue still showing the static mock queue.
+### 12.3 Import (IMPLEMENTED, transactional)
+→ Visit `/dashboard/import`. → Upload/drop CSV → PapaParse → auto-map → preview → import. → `POST /api/import` runs a single `$transaction` writing customers, invoices, items, promises; per-row validation, in-file + DB dup detection. → Honest success screen with processed/valid/skipped counts and per-row skip reasons ("nothing imported" / warning states shown).
 
-### 12.4 Customer detail (UI-ONLY, BROKEN semantics)
-Trigger → click a customer in list → `/dashboard/customers/[id]`.
-→ **Regardless of `[id]`, the page always renders the hardcoded "Raj Steel" record** (customer id is destructured as `_id` and unused). Clicking any customer shows the same customer.
+### 12.4 Customer detail (IMPLEMENTED, respects `[id]`)
+→ Click a customer → `/dashboard/customers/[id]`. → Server fetches by `[id]` (404 not-found if absent) → real invoices, timeline, contacts, actions.
 
-### 12.5 Logout / Settings / Export / Delete (NOT IMPLEMENTED)
-No functional logout button, no save settings, no data export, no account deletion.
+### 12.5 Logout / Settings / Export / Delete (IMPLEMENTED)
+Logout via Sidebar; org settings persisted via PATCH; CSV/JSON export; account deletion via typed-confirm `DELETE /api/account`.
 
-### 12.6 Password recovery (NOT IMPLEMENTED)
-No "forgot password" link/API anywhere.
+### 12.6 Password recovery (IMPLEMENTED)
+`/forgot-password` → identity-blind forgot response → hashed 15-min token → `/reset-password` sets new password.
 
 ---
 
 ## 13. Component Inventory
 
-| Component | Location | Evidence | Status |
-| --- | --- | --- | --- |
-| `Sidebar` | `src/components/layout/Sidebar.tsx` | Navigation groups + lucide icons | Used (dashboard layout) |
-| `TimelineIcon` | `customers/[id]/page.tsx:39` | SVG icon per event type | Used locally |
-| `RootLayout` | `src/app/layout.tsx` | fonts, metadata, html/body | Used |
-| `DashboardLayout` | `src/app/(dashboard)/layout.tsx` | Sidebar + main | Used |
-
-**No reusable UI kit** (no button/card/table/badge primitives) exists. All presentational markup is inline per page. There is **no "created but unused" component at the page level**, but **every dashboard data screen duplicates the same layout/table/card markup inline** (duplication, not shared components).
-
-**Components referenced but missing:** None directly, but the marketing makes claims (e.g., "payment links", "forecasting", "API access") with no corresponding component or API.
+See `PAGE_COMPONENT_INVENTORY.md` for the full per-page/component index. Highlights: `Sidebar` (nav + NotificationBell with `aria-haspopup`/`aria-expanded`), queue `AllActionsModal`, customer quick-action + manage-contacts modals, invoice detail, and shared UI primitives. Modals are `role=dialog`/`aria-modal`/`aria-labelledby` with Escape-to-close and initial focus; status pills are dual (color + text); settings toggles expose `role=switch`/`aria-checked`.
 
 ---
 
-## 14. Business Rules (see also `BRD.md` §Business Rules for full table)
+## 14. Business Rules (see also `BRD.md` §7)
 
 Implemented (CODEBASE-VERIFIED):
-- BR-01 Register requires name≥2, valid email, password≥8, company≥2 (`register/route.ts:6`, `register/page.tsx:8`).
-- BR-02 Email must be unique (`User.email @unique` schema; 409 in `register/route.ts:28`).
-- BR-03 Password hashed with bcrypt cost 12 (`register/route.ts:35`).
-- BR-04 New account role = OWNER (`register/route.ts:46`).
-- BR-05 Complex password rules / lockout / session timeout: **not defined (AMBIGUOUS)**.
-- BR-06 Invoice number unique per organization (`Invoice` `@@unique([organizationId, invoiceNumber])`).
-- BR-07 Priority coloring util (`getPriorityColor`) exists but is not wired to any screen (dead-ish).
+- Register: name≥2, valid email, password≥8, company≥2 (zod client + server).
+- Email unique per account (schema `@unique`; 409 on duplicate).
+- Passwords hashed with bcrypt cost 12.
+- New signup role = OWNER.
+- Invoice `invoiceNumber` unique per org (`@@unique([organizationId, invoiceNumber])`).
+- Rate limiting: register 5/10min per IP; all authenticated mutating calls 300/min per user.
+- RBAC: `ACTION_ROLES` for collections mutations; `MANAGE_ROLES` (OWNER/ADMIN) for settings/import/team.
+- Tenant isolation via `withAuth` + `organizationId` scoping in `src/lib/repo.ts`.
+- Promise auto-sweep ACTIVE→BROKEN via idempotent `/api/jobs/promise-sweep` (CRON_SECRET bearer via `crypto.timingSafeEqual`).
 
-Not enforced anywhere but present in schema (documented implicitly): invoice status state machine, promise status transitions, payment allocation, workflow execution, audit logging.
+Not defined (business decision): password complexity/lockout policy (BRD D5), data retention timelines, follow-up SLA/cadence, dunning schedules, interest/late-fee policy (legal input).
 
 ---
 
 ## 15. State Machines
 
-| Entity | States (schema) | Transition logic | Status |
+| Entity | States (schema enum) | Transition logic | Status |
 | --- | --- | --- | --- |
-| Invoice | `DRAFT, OPEN, DUE_SOON, OVERDUE, DISPUTED, PROMISED, PROMISE_BROKEN, PARTIALLY_PAID, PAID, CANCELLED` (`InvoiceStatus`) | **None implemented** | Schema only |
-| PromiseToPay | `ACTIVE, KEPT, BROKEN, RENEGOTIATED` (`PromiseStatus`) | **None implemented**; UI uses local strings `active/kept/broken` | Schema only; UI mock |
-| Message | `PENDING, SENT, DELIVERED, READ, FAILED` (`MessageStatus`) | **None implemented** | Schema only |
-| User role | `OWNER, ADMIN, FINANCE_MANAGER, COLLECTOR, SALES, VIEWER` | **None** | Schema only |
-| Dispute status | `open` (string, free-form) | None | Schema only |
-
-**Critical note:** the UI Promise page (`promises/page.tsx`) uses its **own** status string (`"active" | "kept" | "broken"`) that does **not** match the schema enum (`ACTIVE/KEPT/BROKEN/RENEGOTIATED`) — a contract mismatch between UI mock and data model.
+| Invoice | `DRAFT, OPEN, DUE_SOON, OVERDUE, DISPUTED, PROMISED, PROMISE_BROKEN, PARTIALLY_PAID, PAID, CANCELLED` | Derived status (`DUE_SOON`/`OVERDUE` never stored) via `invoice-status.ts`; payment transitions via `nextInvoiceStatus` (`collections.ts`) | **Implemented** |
+| PromiseToPay | `ACTIVE, KEPT, BROKEN, RENEGOTIATED` | create/manage (edit/renegotiate/kept); auto-KEPT on matching payment; auto-sweep ACTIVE→BROKEN | **Implemented** |
+| Message | `PENDING, SENT, DELIVERED, READ, FAILED` | — | **Schema-only** (no lifecycle; blocked) |
+| User role | `OWNER, ADMIN, FINANCE_MANAGER, COLLECTOR, SALES, VIEWER` | RBAC enforcement | **Implemented** |
+| Dispute | categories + resolved state | create + resolve | **Implemented** |
 
 ---
 
 ## 16. API Requirements
 
-### 16.1 Current API surface (complete — CODEBASE-VERIFIED)
-| Endpoint | Method | Auth | Purpose | Status |
-| --- | --- | --- | --- | --- |
-| `/api/register` | POST | None (public) | Create Organization+User | Implemented |
-| `/api/auth/[...nextauth]` | GET/POST | — | NextAuth handlers | Implemented |
-
-### 16.2 Missing APIs (required to make the UI real)
-| Endpoint | Purpose | Needed by |
+### 16.1 Implemented API surface (tenant-scoped, real DB)
+| Endpoint | Method | Notes |
 | --- | --- | --- |
-| `POST /api/import` (or similar) | Persist parsed CSV rows | IMP-004 |
-| `GET /api/dashboard` | Real stats/aging/queue | Dashboard |
-| `GET/PATCH /api/customers`, `/api/customers/[id]` | Customer CRUD | Customers |
-| `GET/PUT /api/invoices` | Invoice list/update | Invoices |
-| `GET/POST /api/promises`, `PATCH /[id]` | Promise lifecycle | Promises |
-| `GET/POST /api/payments` | Payments | Payments |
-| `POST /api/collections/[...]/actions` | Queue actions (call/remind/wa) | Queue |
-| `GET/POST /api/disputes` | Disputes | Disputes |
-| `POST /api/communications` | Send & log messages | Communications |
-| `GET /api/analytics` | Aggregate KPIs | Analytics |
-| `GET/PUT /api/me/organization`, `DELETE /api/me`, `/api/export` | Settings | Settings |
-| `POST /api/auth/reset`, etc. | Password recovery | AUTH-008 |
+| `/api/auth/[...nextauth]` | GET/POST | NextAuth |
+| `/api/register` | POST | Public; rate-limited |
+| `/api/auth/forgot`, `/api/auth/reset` | POST | Password reset |
+| `/api/dashboard` | GET | Real aggregates |
+| `/api/import` | POST | Transactional batch |
+| `/api/queue` | GET | Priority + "why here?" |
+| `/api/customers`, `/api/customers/[id]` | GET/POST/PATCH | Customer CRUD; `/contacts/...`; `/duplicates` + merge |
+| `/api/invoices`, `/api/invoices/[id]` | GET | Search + pagination; detail (items/allocations/timeline) |
+| `/api/payments` | POST | FIFO/explicit allocation, reversal, dup guard |
+| `/api/promises`, `/api/promises/[id]` | POST/PATCH | Create + manage |
+| `/api/collection-events` | POST | Log outcomes |
+| `/api/disputes`, `/api/disputes/[id]` | POST/PATCH | Create + resolve |
+| `/api/analytics` | GET | DSO/CEI/adherence/overdue + 6-month series |
+| `/api/notifications`, `/api/notifications/preferences` | GET/PATCH | Derived feed + prefs (graceful fallback) |
+| `/api/jobs/promise-sweep` | POST | Idempotent; CRON_SECRET bearer; **not scheduled** |
+| `/api/export` | GET | CSV/JSON stream |
+| `/api/account` | DELETE | Purge + cascade; OWNER-only |
+| `/api/team`, `/api/team/[userId]` | GET/POST/PATCH/DELETE | Invites, roles, remove |
+| `/api/health` | GET | Live `SELECT 1` → 200/503 |
 
-**All of the above are NOT IMPLEMENTED** — there is not a single `src/app/api/*` route for domain data beyond register/auth.
+### 16.2 Blocked / Not built APIs
+Communications/send-message endpoint (depends on email/WhatsApp providers), SMS, workflow execution, AI promise extraction, billing/entitlements, webhooks. **None of these exist.**
 
 ---
 
 ## 17. Data Requirements & Persistence
 
-All persisted entities are defined in `prisma/schema.prisma` and migrated in `prisma/migrations/20260904112615_init/migration.sql` (applied). Persistence **models** the full domain, but **runtime usage** of Prisma is limited to: `register/route.ts` (create org/user, find user), and `auth.ts` (find user). **No other code path reads or writes the collections tables.**
+All entities are defined in `prisma/schema.prisma`; client generated via `@prisma/adapter-pg` at `src/generated/prisma`. Runtime usage is **pervasive and tenant-scoped** via `src/lib/repo.ts`.
 
-| Entity | Purpose | Ownership | Runtime CRUD |
-| --- | --- | --- | --- |
-| Organization | Tenant (company) | — | Create (register) only |
-| User | Auth + role | Organization | Create/read only |
-| Customer / Contact | Receivables parties | Organization | None |
-| Invoice / InvoiceItem | Invoices | Organization+Cust | None |
-| Payment / PaymentAllocation | Payments | Organization+Cust | None |
-| PromiseToPay | Promises | Organization+Cust | None |
-| Dispute | Disputes | Invoice | None |
-| Message | Communications | Organization | None |
-| CollectionEvent | Timeline | Organization+Cust | None |
-| CollectionWorkflow / WorkflowAction | Automation | Organization | None |
-| IntegrationCredential | Provider creds | Organization | None |
-| AuditLog | Audit | Organization | None |
-| Account/Session/VerificationToken | NextAuth | User | Standard |
+**Schema:** 21 models + 6 enums (`Role`, `InvoiceStatus`, `PromiseStatus`, `CommunicationChannel`, `MessageStatus`, `Priority`). `NotificationPreference`, org schedule columns, and `IdempotencyKey` are covered in `20260904130000_schema_sync`.
 
-**Data isolation:** `organizationId` foreign keys exist per tenant entity, but **there is no row-level security (RLS) enforced at the database layer** and no authorization code enforcing tenant scoping on reads/writes (because no domain reads/writes exist yet). This is a security-critical gap once domain APIs are added.
+**Data isolation:** enforced at the application layer — `withAuth` sets the tenant; `src/lib/repo.ts` scopes every query by `organizationId`. **DB-level RLS not yet applied** (blocked with managed prod infra, TODO-058).
 
 ---
 
 ## 18. Integrations & External Credentials
 
-**There are NO live external integrations.** The `IntegrationCredential` table is schema-only. No email, WhatsApp, SMS, payment, storage, or AI provider is configured or called.
-
-Full matrix in `CREDENTIALS_AND_INTEGRATIONS_MATRIX.md`. Summary of what the product claims (marketing, `page.tsx`) vs. what is connected:
+Full matrix in `CREDENTIALS_AND_INTEGRATIONS_MATRIX.md`. **No live external integrations** are configured. `IntegrationCredential` is schema-only. The `IntegrationCredential` model has no encryption code or KMS (must be added before storing provider secrets).
 
 | Claimed Capability | Provider Needed | Connected? |
 | --- | --- | --- |
-| Email automation | e.g. Resend/SendGrid | **No** |
-| WhatsApp automation | e.g. WhatsApp Business API / Twilio / Gupshup | **No** |
-| SMS | e.g. Twilio/MSG91 | **No** |
-| Payment links / gateway | e.g. Razorpay/Stripe | **No** |
-| AI promise extraction | e.g. OpenAI/LLM | **No** |
-| Bank statement auto-match | bank API/file | **No** |
-
-**The product cannot perform any real-world automated communication or payment activity until external provider accounts + credentials + webhook/callback + domain verification + approval (WhatsApp) are in place.** This is a fundamental blocker to the core value proposition.
+| Email automation | e.g. Resend/SendGrid | **No (Blocked)** |
+| WhatsApp automation | e.g. WhatsApp Business API / BSP | **No (Blocked)** |
+| SMS | e.g. Twilio/MSG91 | **No (Blocked)** |
+| Payment links / gateway | e.g. Razorpay/Stripe | **No (Blocked)** |
+| AI promise extraction | OpenAI/LLM | **No (Not built)** |
+| Bank statement auto-match | bank API/file | **No (Not built)** |
 
 ---
 
 ## 19. Notifications & Messaging
 
-No notification system exists (no toasts, no in-app notifications, no email/SMS sending, no scheduler). The Settings page has notification-preference toggles that are UI-only.
+**In-app notifications are implemented:** derived feed (`GET /api/notifications` — broken promises, disputes, promises due) with a NotificationBell in the Sidebar plus a dashboard escalation banner. Preferences (`GET`/`PATCH /api/notifications/preferences`) persist with graceful fallback while the schema/migration is pending. **Outbound email/WhatsApp/SMS sending is NOT built (Blocked).**
 
 ---
 
 ## 20. Search
 
-No backend search. Customer list search is a client-side `.filter()` over the in-memory mock array (`customers/page.tsx:121`). No search over DB, no full-text search, no index-managed search.
+**Server-side search implemented** for customers (`GET /api/customers?search=`) and invoices (`GET /api/invoices` with search + derived status filter). Invoice list uses cursor pagination.
 
 ---
 
 ## 21. AI Capabilities
 
-**None implemented.** Marketing claims ("extract promises from WhatsApp replies", "tone control") are DOCUMENTED-ONLY. No LLM/AI SDK dependency is installed or called.
+**None implemented.** Marketing claims (promise extraction from WhatsApp, tone control) are not shipped; no LLM/AI SDK is installed or called.
 
 ---
 
 ## 22. Billing / Subscriptions
 
-**None implemented.** Pricing tiers are presented on the landing page (₹999/₹2,499/₹5,999 per month — Starter/Growth/Pro) as static marketing. There is **no billing model, no subscription table, no payment provider, no gating, no plans table in the schema.** Monetization is entirely PROPOSED/undelivered.
+**None implemented.** Pricing tiers (₹999/₹2,499/₹5,999 — Starter/Growth/Pro) are static landing-page marketing. No billing model, subscription table, payment provider, gating, or plans table (**Blocked, TODO-049**).
 
 ---
 
-## 23. Security & Privacy Requirements (current state)
+## 23. Security & Privacy (current state)
 
 | Control | Status |
 | --- | --- |
 | Password hashing | **Implemented** — bcrypt cost 12 |
-| Session | **Implemented** — JWT, cookie `authjs.session-token` (`__Secure-` in prod) |
-| Route protection | **Partial** — cookie-presence only, no role/tenant authorization |
-| Registration validation | **Implemented** — zod client+server |
-| Email uniqueness | **Implemented** (schema unique + 409 check) |
-| Rate limiting / abuse prevention | **Not Implemented** — no throttling on `/api/register` (brute-force/open-registration risk) |
-| RBAC | **Not Implemented** |
-| Tenant data isolation / RLS | **Not Implemented** |
-| Secrets management on client | No client-side secrets (good); but `NEXTAUTH_SECRET` in `.env` is a weak dev default (`duespilot-dev-secret-change-in-production`) — **UNVERIFIED for production**; `.env` is git-ignored (good) |
-| Secure cookie in prod | Deterministic by `NODE_ENV`; **UNVERIFIED in deployed runtime** |
-| Audit logging | Schema only, never written |
-| Account deletion / data export | **Not Implemented** |
-| Privacy policy / ToS / consent | **Not Implemented** (footer links are text spans, `page.tsx:424-427`) |
-| Open registration | **Enabled by design** (public `/api/register`) — acceptable pre-launch, must be gated/rate-limited/protected pre-production |
+| Session | **Implemented** — JWT, 7-day maxAge, SameSite cookie |
+| Route protection | **Implemented** — proxy session-cookie check, dot-bypass removed, static-extension allowlist |
+| Registration validation | **Implemented** — zod client + server |
+| Email uniqueness | **Implemented** (schema unique + 409) |
+| Rate limiting | **Implemented** — register 5/10min per IP; mutating auth calls 300/min per user |
+| RBAC | **Implemented** — ACTION_ROLES / MANAGE_ROLES guards |
+| Tenant Isolation | **Implemented** — app-layer org scoping; **DB RLS pending** |
+| Security headers / CSP | **Implemented** — `next.config.ts` (CSP self-only, `frame-ancestors 'none'`, HSTS, X-Frame-Options, etc.) |
+| CSRF | **Mitigated** — no CORS endpoints + SameSite session cookie |
+| Secrets management | `.env` git-ignored; env uses NextAuth v5 names; no hardcoded secrets in `src` |
+| Audit logging | **Implemented** — `src/lib/audit.ts` wired into register/import/settings + mutations |
+| Account deletion / export | **Implemented** — `DELETE /api/account`, `GET /api/export` |
+| Privacy policy / ToS | **Implemented** — `/privacy`, `/terms` routes linked from footer |
+| Open registration | Enabled by design; rate-limited |
 
 ---
 
 ## 24. Accessibility
 
-**No explicit accessibility work detected.** No `aria-*` attributes, no focus-trap/landmark structure, no keyboard-navigation testing, no automated aXe/axe-core tooling. Color is used to convey risk/status with no non-color alternative. **PROPOSED:** full a11y audit is required before production.
+**Implemented for key interactions** (verified `tsc`/lint): dialogs are `role=dialog`/`aria-modal`/`aria-labelledby` with Escape-to-close and initial focus; close buttons `aria-label="Close"`; NotificationBell `aria-haspopup`/`aria-expanded`/`role=menu`; settings toggles `role=switch`/`aria-checked`; status pills are dual (color + text). **Not fully verified** for keyboard/focus on every surface — `UNVERIFIED`.
 
 ---
 
 ## 25. Performance / NFR
 
-Given all dashboard pages are static mock data, there is little to measure. Proposed NFRs (none exist in code — all **PROPOSED — ENGINEERING DECISION REQUIRED**):
-- Performance: <2s time-to-interactive on dashboard; API p95 <300ms; DB queries <150ms.
-- Availability: 99.9% uptime target (post-deployment).
-- Scalability: handle 100k invoices / 10k customers per org; multi-tenant.
-- Observability: structured logs + request tracing + error tracking (Sentry) — none present.
-- Backup/DR: managed PostgreSQL daily backups + point-in-time; **none configured**.
-- i18n: English only (hardcoded); INR formatting present. **PROPOSED** decide on local languages (Hindi/Gujarati/…) — AMBIGUOUS.
+- **Unit tests** 65/65 (Vitest 3.2.7) across 9 test files in `src/lib/__tests__` + `rbac.test.ts`.
+- **CI**: `.github/workflows/ci.yml` with quality (lint+tsc+unit), integration (postgres:17 service + `prisma migrate deploy || db push` + `test:integration`), and build (dummy env) jobs.
+- Observability: structured JSONL logs + `x-request-id` (`src/lib/server-context.ts` `withAuth`); `/api/health` live DB check.
+- NFR targets (availability 99.9%, p95 latency, scale) are **proposed performance budgets not yet measured**; no load testing performed.
+- Managed DB backups/PITR: **not configured (Blocked, TODO-058)**.
 
 ---
 
-## 26. Error Handling, Edge Cases, Empty/Loading/Error States
+## 26. Error Handling, Edge Cases, Loading/Empty/Error States
 
-- **Loading states:** none (no async data in dashboard pages; register/login have local `loading` booleans).
-- **Empty states:** only Payments/Disputes/Communications placeholder pages have empty-state UI; Customers/Invoices/Queue/Promises render static data and would break or show nothing sensible if data were empty.
-- **Error states:** register/login show inline errors; no global error boundary present (no `error.tsx`), no `not-found.tsx`, no `loading.tsx` seen.
-- **Retry/recovery:** none.
-- **Edge cases not handled:** duplicate import, malformed CSV rows, date formats, currency parsing, huge files (PapaParse caps preview to 50 rows but import claims all), customer with no `[id]` match (always shows mock), partial payments, promise overrun.
+- **Loading/error/empty/retry states** are implemented across dashboard, invoices (list + detail), customers (list + detail), queue, analytics, promises, payments, disputes, settings — with `role=alert` + "Try again" retry (respecting react-hooks/set-state-in-effect).
+- **Destructive confirmations**: typed DELETE confirm for account deletion; `window.confirm` for team/contact removal; disabled-state guards.
+- Edge cases handled: duplicate import (in-file + DB), malformed CSV rows, partial/overpay/unmatched payments, duplicate-payment guard, promise overrun via sweep, disputed-invoice exclusion from queue.
 
 ---
 
-## 27. Production Readiness Requirements
+## 27. Production Readiness
 
-Comprehensive checklist in `PRODUCTION_READINESS_CHECKLIST.md`. High-level verdict: **NOT PRODUCTION-READY.** There is no domain functionality wired to the DB, no tests, no CI/CD, no monitoring, no infrastructure, no external integrations, no legal pages, no secrets hardening, no RBAC/RLS.
-
----
-
-## 28. Release Criteria (PROPOSED — target, not current)
-
-To call a given feature "done": unit tests pass, feature works against a real DB with authenticated real tenant data, integration provider functions with a sandbox, and manual QA on desktop+mobile accepts. None currently satisfiable for the product screens.
+Detailed checklist in `PRODUCTION_READINESS_CHECKLIST.md`. **Not fully production-ready** because the following remain **blocked**: email/WhatsApp/SMS delivery, billing, managed prod infra (DB, RLS, backups/PITR, staging/prod), Sentry DSN, scheduler/cron provisioning (promise-sweep not yet scheduled), integration tests (TODO-051), E2E (TODO-052), and pending migrations (NotificationPreference, org columns, IdempotencyKey store).
 
 ---
 
-## 29. Future Enhancements (PROPOSED — marketing-evidenced intent)
+## 28. Release Criteria
 
-- Automated email + WhatsApp follow-up with tone control.
-- AI promise extraction from WhatsApp/email replies.
-- Payment links + reconciliation + credit notes + deductions.
-- Escalation and approval workflows.
-- Multi-business-unit support, forecasting, and API access.
-- MSME Samadhaan / legal referral affordances.
+The quality gate (`tsc`, lint, 51/51 unit tests, build) passes and features work against a real DB with authenticated tenant data. Remaining release blockers are the external items in §27 (notably the promise-sweep scheduler and pending migrations).
+
+---
+
+## 29. Future Enhancements
+
+- Automated email + WhatsApp follow-up with tone control (Blocked on providers).
+- AI promise extraction from WhatsApp/email replies (Not built).
+- Payment links + reconciliation + credit notes + deductions (Not built).
+- Escalation and approval workflows (Not built).
+- Multi-business-unit support, forecasting, API access (Not built).
+- MSME Samadhaan / legal referral affordances (Not built).
 
 ---
 
 ## 30. Key Implementation Status Matrix
 
-| Area | Fully Impl | Partial | UI Only (mock) | Schema Only | Missing | Broken |
-| --- | ---: | ---: | ---: | ---: | ---: | ---: |
-| Auth / register / login | ✓ | ✓ | | | logout, reset, RBAC | session-scope |
-| Landing / login / register pages | ✓ | | | | | |
-| Dashboard screens (data) | | | ✓ | | real data wiring | |
-| Collections domain logic | | | | ✓ | all execution | |
-| Import | | | ✓ | | persistence | |
-| Integrations (email/WhatsApp/etc.) | | | | | all | |
-| Testing | | | | | all | |
-| Production infra | | | | | all | |
+| Area | Implemented | Partial | Schema-only | Blocked/Not built | Evidence |
+| --- | --- | --- | --- | --- | --- |
+| Auth / register / login / logout / reset | ✓ | | | OAuth, email verification | real DB + RBAC |
+| RBAC + tenant isolation | ✓ | | | DB RLS pending | ACTION_ROLES/MANAGE_ROLES, repo.ts |
+| Landing / auth pages | ✓ | | | | |
+| Dashboard + queue + analytics | ✓ | | | | real aggregates + metrics |
+| Import | ✓ | | | Excel/Tally | transactional batch |
+| Customers / contacts / dedupe | ✓ | | | | CRUD + merge |
+| Invoices | ✓ | | | | search + pagination + detail |
+| Payments / promises / disputes / events | ✓ | | | | allocation, sweep, resolve |
+| Notifications | ✓ | | | | derived feed + prefs (migration pending) |
+| Communications (email/WA/SMS) | | | Message model | **Blocked** | no provider; route only |
+| Billing / entitlements | | | | **Blocked** | none |
+| Testing | ✓ unit + CI | | | integration + E2E | 65/65; TODO-051/052 |
+| Production infra / monitoring | /api/health + logs | | | **Blocked** (Sentry, DB, backups) | TODO-058 |
 
 ---
 
@@ -547,12 +497,11 @@ To call a given feature "done": unit tests pass, feature works against a real DB
 
 Primary evidence files:
 - Schema: `prisma/schema.prisma`
-- Migration: `prisma/migrations/20260904112615_init/migration.sql`
-- Auth: `src/lib/auth.ts`, `src/app/api/auth/[...nextauth]/route.ts`
-- Register: `src/app/api/register/route.ts`, `src/app/(auth)/register/page.tsx`
-- Proxy: `src/proxy.ts`
-- Prisma client: `src/lib/prisma.ts`
-- Utils: `src/lib/utils.ts`
-- Screens: `src/app/(dashboard)/dashboard/**`, `src/app/(auth)/**`, `src/app/page.tsx`, `src/app/layout.tsx`
-- Component: `src/components/layout/Sidebar.tsx`
-- Config: `package.json`, `next.config.ts`, `tsconfig.json`, `prisma7.config.ts`, `eslint.config.mjs`, `.env.example`, `AGENTS.md`/`CLAUDE.md`
+- Tenant data access: `src/lib/repo.ts`, `src/lib/server-context.ts` (`withAuth`)
+- Auth: `src/lib/auth.ts`, `src/app/api/auth/[...nextauth]/route.ts`, `src/proxy.ts`
+- Pure domain modules: `src/lib/queue-item.ts`, `src/lib/payment-allocation.ts`, `src/lib/invoice-status.ts`/`collections.ts`, `src/lib/metrics.ts`, `src/lib/risk-score.ts`, `src/lib/audit.ts`, `src/lib/rate-limit.ts`, `src/lib/promise-state.ts`, `src/lib/rbac.ts`
+- API routes: `src/app/api/**`
+- Screens: `src/app/(dashboard)/dashboard/**`
+- Tests: `src/lib/__tests__/**` (65/65)
+- CI: `.github/workflows/ci.yml`
+- Statuses: `docs/MASTER_TODO.md` (authoritative)

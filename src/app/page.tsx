@@ -422,9 +422,15 @@ export default function Home() {
             <span>© 2026 DuesPilot</span>
           </div>
           <div className="flex items-center gap-6">
-            <span>Privacy</span>
-            <span>Terms</span>
-            <span>Support</span>
+            <Link href="/privacy" className="hover:text-gray-900 transition-colors">
+              Privacy
+            </Link>
+            <Link href="/terms" className="hover:text-gray-900 transition-colors">
+              Terms
+            </Link>
+            <a href="mailto:support@duespilot.example.com" className="hover:text-gray-900 transition-colors">
+              Support
+            </a>
           </div>
         </div>
       </footer>

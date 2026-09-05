@@ -29,7 +29,9 @@ export interface QueueItem {
   lastAction: string;
   nextAction: string;
   priority: QueuePriority;
+  why: string;
   promiseBroken: boolean;
+  promiseId: string | null;
 }
 
 export interface DashboardData {
@@ -52,8 +54,18 @@ export interface CustomerSummary {
   status: string;
 }
 
+export interface DuplicateGroup {
+  key: string;
+  members: {
+    id: string;
+    name: string;
+    invoicesCount: number;
+    totalOutstanding: number;
+  }[];
+}
+
 export interface CustomerContact {
-  id?: string;
+  id: string;
   name: string;
   designation: string | null;
   phone: string | null;
@@ -109,6 +121,48 @@ export interface InvoiceRow {
   daysOverdue: number;
 }
 
+export interface InvoiceLineItem {
+  id: string;
+  description: string;
+  quantity: number | null;
+  unitPrice: number | null;
+  taxRate: number | null;
+  amount: number;
+}
+
+export interface InvoiceTimelineEvent {
+  id: string;
+  date: string;
+  type: "payment" | "event" | "promise" | "dispute";
+  summary: string;
+  detail?: string;
+}
+
+export interface InvoiceAllocationView {
+  id: string;
+  paymentRef: string | null;
+  paymentDate: string;
+  mode: string | null;
+  amount: number;
+}
+
+export interface InvoiceDetail {
+  id: string;
+  number: string;
+  customerId: string;
+  customerName: string;
+  date: string;
+  dueDate: string;
+  amount: number;
+  outstanding: number;
+  status: string;
+  currency: string;
+  notes: string | null;
+  items: InvoiceLineItem[];
+  allocations: InvoiceAllocationView[];
+  timeline: InvoiceTimelineEvent[];
+}
+
 export type PromiseStatusView = "ACTIVE" | "KEPT" | "BROKEN" | "RENEGOTIATED";
 
 export interface PromiseRow {
@@ -123,12 +177,77 @@ export interface PromiseRow {
   invoiceNumber: string | null;
 }
 
+export interface CreatePromiseInput {
+  customerId: string;
+  amount: number;
+  promiseDate: string;
+  invoiceId?: string | null;
+  note?: string | null;
+  source?: string;
+  confidence?: number;
+  idempotencyKey?: string | null;
+}
+
+export interface PaymentAllocationView {
+  id: string;
+  invoiceId: string;
+  invoiceNumber: string;
+  amount: number;
+}
+
+export interface PaymentRow {
+  id: string;
+  customerId: string;
+  customer: string;
+  reference: string | null;
+  amount: number;
+  paymentDate: string;
+  mode: string | null;
+  status: string;
+  allocations: PaymentAllocationView[];
+}
+
+export interface CreatePaymentInput {
+  customerId: string;
+  amount: number;
+  paymentDate: string;
+  mode?: string | null;
+  reference?: string | null;
+  allocations?: { invoiceId: string; amount: number }[];
+  idempotencyKey?: string | null;
+}
+
+export interface CollectionEventInput {
+  customerId: string;
+  invoiceId?: string | null;
+  type: string;
+  description: string;
+  metadata?: Record<string, unknown> | null;
+}
+
+export interface DisputeRow {
+  id: string;
+  invoiceId: string;
+  invoiceNumber: string;
+  customer: string;
+  reason: string;
+  category: string | null;
+  status: string;
+  notes: string | null;
+  createdAt: string;
+}
+
 export interface OrganizationSettings {
   name: string;
   gstin: string | null;
   industry: string | null;
   city: string | null;
   usersCount: number;
+  businessHoursStart: number | null;
+  businessHoursEnd: number | null;
+  workingDays: number[] | null;
+  holidays: string[] | null;
+  automationsPaused: boolean;
 }
 
 export interface ImportColumnMapping {
@@ -142,8 +261,22 @@ export interface ImportColumnMapping {
   phone: string;
 }
 
+export interface ImportRowIssue {
+  /** 1-based original row number in the uploaded file. */
+  row: number;
+  reason: string;
+}
+
 export interface ImportResult {
   customersCreated: number;
   invoicesCreated: number;
   totalAmount: number;
+  /** Total non-empty rows supplied by the user. */
+  processedRows: number;
+  /** Rows that passed validation and were imported. */
+  validRows: number;
+  /** Rows skipped because they failed validation or already exist. */
+  skippedRows: number;
+  /** Human-readable reasons per skipped row (capped to prevent huge payloads). */
+  issues: ImportRowIssue[];
 }

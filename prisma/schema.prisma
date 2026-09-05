@@ -70,8 +70,20 @@ model User {
   organizationId          String?
   accounts                Account[]
   sessions                Session[]
+  preferences             NotificationPreference?
   createdAt               DateTime           @default(now())
   updatedAt               DateTime           @updatedAt
+}
+
+model NotificationPreference {
+  id                    String   @id @default(cuid())
+  userId                String   @unique
+  user                  User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  showBrokenPromiseBanner Boolean @default(true)
+  showQueueWhy          Boolean  @default(true)
+  emailDailyDigest      Boolean  @default(false)
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
 }
 
 model Account {
@@ -114,6 +126,11 @@ model Organization {
   users           User[]
   customers       Customer[]
   usersCount      Int            @default(1)
+  businessHoursStart Int?        // minute of day (0-1439) when collections may run
+  businessHoursEnd   Int?        // minute of day (0-1439)
+  workingDays        Json?       // {"days":[1..7]} mon=1..sun=7
+  holidays           Json?       // ["YYYY-MM-DD", ...]
+  automationsPaused  Boolean     @default(false)
   createdAt       DateTime       @default(now())
   updatedAt       DateTime       @updatedAt
 }
@@ -305,6 +322,17 @@ model IntegrationCredential {
   enabled        Boolean  @default(false)
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
+}
+
+model IdempotencyKey {
+  id             String   @id @default(cuid())
+  organizationId String
+  key            String
+  action         String
+  createdAt      DateTime @default(now())
+
+  @@unique([organizationId, key])
+  @@index([organizationId])
 }
 
 model AuditLog {

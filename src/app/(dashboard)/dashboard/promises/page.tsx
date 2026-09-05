@@ -1,8 +1,8 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { formatINR } from "@/lib/utils";
-import { api } from "@/lib/api";
+import { api, ApiError } from "@/lib/api";
 import type { PromiseRow } from "@/lib/types";
 
 type FilterStatus = "all" | "ACTIVE" | "KEPT" | "BROKEN" | "RENEGOTIATED";
@@ -12,10 +12,19 @@ export default function PromisesPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [filter, setFilter] = useState<FilterStatus>("all");
+  const [showModal, setShowModal] = useState(false);
+  const [retryKey, setRetryKey] = useState(0);
+
+  const load = async () => {
+    setPromises(await api<PromiseRow[]>("/api/promises"));
+    setLoading(false);
+  };
 
   useEffect(() => {
     let active = true;
     (async () => {
+      setLoading(true);
+      setError(null);
       try {
         const data = await api<PromiseRow[]>("/api/promises");
         if (active) setPromises(data);
@@ -28,7 +37,7 @@ export default function PromisesPage() {
     return () => {
       active = false;
     };
-  }, []);
+  }, [retryKey]);
 
   const filtered =
     filter === "all" ? promises : promises.filter((p) => p.status === filter);
@@ -45,11 +54,19 @@ export default function PromisesPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold text-gray-900">Promises to Pay</h1>
-        <p className="mt-1 text-sm text-gray-500">
-          Track customer payment commitments
-        </p>
+      <div className="flex items-start justify-between">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900">Promises to Pay</h1>
+          <p className="mt-1 text-sm text-gray-500">
+            Track customer payment commitments
+          </p>
+        </div>
+        <button
+          onClick={() => setShowModal(true)}
+          className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 transition-colors"
+        >
+          Log promise
+        </button>
       </div>
 
       {/* Stats */}
@@ -81,8 +98,17 @@ export default function PromisesPage() {
 
       {loading && <p className="text-sm text-gray-500">Loading promises…</p>}
       {error && (
-        <div className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
-          {error}
+        <div
+          role="alert"
+          className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700"
+        >
+          <p>{error}</p>
+          <button
+            onClick={() => setRetryKey((n) => n + 1)}
+            className="mt-2 rounded-lg border border-red-200 bg-white px-3 py-1.5 text-xs font-medium text-red-700 hover:bg-red-100"
+          >
+            Try again
+          </button>
         </div>
       )}
 
@@ -198,6 +224,205 @@ export default function PromisesPage() {
           </div>
         </>
       )}
+
+      {showModal && (
+        <LogPromiseModal
+          onClose={() => setShowModal(false)}
+          onDone={async () => {
+            setShowModal(false);
+            await load();
+          }}
+        />
+      )}
+    </div>
+  );
+}
+
+function LogPromiseModal({
+  onClose,
+  onDone,
+}: {
+  onClose: () => void;
+  onDone: () => void;
+}) {
+  const [customers, setCustomers] = useState<
+    { id: string; name: string; totalOutstanding: number }[]
+  >([]);
+  const [invoices, setInvoices] = useState<
+    { id: string; number: string; customer: string; outstanding: number }[]
+  >([]);
+  const [customerId, setCustomerId] = useState("");
+  const [amount, setAmount] = useState("");
+  const [promiseDate, setPromiseDate] = useState(
+    new Date().toISOString().slice(0, 10)
+  );
+  const [invoiceId, setInvoiceId] = useState("");
+  const [note, setNote] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const idemKeyRef = useRef<string | null>(null);
+  const idemKey = () => (idemKeyRef.current ??= crypto.randomUUID());
+
+  useEffect(() => {
+    void (async () => {
+      try {
+        const [c, inv] = await Promise.all([
+          api<{ id: string; name: string; totalOutstanding: number }[]>(
+            "/api/customers"
+          ),
+          api<
+            {
+              id: string;
+              number: string;
+              customer: string;
+              outstanding: number;
+            }[]
+          >("/api/invoices"),
+        ]);
+        setCustomers(c);
+        setInvoices(inv.filter((i) => i.outstanding > 0));
+      } catch {
+        // pickers stay empty
+      }
+    })();
+  }, []);
+
+  const submit = async () => {
+    setSaving(true);
+    setError(null);
+    try {
+      await api("/api/promises", {
+        method: "POST",
+        headers: { "Idempotency-Key": idemKey() },
+        body: JSON.stringify({
+          customerId,
+          amount: Number(amount),
+          promiseDate,
+          invoiceId: invoiceId || null,
+          note: note || null,
+          source: "manual",
+          confidence: 75,
+        }),
+      });
+      onDone();
+    } catch (e) {
+      setError(e instanceof ApiError ? e.message : "Something went wrong.");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+      <div className="w-full max-w-lg rounded-2xl bg-white shadow-xl border border-gray-200">
+        <div className="p-5 border-b border-gray-100">
+          <h3 className="font-semibold text-gray-900">Log a payment promise</h3>
+          <p className="text-sm text-gray-500">
+            Record a commitment the customer made to pay.
+          </p>
+        </div>
+
+        {error && (
+          <div className="mx-5 mt-4 rounded-lg bg-red-50 p-3 text-sm text-red-700 border border-red-100">
+            {error}
+          </div>
+        )}
+
+        <div className="p-5 space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Customer *
+            </label>
+            <select
+              value={customerId}
+              onChange={(e) => setCustomerId(e.target.value)}
+              className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+            >
+              <option value="">Select customer…</option>
+              {customers.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.name}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Amount (₹) *
+              </label>
+              <input
+                type="number"
+                min={1}
+                value={amount}
+                onChange={(e) => setAmount(e.target.value)}
+                className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                placeholder="0"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Promise date *
+              </label>
+              <input
+                type="date"
+                value={promiseDate}
+                onChange={(e) => setPromiseDate(e.target.value)}
+                className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+              />
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Related invoice (optional)
+            </label>
+            <select
+              value={invoiceId}
+              onChange={(e) => setInvoiceId(e.target.value)}
+              className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+            >
+              <option value="">No specific invoice</option>
+              {invoices
+                .filter((i) => i.customer === customers.find((c) => c.id === customerId)?.name)
+                .map((inv) => (
+                  <option key={inv.id} value={inv.id}>
+                    {inv.number}
+                  </option>
+                ))}
+            </select>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Note (optional)
+            </label>
+            <input
+              value={note}
+              onChange={(e) => setNote(e.target.value)}
+              className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+              placeholder="Context from the call…"
+            />
+          </div>
+
+          <div className="flex gap-3 pt-2">
+            <button
+              onClick={onClose}
+              className="flex-1 rounded-lg border border-gray-200 px-4 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={submit}
+              disabled={saving || !customerId || !amount || Number(amount) <= 0}
+              className="flex-1 rounded-lg bg-blue-600 px-4 py-2.5 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50 transition-colors"
+            >
+              {saving ? "Saving…" : "Log promise"}
+            </button>
+          </div>
+        </div>
+      </div>
     </div>
   );
 }

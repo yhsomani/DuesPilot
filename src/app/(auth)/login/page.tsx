@@ -9,6 +9,7 @@ function LoginContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const registered = searchParams.get("registered");
+  const reset = searchParams.get("reset");
   const callbackUrl = searchParams.get("callbackUrl") || "/dashboard";
 
   const [email, setEmail] = useState("");
@@ -70,6 +71,12 @@ function LoginContent() {
             </p>
           )}
 
+          {reset && (
+            <p className="mt-4 text-sm text-green-700 bg-green-50 border border-green-200 rounded-lg px-3 py-2">
+              Password reset. Please sign in with your new password.
+            </p>
+          )}
+
           <form onSubmit={handleSubmit} className="mt-6 space-y-5">
             <div>
               <label
@@ -112,6 +119,15 @@ function LoginContent() {
                 {error}
               </p>
             )}
+
+            <div className="flex justify-end -mt-2">
+              <Link
+                href="/forgot-password"
+                className="text-xs font-medium text-blue-600 hover:text-blue-500"
+              >
+                Forgot password?
+              </Link>
+            </div>
 
             <button
               type="submit"

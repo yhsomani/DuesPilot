@@ -23,10 +23,13 @@ export default function DashboardPage() {
   const [queue, setQueue] = useState<QueueItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [retryKey, setRetryKey] = useState(0);
 
   useEffect(() => {
     let active = true;
     (async () => {
+      setLoading(true);
+      setError(null);
       try {
         const [dash, q] = await Promise.all([
           api<{ stats: DashboardStats; aging: AgingBucket[] }>("/api/dashboard"),
@@ -45,7 +48,7 @@ export default function DashboardPage() {
     return () => {
       active = false;
     };
-  }, []);
+  }, [retryKey]);
 
   return (
     <div className="space-y-8">
@@ -61,13 +64,68 @@ export default function DashboardPage() {
       )}
 
       {error && (
-        <div className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
-          {error}
+        <div
+          role="alert"
+          className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700"
+        >
+          <p>{error}</p>
+          <button
+            onClick={() => setRetryKey((n) => n + 1)}
+            className="mt-2 rounded-lg border border-red-200 bg-white px-3 py-1.5 text-xs font-medium text-red-700 hover:bg-red-100"
+          >
+            Try again
+          </button>
         </div>
       )}
 
       {!loading && !error && stats && (
         <>
+          {/* First-run onboarding */}
+          {stats.totalReceivables === 0 && (
+            <div className="rounded-xl border border-blue-200 bg-blue-50 p-6 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+              <div>
+                <h2 className="font-semibold text-gray-900">
+                  Your workspace is ready
+                </h2>
+                <p className="mt-1 text-sm text-gray-600">
+                  Import your outstanding invoices to build your collection
+                  queue and get your first prioritize-and-chase list.
+                </p>
+              </div>
+              <Link
+                href="/dashboard/import"
+                className="shrink-0 rounded-lg bg-blue-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-blue-700 transition-colors"
+              >
+                Import receivables
+              </Link>
+            </div>
+          )}
+
+          {/* Broken-promise escalation banner */}
+          {stats.promiseBroken > 0 && (
+            <div className="rounded-xl border border-red-200 bg-red-50 p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+              <div className="flex items-start gap-3">
+                <span className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-red-100 text-red-700">!</span>
+                <div>
+                  <p className="text-sm font-semibold text-red-900">
+                    Broken customer promises require escalation
+                  </p>
+                  <p className="text-sm text-red-800">
+                    {formatINR(stats.promiseBroken)} promised for collection was
+                    not honored. Review the promises list and take the next
+                    action.
+                  </p>
+                </div>
+              </div>
+              <Link
+                href="/dashboard/promises"
+                className="shrink-0 rounded-lg bg-red-600 px-4 py-2 text-sm font-semibold text-white hover:bg-red-700 transition-colors"
+              >
+                Review promises
+              </Link>
+            </div>
+          )}
+
           {/* Stat Cards */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             <div className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm">

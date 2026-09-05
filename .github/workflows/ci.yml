@@ -1,0 +1,81 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  NODE_VERSION: "22"
+
+jobs:
+  quality:
+    name: Lint + Typecheck + Unit
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+      - run: npm ci
+      - run: npx prisma generate
+        env:
+          DATABASE_URL: "postgresql://postgres:postgres@localhost:5432/duespilot"
+      - run: npm run lint
+      - run: npx tsc --noEmit
+      - run: npm test
+
+  integration:
+    name: Integration (Postgres)
+    needs: quality
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: duespilot
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d duespilot"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      DATABASE_URL: "postgresql://postgres:postgres@localhost:5432/duespilot"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+      - run: npm ci
+      - run: npx prisma generate
+      - name: Apply schema
+        run: npx prisma migrate deploy || npx prisma db push
+      - name: Run integration tests
+        run: npm run test:integration
+
+  build:
+    name: Production build
+    needs: quality
+    runs-on: ubuntu-latest
+    env:
+      DATABASE_URL: "postgresql://postgres:postgres@localhost:5432/duespilot"
+      AUTH_SECRET: "ci-only-placeholder-secret-32-chars"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+      - run: npm ci
+      - run: npx prisma generate
+      - run: npm run build

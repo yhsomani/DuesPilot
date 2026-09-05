@@ -1,33 +1,35 @@
 import { auth } from "@/lib/auth";
 import { NextResponse, type NextRequest } from "next/server";
+import { DomainError } from "@/lib/errors";
+import { clientKey, rateLimit } from "@/lib/rate-limit";
+import { randomUUID } from "crypto";
 
-export const ROLES = {
-  OWNER: "OWNER",
-  ADMIN: "ADMIN",
-  FINANCE_MANAGER: "FINANCE_MANAGER",
-  COLLECTOR: "COLLECTOR",
-  SALES: "SALES",
-  VIEWER: "VIEWER",
-} as const;
-
-export type Role = (typeof ROLES)[keyof typeof ROLES];
-
-// Roles allowed to perform mutating collection actions.
-export const ACTION_ROLES: Role[] = [
-  ROLES.OWNER,
-  ROLES.ADMIN,
-  ROLES.FINANCE_MANAGER,
-  ROLES.COLLECTOR,
-];
-
-// Roles allowed to manage organization settings/imports/integrations.
-export const MANAGE_ROLES: Role[] = [ROLES.OWNER, ROLES.ADMIN];
-
-export interface SessionContext {
-  userId: string;
-  organizationId: string;
-  role: Role;
+function requestId(req: NextRequest): string {
+  return (
+    req.headers.get("x-request-id") ??
+    req.headers.get("x-correlation-id") ??
+    randomUUID()
+  );
 }
+
+export function structuredLog(
+  level: "info" | "warn" | "error",
+  fields: Record<string, string>
+) {
+  const line = JSON.stringify({ level, ts: new Date().toISOString(), ...fields });
+  if (level === "error") console.error(line);
+  else if (level === "warn") console.warn(line);
+  else console.log(line);
+}
+
+export {
+  ROLES,
+  ACTION_ROLES,
+  MANAGE_ROLES,
+  requireRole,
+} from "@/lib/rbac";
+export type { Role, SessionContext } from "@/lib/rbac";
+import type { Role, SessionContext } from "@/lib/rbac";
 
 /** Resolve the authenticated session and ensure the user belongs to an organization. */
 export async function getSessionContext(): Promise<SessionContext | null> {
@@ -65,29 +67,96 @@ export function withAuth(handler: Handler) {
     req: NextRequest,
     routeCtx: { params: Promise<unknown> }
   ) => {
+    const rid = requestId(req);
+    const start = performance.now();
     const params = (await routeCtx.params) as Params;
     const ctx = await getSessionContext();
     if (!ctx) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+      structuredLog("info", {
+        rid,
+        msg: "request.unauthorized",
+        method: req.method,
+        path: req.nextUrl.pathname,
+      });
+      return NextResponse.json(
+        { error: "Unauthorized" },
+        { status: 401, headers: { "x-request-id": rid } }
+      );
+    }
+    // Global guard on authenticated mutating calls (per user, per endpoint).
+    const method = req.method ?? "GET";
+    const respond = (status: number, body: unknown, headers?: Record<string, string>) => {
+      const res = NextResponse.json(body, {
+        status,
+        headers: { "x-request-id": rid, ...headers },
+      });
+      const durationMs = Math.round(performance.now() - start);
+      structuredLog(
+        status >= 500 ? "error" : status >= 400 ? "warn" : "info",
+        {
+          rid,
+          msg: "request",
+          method,
+          path: req.nextUrl.pathname,
+          status: String(status),
+          durationMs: String(durationMs),
+          orgId: ctx.organizationId,
+          userId: ctx.userId,
+          role: ctx.role,
+        }
+      );
+      return res;
+    };
+    if (["POST", "PATCH", "PUT", "DELETE"].includes(method)) {
+      const blocked = rateLimit(clientKey(ctx.userId, req.nextUrl.pathname), {
+        limit: 300,
+        windowMs: 60 * 1000,
+      });
+      if (!blocked.allowed) {
+        return respond(429, { error: "Too many requests. Please slow down." });
+      }
     }
     try {
       const result = await handler(req, ctx, params);
       if (!result.ok) {
-        return NextResponse.json(
-          { error: result.error },
-          { status: result.status }
-        );
+        return respond(result.status, { error: result.error });
       }
       if (result.status === 204 || result.status === 201) {
-        return new NextResponse(null, { status: result.status });
+        const res = new NextResponse(null, {
+          status: result.status,
+          headers: { "x-request-id": rid, ...result.headers },
+        });
+        const durationMs = Math.round(performance.now() - start);
+        structuredLog("info", {
+          rid,
+          msg: "request",
+          method,
+          path: req.nextUrl.pathname,
+          status: String(result.status),
+          durationMs: String(durationMs),
+          orgId: ctx.organizationId,
+          userId: ctx.userId,
+          role: ctx.role,
+        });
+        return res;
       }
-      return NextResponse.json({ data: result.data }, { status: result.status });
+      return respond(result.status ?? 200, { data: result.data }, result.headers);
     } catch (e) {
-      console.error("[api]", e);
-      return NextResponse.json(
-        { error: "Something went wrong. Please try again." },
-        { status: 500 }
-      );
+      if (e instanceof DomainError) {
+        return respond(e.status, { error: e.message });
+      }
+      structuredLog("error", {
+        rid,
+        msg: "request.error",
+        method,
+        path: req.nextUrl.pathname,
+        orgId: ctx.organizationId,
+        userId: ctx.userId,
+        error: e instanceof Error ? e.message : String(e),
+      });
+      return respond(500, {
+        error: "Something went wrong. Please try again.",
+      });
     }
   };
 }
@@ -110,14 +179,4 @@ export function noContent(status: number): HandlerResult {
 
 export function err(message: string, status: number): HandlerResult {
   return { ok: false, error: message, status };
-}
-
-export function requireRole(
-  ctx: SessionContext,
-  allowed: Role[]
-): HandlerResult | null {
-  if (!allowed.includes(ctx.role)) {
-    return err("You do not have permission to perform this action", 403);
-  }
-  return null;
 }

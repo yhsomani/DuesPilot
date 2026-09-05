@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
+import { writeAudit } from "@/lib/audit";
+import { clientKey, rateLimit } from "@/lib/rate-limit";
 
 const registerSchema = z.object({
   name: z.string().min(2, "Name must be at least 2 characters"),
@@ -12,6 +14,19 @@ const registerSchema = z.object({
 
 export async function POST(req: Request) {
   try {
+    const forwarded = req.headers.get("x-forwarded-for");
+    const ip = forwarded?.split(",")[0]?.trim() ?? null;
+    const blocked = rateLimit(clientKey(ip, "register"), {
+      limit: 5,
+      windowMs: 10 * 60 * 1000,
+    });
+    if (!blocked.allowed) {
+      return NextResponse.json(
+        { error: "Too many attempts. Please try again later." },
+        { status: 429 }
+      );
+    }
+
     const body = await req.json();
     const parsed = registerSchema.safeParse(body);
 
@@ -47,6 +62,18 @@ export async function POST(req: Request) {
         organizationId: organization.id,
       },
     });
+
+    await writeAudit(
+      {
+        organizationId: organization.id,
+        userId: user.id,
+        action: "REGISTER",
+        entityType: "user",
+        entityId: user.id,
+        metadata: { companyName },
+      },
+      req
+    );
 
     return NextResponse.json(
       { message: "Account created", userId: user.id },

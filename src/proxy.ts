@@ -5,10 +5,14 @@ const AUTH_COOKIE_NAME =
     ? "__Secure-authjs.session-token"
     : "authjs.session-token";
 
+const STATIC_EXT =
+  /\.(ico|png|jpg|jpeg|gif|svg|webp|css|woff2?|ttf|otf|eot|map|txt|xml|pdf)$/i;
+
 export default function proxy(req: NextRequest) {
   const { pathname } = req.nextUrl;
 
-  // Allow public routes
+  // Allow public routes and real static assets (explicit extensions only —
+  // never a blanket "any path containing a dot" bypass).
   if (
     pathname === "/" ||
     pathname === "/login" ||
@@ -16,13 +20,13 @@ export default function proxy(req: NextRequest) {
     pathname.startsWith("/api/auth") ||
     pathname.startsWith("/api/register") ||
     pathname.startsWith("/_next") ||
-    pathname.startsWith("/favicon") ||
-    pathname.includes(".")
+    pathname === "/favicon.ico" ||
+    STATIC_EXT.test(pathname)
   ) {
     return NextResponse.next();
   }
 
-  // Protect dashboard routes
+  // Protect dashboard routes — cookie-based session check.
   if (pathname.startsWith("/dashboard")) {
     const hasSession = req.cookies.has(AUTH_COOKIE_NAME);
     if (!hasSession) {

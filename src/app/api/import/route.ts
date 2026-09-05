@@ -1,6 +1,7 @@
 import { err, ok, readJson, requireRole, withAuth } from "@/lib/server-context";
 import { importReceivables } from "@/lib/repo";
 import { MANAGE_ROLES } from "@/lib/server-context";
+import { writeAudit } from "@/lib/audit";
 import type { ImportColumnMapping } from "@/lib/types";
 
 const REQUIRED_FIELDS: (keyof ImportColumnMapping)[] = [
@@ -38,6 +39,29 @@ export const POST = withAuth(async (req, ctx) => {
     return err("Too many rows. Please split your file into batches of 5000.", 400);
   }
 
-  const result = await importReceivables(ctx.organizationId, rows, mapping);
+  const result = await importReceivables(
+    ctx.organizationId,
+    rows,
+    mapping,
+    req.headers.get("idempotency-key")
+  );
+
+  await writeAudit(
+    {
+      organizationId: ctx.organizationId,
+      userId: ctx.userId,
+      action: "IMPORT_RECEIVABLES",
+      entityType: "organization",
+      entityId: ctx.organizationId,
+      metadata: {
+        rows: rows.length,
+        invoicesCreated: result.invoicesCreated,
+        customersCreated: result.customersCreated,
+        skippedRows: result.skippedRows,
+      },
+    },
+    req
+  );
+
   return ok(result, 201);
 });

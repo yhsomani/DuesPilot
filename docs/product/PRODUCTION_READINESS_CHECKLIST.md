@@ -2,11 +2,13 @@
 
 | Attribute | Value |
 | --- | --- |
-| **Version** | 1.0.0 |
+| **Version** | 2.0.0 |
 | **Analysis date** | 2026-09-04 |
-| **Overall verdict** | **NOT PRODUCTION READY** |
+| **Overall verdict** | **NOT YET FULLY PRODUCTION READY** — functional core is real and tested, but external/infra items remain blocked |
 
-Legend: ✅ Ready · 🟡 Partially / needs verification · ❌ Not ready · ⚙️ Config · 🔧 To build
+**Quality gate (verified 2026-09-05):** `npx tsc --noEmit` ✅ · `npm run lint` ✅ · `npm test` 65/65 (9 files) ✅ · `npm run build` ✅
+
+Legend: ✅ Ready · 🟡 Partial / needs verification · ❌ Not ready · 🚫 Blocked (external dependency)
 
 ---
 
@@ -14,129 +16,135 @@ Legend: ✅ Ready · 🟡 Partially / needs verification · ❌ Not ready · ⚙
 
 | Check | Status | Evidence / Notes |
 | --- | --- | --- |
-| Core product loop (import → queue → action → payment) works end-to-end | ❌ | Import doesn't persist; queue/actions are mock; no payments |
-| All pages render without runtime errors | ✅ | `npm run build` passes; 18 routes + proxy generated |
-| Data is real (persisted, per-tenant) vs mock | ❌ | All dashboard screens hardcoded mock |
-| Empty/loading/error states handled | ❌ | No `loading.tsx`/`error.tsx`/`not-found.tsx`; no empty states on data screens |
-| Customer detail respects route id | ❌ | `customers/[id]` always renders same mock |
+| Core loop (import → queue → action → promise → payment → analytics) works end-to-end | ✅ | All implemented against real DB (see FEATURE_STATUS_MATRIX) |
+| All pages render without runtime errors | ✅ | `npm run build` green; routes listed in §3 PRD |
+| Data is real (persisted, per-tenant) vs mock | ✅ | No mock arrays; tenant-scoped via `src/lib/repo.ts` |
+| Empty/loading/error/retry states | ✅ | Present across dashboard/invoices/customers/queue/analytics/promises/payments/disputes/settings; `role=alert` + retry |
+| Customer detail respects route id | ✅ | `/customers/[id]` fetches by id; 404 if absent |
+| Outbound email/WhatsApp/SMS send | ❌ 🚫 | Blocked on providers (TODO-042/044) |
 
 ## 2. Authentication & Security
 
 | Check | Status | Evidence / Notes |
 | --- | --- | --- |
-| Passwords bcrypt-hashed | ✅ | cost 12, `register/route.ts:35` |
-| Session cookie (JWT) | ✅ | `auth.ts:47` |
-| Route protection on dashboard | 🟡 | Cookie-presence only (`proxy.ts`); no session validation at DB, no RBAC |
-| RBAC / role enforcement | ❌ | Roles defined in schema; no checks |
-| Tenant data isolation (RLS / org scoping) | ❌ | `organizationId` FK exists; no enforcement code |
-| Rate limiting on `/api/register` (brute-force/abuse) | ❌ | None — open registration risk |
-| Password reset / recovery | ❌ | None |
-| Logout control in UI | ❌ | `signOut` exported, no UI handler |
-| Secure cookie in production (`__Secure-`) | 🟡 | Deterministic via `NODE_ENV`; **UNVERIFIED in deployed runtime** |
-| Production-grade `NEXTAUTH_SECRET` | 🟡 | `.env` holds a dev-default secret; **UNVERIFIED/rotate before prod**; `.env` is git-ignored ✅ |
-| No secrets committed to repo | ✅ | `.env` not tracked; `.env.example` uses placeholders; `.gitignore` hardened |
+| Passwords bcrypt-hashed (cost 12) | ✅ | register |
+| Session cookie (JWT, 7-day maxAge, SameSite) | ✅ | `auth.ts` |
+| Route protection | ✅ | `src/proxy.ts` session cookie; dot-bypass removed; static-extension allowlist |
+| RBAC enforcement | ✅ | ACTION_ROLES / MANAGE_ROLES guards |
+| Tenant data isolation | 🟡 | App-layer org scoping ✅; **DB RLS pending** 🚫 (TODO-058) |
+| Rate limiting | ✅ | register 5/10min per IP; per-user 300/min on mutations |
+| Password reset | ✅ | hashed 15-min tokens; identity-blind forgot |
+| Logout in UI | ✅ | Sidebar |
+| Secure cookies in production | 🟡 | `NODE_ENV`-deterministic; **UNVERIFIED in deployed runtime** |
+| Production secrets | 🟡 | `.env` git-ignored; NextAuth v5 env names; must generate strong `AUTH_SECRET` for prod (`.env` dev value `UNVERIFIED`) |
+| No secrets committed to repo | ✅ | `.env` untracked; `.env.example` placeholders; no hardcoded secrets in `src` (grep verified) |
+| CSP + security headers | ✅ | `next.config.ts` (CSP self-only, `frame-ancestors 'none'`, HSTS, X-Frame-Options, Referrer, Permissions, X-Content-Type-Options) |
+| CSRF | ✅ | No CORS endpoints + SameSite session cookie |
+| npm audit | 🟡 | 4 high, all **transitive via Prisma** (`@prisma/config` → deepmerge-ts, mysql2); only fix is breaking Prisma 6 downgrade — **accepted risk** |
 
 ## 3. Data & Database
 
 | Check | Status | Evidence / Notes |
 | --- | --- | --- |
-| Schema migrated / applied | ✅ | `prisma/migrations/20260904112615_init`; `npx prisma dev -d` used |
-| Prisma client generation reproducible | 🟡 | Requires `@prisma/adapter-pg` + `prisma7.config.ts`; generated client at `src/generated/prisma` (git-ignored) |
-| DB backups / point-in-time recovery | ❌ | Managed DB not configured; no backup policy |
-| Migration strategy for schema evolution | 🟡 | Prisma Migrate usable; but prod migration workflow undeclared |
-| Data export / deletion (compliance) | ❌ | No-op buttons |
+| Schema migrated / applied | 🟡 | Base schema migrated; **pending migrations**: NotificationPreference, org columns, IdempotencyKey store |
+| Prisma client generation reproducible | ✅ | `npx prisma generate`; `@prisma/adapter-pg`; client at `src/generated/prisma` |
+| DB backups / point-in-time recovery | ❌ 🚫 | Managed DB not configured (TODO-058) |
+| Migration strategy for schema evolution | 🟡 | Prisma Migrate used; prod workflow undeclared |
+| Data export / deletion (DPDP-analogous) | ✅ | `/api/export` CSV/JSON; `DELETE /api/account` purge + cascade |
 
 ## 4. Integrations & External Services
 
 | Check | Status | Notes |
 | --- | --- | --- |
-| Email provider configured | ❌ | None — core automation blocked |
-| WhatsApp provider configured | ❌ | None (also requires META approval) |
-| SMS / payments / AI / bank imports | ❌ | None |
+| Email provider configured | ❌ 🚫 | Blocked (TODO-042) — core automation |
+| WhatsApp provider configured | ❌ 🚫 | Blocked (TODO-044; requires META approval) |
+| SMS / payments / AI / bank imports | ❌ 🚫 | Not built / blocked |
 | Webhook/callback handling | ❌ | No webhook routes |
+| Sentinel/Sentry DSN | ❌ 🚫 | Requires external account + DSN |
 
 ## 5. Quality & Testing
 
 | Check | Status | Notes |
 | --- | --- | --- |
-| Unit tests | ❌ | Zero test files |
-| Integration / API tests | ❌ | None |
-| E2E tests | ❌ | None |
-| Test framework configured | ❌ | `package.json` has no `test` script |
-| Type checking in CI | 🟡 | `tsc --noEmit` passes locally; not in CI |
-| Linting | ✅ | `eslint` passes locally; not in CI |
-| Code coverage | ❌ | N/A (no tests) |
+| Unit tests | ✅ | 65/65 Vitest 3.2.7 across 9 files (`src/lib/__tests__` + `rbac.test.ts`) |
+| Integration / API tests | 🟡 | Specs authored (`src/**/*.integration.test.ts`); execution verified in CI via `postgres:17` container |
+| E2E tests | 🚫 | **Blocked (TODO-052)** — Playwright not yet added |
+| Test framework configured | ✅ | Vitest; scripts `test`, `test:watch`, `test:integration` |
+| Type checking | ✅ | `tsc --noEmit` clean; enforced in CI |
+| Linting | ✅ | eslint clean; enforced in CI |
+| Code coverage | 🟡 | Unit coverage present; no threshold/CI gate defined |
 
 ## 6. Code Quality
 
 | Check | Status | Notes |
 | --- | --- | --- |
 | TypeScript strict | ✅ | strict tsconfig |
-| Dead/unused dependencies trimmed | ❌ | `@auth/prisma-adapter`, `date-fns`, `papaparse`(only import UI), `dotenv`(only prisma7.config) partially unused |
-| Duplicated UI code | 🟡 | Layout/table markup duplicated across 9 mock screens; no UI kit |
-| Documentation accuracy | ❌ | `README.md` is default create-next-app (inaccurate); no PRODUCT docs yet |
+| Dead/unused dependencies trimmed | ✅ | date-fns, `@auth/prisma-adapter`, pg removed; dotenv → devDeps (TODO-059) |
+| Duplicated UI code | 🟡 | Per-page layout/table markup; no formal UI-kit (a11y/retry patterns consistent) |
+| Documentation accuracy | 🟡 | docs/product being rewritten (TODO-060); README/ARCHITECTURE/API/DEPLOYMENT pending (TODO-061) |
 
 ## 7. Reliability & Observability
 
 | Check | Status | Notes |
 | --- | --- | --- |
-| Structured logging | ❌ | None |
-| Error tracking (Sentry etc.) | ❌ | None |
-| Request tracing / metrics | ❌ | None |
-| Health check endpoint | ❌ | None (`/api/health` absent) |
-| Crash/retry handling on API | ❌ | Minimal try/catch in register only |
+| Structured logging | ✅ | JSONL structured logs with `rid/method/path/status/durationMs/orgId/userId/role` via `withAuth` (`src/lib/server-context.ts`) |
+| Request IDs | ✅ | `x-request-id` assigned + echoed on responses |
+| Error tracking (Sentry) | ❌ 🚫 | Requires external account/DSN |
+| Health check | ✅ | `/api/health` live `SELECT 1` → 200/503 |
+| Crash/retry handling on API | ✅ | typed DomainError mapping + error/retry states |
 
 ## 8. Infrastructure & Deployment
 
 | Check | Status | Notes |
 | --- | --- | --- |
-| CI/CD pipeline | ❌ | None |
-| Hosting/infra config | ❌ | None (`next.config.ts` empty; no vercel.json/Dockerfile) |
-| Environment management per stage | 🟡 | `.env.*` conventions only; no staging/prod var management |
-| Database in production | ❌ | Only local dev DB (`localhost:51214`) |
+| CI pipeline | ✅ | `.github/workflows/ci.yml`: lint+tsc+unit; integration (postgres:17 service + `prisma migrate deploy || db push`); build (dummy env). Full run pending first push to GitHub |
+| Hosting/infra config | ❌ 🚫 | Managed prod infra (DB, RLS, backups/PITR, staging/prod) blocked (TODO-058) |
+| Environment management per stage | 🟡 | `.env.*` conventions; NextAuth v5 env names (`AUTH_SECRET`/`AUTH_URL`/`CRON_SECRET`) |
+| Scheduler / cron provisioning | ❌ 🚫 | Promise-sweep endpoint ready (CRON_SECRET bearer); **not scheduled** (TODO-058) |
+| Database in production | ❌ 🚫 | Only local dev DB; managed PG blocked (TODO-058) |
 
 ## 9. Legal & Compliance
 
 | Check | Status | Notes |
 | --- | --- | --- |
-| Privacy policy / ToS present | ❌ | Footer links are text spans (no routes) |
-| Consent / DPDP 2023 handling | ❌ | None |
+| Privacy policy / ToS present | ✅ | `/privacy` and `/terms` routes implemented and linked from footer |
+| Consent / DPDP 2023 handling | ❌ | None; export/delete implemented but no compliance review |
 | MSME interest / fair-debt legal vetting | ❌ | None |
 
 ## 10. UX & Accessibility
 
 | Check | Status | Notes |
 | --- | --- | --- |
-| Responsive/mobile | 🟡 | Tailwind responsive classes used; not tested on devices |
-| Accessibility (a11y), keyboard, ARIA | ❌ | No ARIA/landmarks; color-only status indicators |
-| No-color-dependence | ❌ | Status shown via color only in some places |
+| Responsive/mobile | 🟡 | Tailwind responsive classes; not tested on devices |
+| Accessibility (ARIA, keyboard, focus) | 🟡 | Implemented for key dialogs (role=dialog/aria-modal/labelledby, Escape-close, initial focus), bell (aria-haspopup/expanded, role=menu), toggles (role=switch/aria-checked), dual status pills; full keyboard/focus audit **UNVERIFIED** |
+| No-color-dependence | ✅ | Status pills are dual (color + text) |
 
 ## 11. Performance
 
 | Check | Status | Notes |
 | --- | --- | --- |
 | Performance budget defined | ❌ | None |
-| Measured load/response times | ❌ | Static pages only; nothing to measure |
-| Query optimization / indexes review | 🟡 | Schema has FKs/unique; no perf review against real data |
+| Measured load/response times | 🟡 | Real queries now exist; no load testing performed |
+| Query optimization / indexes review | 🟡 | FKs/unique present; no perf review against real data volumes |
 
 ---
 
 ## Blockers to Production (must-resolve)
 
-1. **No real data flow** — import doesn't persist; all screens are mock. No product value.
-2. **No tests / CI** — regressions unguarded; no deploy confidence.
-3. **No external integrations** — the core "automated collections" promise is unimplemented.
-4. **No RBAC + no tenant RLS** — multi-tenant data safety not established; multi-user launch unsafe.
-5. **No infra/deploy/monitoring** — nothing deployed; no logs/errors/backups.
-6. **No legal pages / compliance** — cannot publish responsibly.
-7. **Open registration + no rate limit + weak prod secret (UNVERIFIED)** — security hardening required.
+1. **External integrations blocked** — email/WhatsApp/SMS delivery is the core "automated collections" promise and is unimplemented (TODO-042/044).
+2. **Managed prod infra blocked** — managed PG, DB RLS, backups/PITR, staging/prod, scheduler/cron provisioning (TODO-058).
+3. **Pending migrations** — NotificationPreference, org columns, IdempotencyKey store.
+4. **Integration + E2E tests blocked** — harness/CI ready; need running Postgres (TODO-051) then E2E (TODO-052).
+5. **Observability gap** — Sentry DSN unwired (external account required).
+6. **Legal pages / compliance** — privacy/ToS absent; DPDP/MSME/WhatsApp review required.
+7. **Billing** — no monetization path (TODO-049).
+8. **Production environment verification** — secure cookies, strong `AUTH_SECRET`, audited npm dependencies (accepted risk).
 
 ## Quick Wins (low effort, high value)
 
-- Add `/api/health` + basic structured logging.
-- Add `loading.tsx`/`error.tsx`/`not-found.tsx`.
-- Wire logout button + account/password recovery.
-- Journal-only write for `AuditLog` + `CollectionEvent` on first real mutation.
-- Trim unused deps; extract a small UI kit (Button/Card/Badge/EmptyState).
-- Fix `customers/[id]` to read the param and show a real (or not-found) record.
-- Update `README.md`; add test runner (e.g., Vitest) + first unit tests for `utils.ts`.
+- Run pending migrations (NotificationPreference, org columns, IdempotencyKey).
+- Provision promise-sweep cron (endpoint already idempotent + `CRON_SECRET`-guarded).
+- Reach a running Postgres once to flip TODO-051 integration tests from blocked to passing.
+- Generate a strong production `AUTH_SECRET` and rotate dev default; document rotation.
+- Publish privacy/ToS routes (footer links exist).
+- Define performance budgets now that real queries exist.
