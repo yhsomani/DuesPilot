@@ -12,6 +12,19 @@
 
 # testing
 /coverage
+*/test-results/*.png
+*/test-results/*.txt
+*/test-results/*.json
+*/test-results/*.log
+*/test-results/*.md
+*/test-results/*.jpeg
+*/test-results/*.jpg
+*/test-results/*.gif
+*/test-results/*.bmp
+*/test-results/*.webp
+*/test-results/*.svg
+*/test-results/*.tiff
+*/test-results/*.ico
 
 # next.js
 /.next/
