@@ -93,29 +93,32 @@ export function Sidebar() {
   return (
     <>
       {/* Mobile Top Navigation Header */}
-      <header className="lg:hidden sticky top-0 z-40 flex items-center justify-between border-b border-gray-200 bg-white px-4 py-3 shadow-xs">
+      <header className="lg:hidden sticky top-0 z-40 flex items-center justify-between border-b border-slate-200 bg-white/95 backdrop-blur-md px-4 py-3 shadow-xs">
         <div className="flex items-center gap-3">
           <button
             type="button"
             onClick={() => setMobileMenuOpen(true)}
-            className="flex h-9 w-9 items-center justify-center rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-100 hover:text-gray-900 transition"
+            className="flex h-9 w-9 items-center justify-center rounded-xl border border-slate-200 text-slate-600 hover:bg-slate-100 hover:text-slate-900 transition"
             aria-label="Open navigation menu"
           >
             <Menu className="h-5 w-5" />
           </button>
-          <div className="flex items-center gap-2">
-            <div className="h-7 w-7 rounded-lg bg-blue-600 flex items-center justify-center shadow-xs">
-              <span className="text-white font-bold text-[11px]">DP</span>
+          <Link href="/dashboard" className="flex items-center gap-2">
+            <div className="h-8 w-8 rounded-xl bg-blue-600 flex items-center justify-center text-white shadow-xs">
+              <span className="font-bold text-xs">DP</span>
             </div>
-            <span className="text-base font-bold text-gray-900">DuesPilot</span>
-          </div>
+            <div>
+              <span className="text-sm font-bold text-slate-900 tracking-tight leading-none block">DuesPilot</span>
+              <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider leading-none">Collections OS</span>
+            </div>
+          </Link>
         </div>
 
         <div className="flex items-center gap-2">
           <button
             type="button"
             onClick={() => setSearchOpen(true)}
-            className="flex h-9 w-9 items-center justify-center rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-100 hover:text-gray-900 transition"
+            className="flex h-9 w-9 items-center justify-center rounded-xl border border-slate-200 text-slate-600 hover:bg-slate-100 hover:text-slate-900 transition"
             aria-label="Search"
           >
             <Search className="h-4 w-4" />
@@ -129,24 +132,27 @@ export function Sidebar() {
         <div className="lg:hidden fixed inset-0 z-50 flex">
           {/* Backdrop */}
           <div
-            className="fixed inset-0 bg-black/40 backdrop-blur-xs transition-opacity"
+            className="fixed inset-0 bg-slate-950/40 backdrop-blur-xs transition-opacity"
             onClick={() => setMobileMenuOpen(false)}
             aria-hidden="true"
           />
 
           {/* Drawer Content */}
           <div className="relative flex w-full max-w-xs flex-1 flex-col bg-white shadow-2xl">
-            <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
-              <div className="flex items-center gap-2">
-                <div className="h-7 w-7 rounded-lg bg-blue-600 flex items-center justify-center shadow-xs">
-                  <span className="text-white font-bold text-[11px]">DP</span>
+            <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100">
+              <div className="flex items-center gap-2.5">
+                <div className="h-8 w-8 rounded-xl bg-blue-600 flex items-center justify-center text-white shadow-xs">
+                  <span className="font-bold text-xs">DP</span>
                 </div>
-                <span className="text-lg font-bold text-gray-900">DuesPilot</span>
+                <div>
+                  <span className="text-base font-bold text-slate-900 tracking-tight leading-none block">DuesPilot</span>
+                  <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider leading-none">Collections OS</span>
+                </div>
               </div>
               <button
                 type="button"
                 onClick={() => setMobileMenuOpen(false)}
-                className="flex h-8 w-8 items-center justify-center rounded-lg text-gray-500 hover:bg-gray-100 hover:text-gray-900 transition"
+                className="flex h-8 w-8 items-center justify-center rounded-xl text-slate-500 hover:bg-slate-100 hover:text-slate-900 transition"
                 aria-label="Close menu"
               >
                 <X className="h-5 w-5" />
@@ -161,13 +167,13 @@ export function Sidebar() {
                   setMobileMenuOpen(false);
                   setSearchOpen(true);
                 }}
-                className="w-full flex items-center justify-between px-3 py-2 text-xs text-gray-400 bg-gray-50 hover:bg-gray-100 hover:text-gray-600 rounded-xl border border-gray-200 transition"
+                className="w-full flex items-center justify-between px-3.5 py-2.5 text-xs text-slate-400 bg-slate-50 hover:bg-slate-100 hover:text-slate-600 rounded-xl border border-slate-200 transition"
               >
                 <div className="flex items-center gap-2">
-                  <Search className="h-3.5 w-3.5 text-gray-400" />
-                  <span>Search…</span>
+                  <Search className="h-3.5 w-3.5 text-slate-400" />
+                  <span>Search across tenant…</span>
                 </div>
-                <kbd className="font-mono text-[10px] bg-white px-1.5 py-0.5 rounded border border-gray-200 text-gray-400">
+                <kbd className="font-mono text-[10px] bg-white px-1.5 py-0.5 rounded-md border border-slate-200 text-slate-500 font-semibold shadow-2xs">
                   ⌘K
                 </kbd>
               </button>
@@ -177,10 +183,10 @@ export function Sidebar() {
             <nav className="flex-1 overflow-y-auto px-3 py-4 space-y-6">
               {navigation.map((group) => (
                 <div key={group.label}>
-                  <p className="px-3 mb-2 text-[11px] font-semibold uppercase tracking-wider text-gray-400">
+                  <p className="px-3 mb-2 text-[10px] font-bold uppercase tracking-wider text-slate-400">
                     {group.label}
                   </p>
-                  <div className="space-y-0.5">
+                  <div className="space-y-1">
                     {group.items.map((item) => {
                       const isActive = pathname === item.href;
                       const Icon: LucideIcon = item.icon;
@@ -190,13 +196,13 @@ export function Sidebar() {
                           href={item.href}
                           onClick={() => setMobileMenuOpen(false)}
                           className={cn(
-                            "flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-medium transition-colors",
+                            "flex items-center gap-3 rounded-xl px-3 py-2 text-xs font-semibold transition-colors",
                             isActive
-                              ? "bg-blue-50 text-blue-700 font-semibold"
-                              : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
+                              ? "bg-blue-50 text-blue-700 shadow-2xs border border-blue-100/60"
+                              : "text-slate-600 hover:bg-slate-50 hover:text-slate-900"
                           )}
                         >
-                          <Icon className="h-4 w-4" />
+                          <Icon className={cn("h-4 w-4 shrink-0", isActive ? "text-blue-600" : "text-slate-400")} />
                           {item.name}
                         </Link>
                       );
@@ -207,23 +213,23 @@ export function Sidebar() {
             </nav>
 
             {/* User Account & Logout */}
-            <div className="border-t border-gray-100 px-3 py-3">
-              <div className="flex items-center gap-3 rounded-lg px-3 py-2 hover:bg-gray-50 transition-colors">
-                <div className="h-8 w-8 rounded-full bg-blue-100 flex items-center justify-center">
-                  <span className="text-blue-700 font-semibold text-xs">{initials}</span>
+            <div className="border-t border-slate-100 p-3 bg-slate-50/50">
+              <div className="flex items-center gap-3 rounded-xl p-2 bg-white border border-slate-200/80 shadow-2xs">
+                <div className="h-8 w-8 rounded-xl bg-blue-100 text-blue-700 font-bold text-xs flex items-center justify-center shrink-0">
+                  {initials || "U"}
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-gray-900 truncate">
+                  <p className="text-xs font-bold text-slate-900 truncate">
                     {displayName}
                   </p>
-                  <p className="text-xs text-gray-500 truncate">{email}</p>
+                  <p className="text-[11px] text-slate-500 truncate">{email}</p>
                 </div>
               </div>
               <button
                 onClick={() => signOut({ callbackUrl: "/login" })}
-                className="mt-1 w-full flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium text-gray-500 hover:bg-red-50 hover:text-red-600 transition-colors"
+                className="mt-2 w-full flex items-center justify-center gap-2 rounded-xl px-3 py-2 text-xs font-semibold text-rose-600 hover:bg-rose-50 hover:text-rose-700 transition-colors border border-transparent hover:border-rose-200"
               >
-                <LogOut className="h-4 w-4" />
+                <LogOut className="h-3.5 w-3.5" />
                 Sign out
               </button>
             </div>
@@ -232,14 +238,17 @@ export function Sidebar() {
       )}
 
       {/* Desktop Sidebar */}
-      <aside className="hidden lg:flex lg:flex-col lg:w-60 border-r border-gray-100 bg-white">
-        <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
-          <div className="flex items-center gap-2">
-            <div className="h-7 w-7 rounded-lg bg-blue-600 flex items-center justify-center shadow-xs">
-              <span className="text-white font-bold text-[11px]">DP</span>
+      <aside className="hidden lg:flex lg:flex-col lg:w-64 border-r border-slate-200/80 bg-white shadow-2xs select-none">
+        <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100">
+          <Link href="/dashboard" className="flex items-center gap-2.5 group">
+            <div className="h-8 w-8 rounded-xl bg-blue-600 flex items-center justify-center text-white shadow-xs group-hover:bg-blue-700 transition-colors">
+              <span className="font-bold text-xs">DP</span>
             </div>
-            <span className="text-lg font-bold text-gray-900">DuesPilot</span>
-          </div>
+            <div>
+              <span className="text-sm font-bold text-slate-900 tracking-tight leading-none block">DuesPilot</span>
+              <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider leading-none">Collections OS</span>
+            </div>
+          </Link>
           <NotificationBell />
         </div>
 
@@ -248,22 +257,23 @@ export function Sidebar() {
           <button
             type="button"
             onClick={() => setSearchOpen(true)}
-            className="w-full flex items-center justify-between px-3 py-2 text-xs text-gray-400 bg-gray-50 hover:bg-gray-100 hover:text-gray-600 rounded-xl border border-gray-200 transition"
+            className="w-full flex items-center justify-between px-3 py-2 text-xs text-slate-400 bg-slate-50 hover:bg-slate-100 hover:text-slate-600 rounded-xl border border-slate-200/90 transition shadow-2xs"
           >
             <div className="flex items-center gap-2">
-              <Search className="h-3.5 w-3.5 text-gray-400" />
+              <Search className="h-3.5 w-3.5 text-slate-400" />
               <span>Search…</span>
             </div>
-            <kbd className="font-mono text-[10px] bg-white px-1.5 py-0.5 rounded border border-gray-200 text-gray-400">
+            <kbd className="font-mono text-[10px] bg-white px-1.5 py-0.5 rounded-md border border-slate-200 text-slate-500 font-semibold shadow-2xs">
               ⌘K
             </kbd>
           </button>
         </div>
 
-        <nav className="flex-1 overflow-y-auto px-3 py-4 space-y-6">
+        {/* Navigation Groups */}
+        <nav className="flex-1 overflow-y-auto px-3 py-4 space-y-5">
           {navigation.map((group) => (
             <div key={group.label}>
-              <p className="px-3 mb-2 text-[11px] font-semibold uppercase tracking-wider text-gray-400">
+              <p className="px-3 mb-1.5 text-[10px] font-bold uppercase tracking-wider text-slate-400">
                 {group.label}
               </p>
               <div className="space-y-0.5">
@@ -275,14 +285,14 @@ export function Sidebar() {
                       key={item.href}
                       href={item.href}
                       className={cn(
-                        "flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-medium transition-colors",
+                        "flex items-center gap-2.5 rounded-xl px-3 py-2 text-xs font-semibold transition-all",
                         isActive
-                          ? "bg-blue-50 text-blue-700 font-semibold"
-                          : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
+                          ? "bg-blue-50 text-blue-700 shadow-2xs border border-blue-100/80"
+                          : "text-slate-600 hover:bg-slate-50 hover:text-slate-900"
                       )}
                     >
-                      <Icon className="h-4 w-4" />
-                      {item.name}
+                      <Icon className={cn("h-4 w-4 shrink-0", isActive ? "text-blue-600" : "text-slate-400")} />
+                      <span>{item.name}</span>
                     </Link>
                   );
                 })}
@@ -291,24 +301,25 @@ export function Sidebar() {
           ))}
         </nav>
 
-        <div className="border-t border-gray-100 px-3 py-3">
-          <div className="flex items-center gap-3 rounded-lg px-3 py-2 hover:bg-gray-50 cursor-pointer transition-colors">
-            <div className="h-8 w-8 rounded-full bg-blue-100 flex items-center justify-center">
-              <span className="text-blue-700 font-semibold text-xs">{initials}</span>
+        {/* User Account Footer */}
+        <div className="border-t border-slate-100 p-3 bg-slate-50/50">
+          <div className="flex items-center gap-2.5 rounded-xl p-2 bg-white border border-slate-200/80 shadow-2xs mb-2">
+            <div className="h-8 w-8 rounded-xl bg-blue-100 text-blue-700 font-bold text-xs flex items-center justify-center shrink-0">
+              {initials || "U"}
             </div>
             <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium text-gray-900 truncate">
+              <p className="text-xs font-bold text-slate-900 truncate leading-tight">
                 {displayName}
               </p>
-              <p className="text-xs text-gray-500 truncate">{email}</p>
+              <p className="text-[11px] text-slate-500 truncate leading-tight mt-0.5">{email}</p>
             </div>
           </div>
           <button
             onClick={() => signOut({ callbackUrl: "/login" })}
-            className="mt-1 w-full flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium text-gray-500 hover:bg-red-50 hover:text-red-600 transition-colors"
+            className="w-full flex items-center justify-center gap-1.5 rounded-xl px-2 py-1.5 text-xs font-semibold text-slate-500 hover:bg-rose-50 hover:text-rose-600 hover:border-rose-200 transition-colors border border-transparent"
           >
-            <LogOut className="h-4 w-4" />
-            Sign out
+            <LogOut className="h-3.5 w-3.5" />
+            <span>Sign out</span>
           </button>
         </div>
       </aside>

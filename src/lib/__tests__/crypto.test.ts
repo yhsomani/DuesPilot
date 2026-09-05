@@ -36,8 +36,8 @@ describe("Cryptographic Envelope & Secret Management", () => {
     it("fails authenticated decryption if payload is tampered with", () => {
       const encrypted = encryptSecret("confidential_api_token", testKey);
       const parts = encrypted.split(":");
-      // Alter ciphertext data
-      parts[3] = parts[3].slice(0, -2) + "00";
+      // Alter ciphertext data deterministically
+      parts[3] = parts[3].slice(0, -1) + (parts[3].slice(-1) === "a" ? "b" : "a");
       const tampered = parts.join(":");
 
       expect(() => decryptSecret(tampered, testKey)).toThrow(

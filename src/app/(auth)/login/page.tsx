@@ -4,6 +4,21 @@ import { useState, Suspense } from "react";
 import { signIn } from "next-auth/react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
+import {
+  ShieldCheck,
+  Eye,
+  EyeOff,
+  Sparkles,
+  PhoneCall,
+  Send,
+  Lock,
+  Mail,
+  AlertCircle,
+  CheckCircle2,
+} from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 
 function LoginContent() {
   const router = useRouter();
@@ -14,6 +29,7 @@ function LoginContent() {
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
@@ -23,13 +39,13 @@ function LoginContent() {
     setError("");
 
     if (!email || !password) {
-      setError("Please fill in all fields");
+      setError("Please provide both email and password.");
       setLoading(false);
       return;
     }
 
     if (password.length < 6) {
-      setError("Password must be at least 6 characters");
+      setError("Password must be at least 6 characters.");
       setLoading(false);
       return;
     }
@@ -41,7 +57,7 @@ function LoginContent() {
     });
 
     if (result?.error) {
-      setError("Invalid email or password");
+      setError("Invalid email address or password. Please try again.");
       setLoading(false);
     } else {
       router.push(callbackUrl);
@@ -49,155 +65,200 @@ function LoginContent() {
   }
 
   return (
-    <div className="min-h-screen flex">
-      {/* Left - Form */}
-      <div className="flex flex-1 flex-col justify-center px-6 py-12 lg:px-16 bg-white">
+    <div className="min-h-screen flex bg-slate-50">
+      {/* Left Column: Login Form */}
+      <div className="flex flex-1 flex-col justify-center px-6 py-12 lg:px-16 bg-white border-r border-slate-200/80">
         <div className="mx-auto w-full max-w-sm">
-          <div className="flex items-center gap-2 mb-10">
-            <div className="h-8 w-8 rounded-lg bg-blue-600 flex items-center justify-center">
-              <span className="text-white font-bold text-sm">DP</span>
+          {/* Logo Header */}
+          <Link href="/" className="inline-flex items-center gap-2.5 mb-8 group">
+            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-blue-600 text-white shadow-xs group-hover:bg-blue-700 transition-colors">
+              <span className="font-bold text-sm">DP</span>
             </div>
-            <span className="text-xl font-bold text-gray-900">DuesPilot</span>
+            <div>
+              <span className="text-lg font-bold text-slate-900 tracking-tight">DuesPilot</span>
+              <span className="block text-[10px] font-semibold text-slate-400 uppercase tracking-wider">
+                Collections OS
+              </span>
+            </div>
+          </Link>
+
+          <div>
+            <h1 className="text-2xl font-bold tracking-tight text-slate-900">Welcome back</h1>
+            <p className="mt-1.5 text-xs text-slate-500">
+              Sign in to manage your collection queue and recover receivables.
+            </p>
           </div>
 
-          <h1 className="text-2xl font-bold text-gray-900">Welcome back</h1>
-          <p className="mt-2 text-sm text-gray-600">
-            Log in to your collections dashboard.
-          </p>
-
           {registered && (
-            <p className="mt-4 text-sm text-green-700 bg-green-50 border border-green-200 rounded-lg px-3 py-2">
-              Account created successfully. Please sign in.
-            </p>
+            <div className="mt-4 flex items-center gap-2 text-xs text-emerald-800 bg-emerald-50 border border-emerald-200 rounded-xl p-3">
+              <CheckCircle2 className="h-4 w-4 text-emerald-600 shrink-0" />
+              <span>Account registered successfully. Please sign in.</span>
+            </div>
           )}
 
           {reset && (
-            <p className="mt-4 text-sm text-green-700 bg-green-50 border border-green-200 rounded-lg px-3 py-2">
-              Password reset. Please sign in with your new password.
-            </p>
+            <div className="mt-4 flex items-center gap-2 text-xs text-emerald-800 bg-emerald-50 border border-emerald-200 rounded-xl p-3">
+              <CheckCircle2 className="h-4 w-4 text-emerald-600 shrink-0" />
+              <span>Password reset successful. Please sign in with your new password.</span>
+            </div>
           )}
 
-          <form onSubmit={handleSubmit} className="mt-6 space-y-5">
+          {error && (
+            <div className="mt-4 flex items-center gap-2 text-xs text-rose-800 bg-rose-50 border border-rose-200 rounded-xl p-3" role="alert">
+              <AlertCircle className="h-4 w-4 text-rose-600 shrink-0" />
+              <span>{error}</span>
+            </div>
+          )}
+
+          <form onSubmit={handleSubmit} className="mt-6 space-y-4">
             <div>
-              <label
-                htmlFor="email"
-                className="block text-sm font-medium text-gray-700"
-              >
-                Email address
+              <label htmlFor="email" className="block text-xs font-semibold text-slate-700 mb-1.5">
+                Work Email Address
               </label>
-              <input
-                id="email"
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                required
-                className="mt-1.5 block w-full rounded-lg border border-gray-300 px-3 py-2.5 text-sm shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
-                placeholder="you@company.com"
-              />
+              <div className="relative">
+                <Mail className="absolute left-3 top-2.5 h-4 w-4 text-slate-400" />
+                <Input
+                  id="email"
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  required
+                  placeholder="you@company.com"
+                  className="pl-9"
+                  autoComplete="email"
+                />
+              </div>
             </div>
 
             <div>
-              <label
-                htmlFor="password"
-                className="block text-sm font-medium text-gray-700"
-              >
-                Password
-              </label>
-              <input
-                id="password"
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                required
-                className="mt-1.5 block w-full rounded-lg border border-gray-300 px-3 py-2.5 text-sm shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
-                placeholder="••••••••"
-              />
+              <div className="flex items-center justify-between mb-1.5">
+                <label htmlFor="password" className="block text-xs font-semibold text-slate-700">
+                  Password
+                </label>
+                <Link
+                  href="/forgot-password"
+                  className="text-xs font-semibold text-blue-600 hover:text-blue-700 hover:underline"
+                >
+                  Forgot password?
+                </Link>
+              </div>
+              <div className="relative">
+                <Lock className="absolute left-3 top-2.5 h-4 w-4 text-slate-400" />
+                <Input
+                  id="password"
+                  type={showPassword ? "text" : "password"}
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  required
+                  placeholder="••••••••"
+                  className="pl-9 pr-9"
+                  autoComplete="current-password"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-3 top-2.5 text-slate-400 hover:text-slate-600 focus:outline-none"
+                  aria-label={showPassword ? "Hide password" : "Show password"}
+                >
+                  {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                </button>
+              </div>
             </div>
 
-            {error && (
-              <p className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2">
-                {error}
-              </p>
-            )}
-
-            <div className="flex justify-end -mt-2">
-              <Link
-                href="/forgot-password"
-                className="text-xs font-medium text-blue-600 hover:text-blue-500"
-              >
-                Forgot password?
-              </Link>
-            </div>
-
-            <button
+            <Button
               type="submit"
-              disabled={loading}
-              className="w-full rounded-lg bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-blue-700 transition-colors disabled:opacity-50"
+              loading={loading}
+              className="w-full h-10 text-xs font-semibold shadow-xs"
             >
-              {loading ? "Signing in..." : "Sign in"}
-            </button>
+              Sign In to Dashboard
+            </Button>
           </form>
 
-          <p className="mt-6 text-center text-sm text-gray-600">
-            Don&apos;t have an account?{" "}
+          <p className="mt-6 text-center text-xs text-slate-500">
+            Don&apos;t have an account yet?{" "}
             <Link
               href="/register"
-              className="font-medium text-blue-600 hover:text-blue-500"
+              className="font-semibold text-blue-600 hover:text-blue-700 hover:underline"
             >
-              Sign up
+              Sign up for free
             </Link>
           </p>
+
+          <div className="mt-8 pt-6 border-t border-slate-100 flex items-center justify-center gap-2 text-[11px] text-slate-400">
+            <ShieldCheck className="h-3.5 w-3.5 text-emerald-600" />
+            <span>256-Bit SSL Encrypted Session</span>
+          </div>
         </div>
       </div>
 
-      {/* Right - Image/Illustration */}
-      <div className="hidden lg:flex flex-1 bg-gray-50 items-center justify-center border-l border-gray-100">
-        <div className="max-w-md px-8">
-          <div className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
-            <p className="text-sm font-medium text-gray-500 mb-3">
-              Today&apos;s Collection Queue
-            </p>
+      {/* Right Column: Interactive Product Showcase */}
+      <div className="hidden lg:flex flex-1 bg-slate-50 items-center justify-center p-12 relative overflow-hidden">
+        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,rgba(37,99,235,0.08),rgba(248,250,252,0))]" />
+
+        <div className="max-w-md w-full relative z-10 space-y-6">
+          <div className="rounded-3xl border border-slate-200/90 bg-white p-6 shadow-xl">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-3 mb-4">
+              <div className="flex items-center gap-2">
+                <Sparkles className="h-4 w-4 text-blue-600" />
+                <span className="text-xs font-bold text-slate-900 uppercase tracking-wider">
+                  Live Queue Preview
+                </span>
+              </div>
+              <Badge variant="destructive" size="sm">₹18.4L Overdue</Badge>
+            </div>
+
             <div className="space-y-3">
-              <div className="flex items-center justify-between rounded-lg bg-red-50 border border-red-100 p-3">
-                <div>
-                  <p className="text-sm font-semibold text-gray-900">
-                    Raj Steel
-                  </p>
-                  <p className="text-xs text-gray-500">
-                    ₹4.8L · 21 days overdue
-                  </p>
+              <div className="flex items-center justify-between p-3 rounded-2xl bg-rose-50/50 border border-rose-200/80">
+                <div className="flex items-center gap-3">
+                  <div className="h-8 w-8 rounded-xl bg-rose-100 text-rose-700 flex items-center justify-center font-bold text-xs">
+                    RS
+                  </div>
+                  <div>
+                    <p className="text-xs font-bold text-slate-900">Raj Steel</p>
+                    <p className="text-[11px] text-slate-500">₹4.8L · 21d overdue</p>
+                  </div>
                 </div>
-                <span className="text-xs font-bold text-red-600">
+                <Badge variant="destructive" size="sm" className="gap-1">
+                  <PhoneCall className="h-3 w-3" />
                   CALL NOW
-                </span>
+                </Badge>
               </div>
-              <div className="flex items-center justify-between rounded-lg bg-orange-50 border border-orange-100 p-3">
-                <div>
-                  <p className="text-sm font-semibold text-gray-900">
-                    ABC Engineering
-                  </p>
-                  <p className="text-xs text-gray-500">
-                    ₹2.2L · 9 days overdue
-                  </p>
+
+              <div className="flex items-center justify-between p-3 rounded-2xl bg-amber-50/50 border border-amber-200/80">
+                <div className="flex items-center gap-3">
+                  <div className="h-8 w-8 rounded-xl bg-amber-100 text-amber-800 flex items-center justify-center font-bold text-xs">
+                    AE
+                  </div>
+                  <div>
+                    <p className="text-xs font-bold text-slate-900">ABC Engineering</p>
+                    <p className="text-[11px] text-slate-500">₹2.2L · 9d overdue</p>
+                  </div>
                 </div>
-                <span className="text-xs font-bold text-orange-600">
+                <Badge variant="warning" size="sm" className="gap-1">
+                  <Send className="h-3 w-3" />
                   WHATSAPP
-                </span>
+                </Badge>
               </div>
-              <div className="flex items-center justify-between rounded-lg bg-green-50 border border-green-100 p-3">
-                <div>
-                  <p className="text-sm font-semibold text-gray-900">
-                    Metro Components
-                  </p>
-                  <p className="text-xs text-gray-500">
-                    ₹1.7L · 4 days overdue
-                  </p>
+
+              <div className="flex items-center justify-between p-3 rounded-2xl bg-blue-50/50 border border-blue-200/80">
+                <div className="flex items-center gap-3">
+                  <div className="h-8 w-8 rounded-xl bg-blue-100 text-blue-700 flex items-center justify-center font-bold text-xs">
+                    MC
+                  </div>
+                  <div>
+                    <p className="text-xs font-bold text-slate-900">Metro Components</p>
+                    <p className="text-[11px] text-slate-500">₹1.7L · 4d overdue</p>
+                  </div>
                 </div>
-                <span className="text-xs font-bold text-green-600">
-                  REMINDER
-                </span>
+                <Badge variant="blue" size="sm">
+                  AUTO DUNNING
+                </Badge>
               </div>
             </div>
+          </div>
+
+          <div className="p-4 rounded-2xl bg-blue-600/5 border border-blue-200/50 text-xs text-blue-900 leading-relaxed">
+            <strong>MSME Compliant:</strong> Calculate Section 15 statutory compound penal interest at 3x RBI rate and recover dues faster.
           </div>
         </div>
       </div>

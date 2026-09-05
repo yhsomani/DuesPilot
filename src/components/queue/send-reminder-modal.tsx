@@ -2,6 +2,8 @@
 
 import { useState } from "react";
 import { DEFAULT_TEMPLATES, interpolateTemplate, type TemplateDefinition } from "@/lib/templates";
+import { Mail, MessageSquare, Phone, Send, CheckCircle2, AlertCircle, X } from "lucide-react";
+import { Button } from "@/components/ui/button";
 
 interface SendReminderModalProps {
   customerId: string;
@@ -146,89 +148,93 @@ export function SendReminderModal({
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-xs">
-      <div className="w-full max-w-lg rounded-2xl bg-white shadow-2xl border border-gray-100 overflow-hidden animate-in fade-in zoom-in-95 duration-150">
-        <div className="flex items-center justify-between border-b border-gray-100 px-6 py-4 bg-gray-50/50">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/40 p-4 backdrop-blur-xs animate-in fade-in duration-150">
+      <div className="w-full max-w-lg rounded-3xl bg-white shadow-2xl border border-slate-200/90 overflow-hidden animate-in zoom-in-95 duration-150">
+        <div className="flex items-center justify-between border-b border-slate-100 px-6 py-4 bg-slate-50/50">
           <div>
-            <h3 className="text-base font-semibold text-gray-900">Send Collection Reminder</h3>
-            <p className="text-xs text-gray-500">Direct outreach to {customerName}</p>
+            <h3 className="text-base font-bold text-slate-900">Send Collection Reminder</h3>
+            <p className="text-xs text-slate-500">Direct outreach to {customerName}</p>
           </div>
           <button
             onClick={onClose}
-            className="rounded-lg p-1.5 text-gray-400 hover:bg-gray-100 hover:text-gray-600 transition"
+            className="rounded-xl p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-600 transition"
           >
-            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-            </svg>
+            <X className="h-4 w-4" />
           </button>
         </div>
 
         {sentSuccess ? (
           <div className="p-8 text-center space-y-3">
-            <div className="w-12 h-12 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center mx-auto">
-              <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-              </svg>
+            <div className="w-12 h-12 rounded-2xl bg-emerald-100 text-emerald-600 flex items-center justify-center mx-auto shadow-xs">
+              <CheckCircle2 className="w-6 h-6" />
             </div>
-            <h4 className="text-lg font-semibold text-gray-900">Reminder Dispatched!</h4>
-            <p className="text-sm text-gray-500">
+            <h4 className="text-base font-bold text-slate-900">Reminder Dispatched!</h4>
+            <p className="text-xs text-slate-500">
               Message logged to customer timeline and sent to {recipient}.
             </p>
           </div>
         ) : (
           <form onSubmit={handleSend} className="p-6 space-y-4">
             {error && (
-              <div className="rounded-lg bg-red-50 p-3 text-xs text-red-600 border border-red-100 flex items-center gap-2">
-                <svg className="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
+              <div className="rounded-xl bg-rose-50 p-3 text-xs text-rose-700 border border-rose-200 flex items-center gap-2">
+                <AlertCircle className="w-4 h-4 shrink-0 text-rose-600" />
                 <span>{error}</span>
               </div>
             )}
 
             {/* Channel Selection */}
             <div>
-              <label className="block text-xs font-medium text-gray-700 mb-1.5">Channel</label>
+              <label className="block text-xs font-bold text-slate-700 mb-1.5">Outreach Channel</label>
               <div className="grid grid-cols-3 gap-2">
-                {(["EMAIL", "WHATSAPP", "SMS"] as const).map((ch) => (
-                  <button
-                    key={ch}
-                    type="button"
-                    onClick={() => handleChannelChange(ch)}
-                    className={`py-2 px-3 text-xs font-medium rounded-lg border transition text-center ${
-                      channel === ch
-                        ? "border-blue-600 bg-blue-50/50 text-blue-700 font-semibold"
-                        : "border-gray-200 text-gray-600 hover:bg-gray-50"
-                    }`}
-                  >
-                    {ch === "EMAIL" ? "📧 Email" : ch === "WHATSAPP" ? "💬 WhatsApp" : "📱 SMS"}
-                  </button>
-                ))}
+                {(
+                  [
+                    { id: "EMAIL", label: "Email", icon: Mail },
+                    { id: "WHATSAPP", label: "WhatsApp", icon: MessageSquare },
+                    { id: "SMS", label: "SMS", icon: Phone },
+                  ] as const
+                ).map((ch) => {
+                  const Icon = ch.icon;
+                  return (
+                    <button
+                      key={ch.id}
+                      type="button"
+                      onClick={() => handleChannelChange(ch.id)}
+                      className={`py-2.5 px-3 text-xs font-semibold rounded-xl border transition-all flex items-center justify-center gap-2 ${
+                        channel === ch.id
+                          ? "border-blue-600 bg-blue-50/80 text-blue-700 shadow-2xs"
+                          : "border-slate-200 text-slate-600 hover:bg-slate-50"
+                      }`}
+                    >
+                      <Icon className="h-3.5 w-3.5" />
+                      <span>{ch.label}</span>
+                    </button>
+                  );
+                })}
               </div>
             </div>
 
             {/* Recipient Input */}
             <div>
-              <label className="block text-xs font-medium text-gray-700 mb-1">
-                Recipient {channel === "EMAIL" ? "Email" : "Phone Number"}
+              <label className="block text-xs font-bold text-slate-700 mb-1">
+                Recipient {channel === "EMAIL" ? "Email Address" : "Phone Number"}
               </label>
               <input
                 type={channel === "EMAIL" ? "email" : "tel"}
                 value={recipient}
                 onChange={(e) => setRecipient(e.target.value)}
                 placeholder={channel === "EMAIL" ? "accounts@company.com" : "+91 98765 43210"}
-                className="w-full rounded-lg border border-gray-200 px-3 py-2 text-xs focus:border-blue-500 focus:outline-hidden"
+                className="w-full rounded-xl border border-slate-200 bg-slate-50/50 px-3.5 py-2 text-xs font-medium focus:bg-white focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 transition-all"
                 required
               />
             </div>
 
             {/* Template Selector */}
             <div>
-              <label className="block text-xs font-medium text-gray-700 mb-1">Template</label>
+              <label className="block text-xs font-bold text-slate-700 mb-1">Select Template</label>
               <select
                 value={selectedTemplateId}
                 onChange={(e) => handleTemplateChange(e.target.value)}
-                className="w-full rounded-lg border border-gray-200 px-3 py-2 text-xs focus:border-blue-500 focus:outline-hidden bg-white"
+                className="w-full rounded-xl border border-slate-200 bg-slate-50/50 px-3 py-2 text-xs font-medium focus:bg-white focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 transition-all"
               >
                 <optgroup label={`${channel} Templates`}>
                   {DEFAULT_TEMPLATES.filter((tpl) => tpl.channel === channel).map((tpl: TemplateDefinition) => (
@@ -250,12 +256,12 @@ export function SendReminderModal({
             {/* Subject line (Email only) */}
             {channel === "EMAIL" && (
               <div>
-                <label className="block text-xs font-medium text-gray-700 mb-1">Subject</label>
+                <label className="block text-xs font-bold text-slate-700 mb-1">Email Subject</label>
                 <input
                   type="text"
                   value={subject}
                   onChange={(e) => setSubject(e.target.value)}
-                  className="w-full rounded-lg border border-gray-200 px-3 py-2 text-xs focus:border-blue-500 focus:outline-hidden"
+                  className="w-full rounded-xl border border-slate-200 bg-slate-50/50 px-3.5 py-2 text-xs font-medium focus:bg-white focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 transition-all"
                   required
                 />
               </div>
@@ -263,33 +269,39 @@ export function SendReminderModal({
 
             {/* Message Body */}
             <div>
-              <label className="block text-xs font-medium text-gray-700 mb-1">Message Body</label>
+              <div className="flex items-center justify-between mb-1">
+                <label className="block text-xs font-bold text-slate-700">Message Content</label>
+                <span className="text-[11px] text-slate-400 font-medium">Auto-populated with dynamic tags</span>
+              </div>
               <textarea
                 rows={5}
                 value={body}
                 onChange={(e) => setBody(e.target.value)}
-                className="w-full rounded-lg border border-gray-200 p-3 text-xs font-mono text-gray-800 focus:border-blue-500 focus:outline-hidden leading-relaxed resize-none"
+                className="w-full rounded-xl border border-slate-200 bg-slate-50/50 p-3 text-xs font-mono text-slate-800 focus:bg-white focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 leading-relaxed resize-none transition-all"
                 required
               />
             </div>
 
             {/* Actions */}
-            <div className="flex items-center justify-end gap-2 pt-2 border-t border-gray-100">
-              <button
+            <div className="flex items-center justify-end gap-2.5 pt-3 border-t border-slate-100">
+              <Button
                 type="button"
+                variant="outline"
+                size="sm"
                 onClick={onClose}
                 disabled={loading}
-                className="rounded-lg px-4 py-2 text-xs font-medium text-gray-600 hover:bg-gray-100 transition"
               >
                 Cancel
-              </button>
-              <button
+              </Button>
+              <Button
                 type="submit"
-                disabled={loading}
-                className="rounded-lg bg-blue-600 px-4 py-2 text-xs font-medium text-white hover:bg-blue-700 transition flex items-center gap-1.5 disabled:opacity-50"
+                size="sm"
+                loading={loading}
+                className="gap-1.5"
               >
-                {loading ? "Sending..." : "Dispatch Reminder"}
-              </button>
+                <Send className="h-3.5 w-3.5" />
+                <span>Dispatch Reminder</span>
+              </Button>
             </div>
           </form>
         )}

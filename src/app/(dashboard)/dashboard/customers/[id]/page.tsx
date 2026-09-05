@@ -1,6 +1,7 @@
 "use client";
 
 import { use, useEffect, useState } from "react";
+import Link from "next/link";
 import { formatINR } from "@/lib/utils";
 import { api, apiPost, apiPatch, apiDel, ApiError } from "@/lib/api";
 import { SendReminderModal } from "@/components/queue/send-reminder-modal";
@@ -12,37 +13,66 @@ import type {
   CustomerInvoice,
   CustomerTimelineEvent,
 } from "@/lib/types";
+import {
+  Building2,
+  Phone,
+  Mail,
+  Calendar,
+  Clock,
+  Send,
+  Scale,
+  CreditCard,
+  Edit3,
+  Plus,
+  AlertCircle,
+  CheckCircle2,
+  FileText,
+  ShieldAlert,
+  ArrowLeft,
+  ChevronRight,
+  X,
+  MessageSquare,
+  PhoneCall,
+} from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { StatCard } from "@/components/ui/stat-card";
+import { StatCardSkeleton } from "@/components/ui/skeleton";
+import { EmptyState } from "@/components/ui/empty-state";
 
 function TimelineIcon({ type }: { type: string }) {
-  if (type === "promise" || type === "commitment")
+  const normalized = type.toLowerCase();
+  if (normalized.includes("promise") || normalized.includes("commitment")) {
     return (
-      <div className="h-8 w-8 rounded-full bg-yellow-100 flex items-center justify-center">
-        <svg className="h-4 w-4 text-yellow-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-          <path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-        </svg>
+      <div className="h-8 w-8 rounded-xl bg-amber-100 text-amber-700 border border-amber-200 flex items-center justify-center shrink-0">
+        <Clock className="h-4 w-4" />
       </div>
     );
-  if (type === "message" || type === "communication")
+  }
+  if (normalized.includes("message") || normalized.includes("communication") || normalized.includes("whatsapp")) {
     return (
-      <div className="h-8 w-8 rounded-full bg-blue-100 flex items-center justify-center">
-        <svg className="h-4 w-4 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-          <path strokeLinecap="round" strokeLinejoin="round" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
-        </svg>
+      <div className="h-8 w-8 rounded-xl bg-blue-100 text-blue-700 border border-blue-200 flex items-center justify-center shrink-0">
+        <MessageSquare className="h-4 w-4" />
       </div>
     );
-  if (type === "payment")
+  }
+  if (normalized.includes("call")) {
     return (
-      <div className="h-8 w-8 rounded-full bg-green-100 flex items-center justify-center">
-        <svg className="h-4 w-4 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-          <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-        </svg>
+      <div className="h-8 w-8 rounded-xl bg-purple-100 text-purple-700 border border-purple-200 flex items-center justify-center shrink-0">
+        <PhoneCall className="h-4 w-4" />
       </div>
     );
+  }
+  if (normalized.includes("payment")) {
+    return (
+      <div className="h-8 w-8 rounded-xl bg-emerald-100 text-emerald-700 border border-emerald-200 flex items-center justify-center shrink-0">
+        <CheckCircle2 className="h-4 w-4" />
+      </div>
+    );
+  }
   return (
-    <div className="h-8 w-8 rounded-full bg-gray-100 flex items-center justify-center">
-      <svg className="h-4 w-4 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-        <path strokeLinecap="round" strokeLinejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-      </svg>
+    <div className="h-8 w-8 rounded-xl bg-slate-100 text-slate-600 border border-slate-200 flex items-center justify-center shrink-0">
+      <FileText className="h-4 w-4" />
     </div>
   );
 }
@@ -81,7 +111,7 @@ export default function CustomerDetailPage({
         if (e instanceof Error && (e as { status?: number }).status === 404) {
           setNotFound(true);
         } else {
-          setError(e instanceof Error ? e.message : "Failed to load");
+          setError(e instanceof Error ? e.message : "Failed to load customer profile");
         }
       } finally {
         if (active) setLoading(false);
@@ -94,168 +124,376 @@ export default function CustomerDetailPage({
 
   if (notFound) {
     return (
-      <div className="rounded-xl border border-gray-200 bg-white p-10 text-center">
-        <h1 className="text-2xl font-bold text-gray-900">Customer not found</h1>
-        <p className="mt-2 text-sm text-gray-500">
-          The customer you&apos;re looking for doesn&apos;t exist or you don&apos;t have
-          access to it.
+      <div className="rounded-3xl border border-slate-200 bg-white p-12 text-center max-w-lg mx-auto my-12 shadow-2xs">
+        <div className="w-12 h-12 rounded-2xl bg-rose-50 text-rose-600 flex items-center justify-center mx-auto mb-4 border border-rose-100">
+          <AlertCircle className="w-6 h-6" />
+        </div>
+        <h1 className="text-lg font-bold text-slate-900">Customer Account Not Found</h1>
+        <p className="mt-1 text-xs text-slate-500 max-w-sm mx-auto">
+          The requested debtor profile may have been removed, merged into another account, or is outside your organization.
         </p>
+        <div className="mt-6">
+          <Link href="/dashboard/customers">
+            <Button size="sm" variant="outline" className="gap-1.5">
+              <ArrowLeft className="h-3.5 w-3.5" />
+              <span>Back to Customer Directory</span>
+            </Button>
+          </Link>
+        </div>
       </div>
     );
   }
 
-  if (loading)
-    return <p className="text-sm text-gray-500">Loading customer…</p>;
+  if (loading) {
+    return (
+      <div className="space-y-6">
+        <div className="flex items-center gap-4">
+          <div className="h-12 w-12 rounded-2xl bg-slate-200 animate-pulse" />
+          <div className="space-y-2">
+            <div className="h-6 w-48 rounded-lg bg-slate-200 animate-pulse" />
+            <div className="h-4 w-32 rounded-md bg-slate-200 animate-pulse" />
+          </div>
+        </div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          <StatCardSkeleton />
+          <StatCardSkeleton />
+          <StatCardSkeleton />
+          <StatCardSkeleton />
+        </div>
+      </div>
+    );
+  }
 
-  if (error)
+  if (error) {
     return (
       <div
         role="alert"
-        className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700"
+        className="rounded-2xl border border-rose-200 bg-rose-50 p-4 text-xs text-rose-800 flex items-start gap-3 shadow-2xs"
       >
-        <p>{error}</p>
-        <button
-          onClick={() => void load()}
-          className="mt-2 rounded-lg border border-red-200 bg-white px-3 py-1.5 text-xs font-medium text-red-700 hover:bg-red-100"
-        >
-          Try again
-        </button>
+        <AlertCircle className="h-4 w-4 text-rose-600 shrink-0 mt-0.5" />
+        <div className="flex-1">
+          <p className="font-bold">Failed to load customer profile</p>
+          <p className="mt-0.5 text-rose-700">{error}</p>
+          <button
+            onClick={() => void load()}
+            className="mt-2 text-xs font-semibold text-rose-900 underline hover:text-rose-950"
+          >
+            Try reloading
+          </button>
+        </div>
       </div>
     );
+  }
 
   if (!customer) return null;
 
+  const isHighRisk = customer.riskScore > 70;
+  const isMedRisk = customer.riskScore > 40;
+
   return (
     <div className="space-y-6">
-      <div className="flex items-start justify-between">
-        <div className="flex items-center gap-4">
-          <div className="h-14 w-14 rounded-xl bg-red-50 border border-red-200 flex items-center justify-center">
-            <span className="text-red-700 font-bold text-lg">
-              {customer.initials}
-            </span>
-          </div>
-          <div>
-            <h1 className="text-2xl font-bold text-gray-900">{customer.name}</h1>
-            <p className="text-sm text-gray-500">
-              {customer.email ?? "No email"} · {customer.phone ?? "No phone"}
-            </p>
-          </div>
+      {/* Top Header with Breadcrumbs and Quick Action Hub */}
+      <div className="flex flex-col gap-4">
+        <div className="flex items-center gap-2 text-xs text-slate-500">
+          <Link href="/dashboard/customers" className="hover:text-blue-600 transition-colors flex items-center gap-1">
+            <ArrowLeft className="h-3 w-3" />
+            <span>Debtor Directory</span>
+          </Link>
+          <span>/</span>
+          <span className="text-slate-900 font-medium truncate">{customer.name}</span>
         </div>
-        <div className="flex flex-wrap items-center gap-2">
-          <button
-            onClick={() => {
-              setInvoiceForReminder(null);
-              setIsReminderOpen(true);
-            }}
-            className="inline-flex items-center gap-1.5 rounded-lg bg-blue-600 px-3.5 py-2 text-sm font-medium text-white shadow-xs hover:bg-blue-700 transition"
-          >
-            <span>📧</span>
-            <span>Send Reminder</span>
-          </button>
-          <button
-            onClick={() => setIsPaymentPlanOpen(true)}
-            className="inline-flex items-center gap-1.5 rounded-lg border border-purple-200 bg-purple-50 px-3 py-2 text-sm font-medium text-purple-700 shadow-xs hover:bg-purple-100 transition"
-          >
-            <span>📅</span>
-            <span>Payment Plan</span>
-          </button>
-          <button
-            onClick={() => setIsLegalNoticeOpen(true)}
-            className="inline-flex items-center gap-1.5 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm font-medium text-amber-800 shadow-xs hover:bg-amber-100 transition"
-          >
-            <span>⚖️</span>
-            <span>Legal Notice</span>
-          </button>
-          <EditCustomerModal
-            customerId={customer.id}
-            customer={customer}
-            onChange={() => load()}
-          />
-          <button
-            onClick={() => setShowActions(true)}
-            className="rounded-lg border border-gray-200 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 transition"
-          >
-            Actions
-          </button>
+
+        <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+          <div className="flex items-start sm:items-center gap-3.5">
+            <div
+              className={`flex h-12 w-12 items-center justify-center rounded-2xl font-bold text-base shrink-0 border ${
+                isHighRisk
+                  ? "bg-rose-100 text-rose-800 border-rose-200"
+                  : isMedRisk
+                  ? "bg-amber-100 text-amber-900 border-amber-200"
+                  : "bg-emerald-100 text-emerald-800 border-emerald-200"
+              }`}
+            >
+              {customer.initials}
+            </div>
+            <div>
+              <div className="flex flex-wrap items-center gap-2">
+                <h1 className="text-xl font-bold text-slate-900 tracking-tight">{customer.name}</h1>
+                <Badge
+                  variant={isHighRisk ? "danger" : isMedRisk ? "warning" : "success"}
+                  size="sm"
+                >
+                  Risk Score: {customer.riskScore}/100
+                </Badge>
+                <Badge variant={customer.status === "active" ? "blue" : "secondary"} size="sm">
+                  {customer.status.toUpperCase()}
+                </Badge>
+              </div>
+              <div className="flex flex-wrap items-center gap-3 mt-1 text-xs text-slate-500">
+                {customer.email && (
+                  <span className="flex items-center gap-1">
+                    <Mail className="h-3 w-3 text-slate-400" />
+                    {customer.email}
+                  </span>
+                )}
+                {customer.phone && (
+                  <span className="flex items-center gap-1">
+                    <Phone className="h-3 w-3 text-slate-400" />
+                    {customer.phone}
+                  </span>
+                )}
+                {customer.gstin && (
+                  <span className="font-mono text-slate-600 font-semibold bg-slate-100 px-1.5 py-0.5 rounded text-[11px]">
+                    GSTIN: {customer.gstin}
+                  </span>
+                )}
+              </div>
+            </div>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-2">
+            <Button
+              size="sm"
+              onClick={() => {
+                setInvoiceForReminder(null);
+                setIsReminderOpen(true);
+              }}
+              className="gap-1.5 shadow-2xs"
+            >
+              <Send className="h-3.5 w-3.5" />
+              <span>Send Reminder</span>
+            </Button>
+
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => setIsPaymentPlanOpen(true)}
+              className="gap-1.5 border-purple-200 bg-purple-50/70 text-purple-700 hover:bg-purple-100/80"
+            >
+              <Calendar className="h-3.5 w-3.5" />
+              <span>Payment Plan</span>
+            </Button>
+
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => setIsLegalNoticeOpen(true)}
+              className="gap-1.5 border-amber-200 bg-amber-50/70 text-amber-800 hover:bg-amber-100/80"
+            >
+              <Scale className="h-3.5 w-3.5" />
+              <span>Legal Notice</span>
+            </Button>
+
+            <EditCustomerModal
+              customerId={customer.id}
+              customer={customer}
+              onChange={() => load()}
+            />
+
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => setShowActions(true)}
+              className="gap-1.5 shadow-2xs"
+            >
+              <CreditCard className="h-3.5 w-3.5" />
+              <span>Record Activity</span>
+            </Button>
+          </div>
         </div>
       </div>
 
+      {/* KPI Overview Cards */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <StatCard
+          title="Total Outstanding"
+          value={formatINR(customer.totalOutstanding)}
+          subtitle="Cumulative ledger dues"
+          icon={Building2}
+          variant="default"
+        />
+        <StatCard
+          title="Overdue Balance"
+          value={formatINR(customer.totalOverdue)}
+          subtitle="Past agreed credit terms"
+          icon={Clock}
+          variant="danger"
+        />
+        <StatCard
+          title="Invoices Active"
+          value={`${customer.invoices.length} Bills`}
+          subtitle="Open billing line items"
+          icon={FileText}
+          variant="warning"
+        />
+        <StatCard
+          title="Delinquency Risk"
+          value={`${customer.riskScore}/100`}
+          subtitle={isHighRisk ? "High priority collection" : "Moderate collection risk"}
+          icon={ShieldAlert}
+          variant="purple"
+        />
+      </div>
+
+      {/* Main Content Layout: Invoices & Timeline vs Sidebar */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Left 2 Cols: Invoices & Collection Timeline */}
         <div className="lg:col-span-2 space-y-6">
-          <div className="rounded-xl border border-gray-200 bg-white shadow-sm">
-            <div className="px-6 py-4 border-b border-gray-100">
-              <h2 className="font-semibold text-gray-900">Invoices</h2>
+          {/* Invoices Table Card */}
+          <div className="rounded-3xl border border-slate-200/90 bg-white shadow-2xs overflow-hidden">
+            <div className="p-5 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
+              <div>
+                <h2 className="font-bold text-slate-900 text-xs uppercase tracking-wider">
+                  Open Receivables &amp; Invoices
+                </h2>
+                <p className="text-[11px] text-slate-500 mt-0.5">
+                  {customer.invoices.length} billing document{customer.invoices.length === 1 ? "" : "s"} on file
+                </p>
+              </div>
+              <Link href="/dashboard/invoices">
+                <Button variant="ghost" size="sm" className="text-xs text-blue-600 hover:text-blue-700">
+                  <span>View All Invoices</span>
+                  <ChevronRight className="h-3.5 w-3.5 ml-0.5" />
+                </Button>
+              </Link>
             </div>
+
             {customer.invoices.length === 0 ? (
-              <p className="px-6 py-8 text-sm text-gray-500">No invoices.</p>
+              <EmptyState
+                icon={FileText}
+                title="No invoices for this customer"
+                description="Import an invoice CSV or create a new invoice to start tracking payments."
+                className="py-10 border-0"
+              />
             ) : (
               <div className="overflow-x-auto">
-                <table className="min-w-full text-sm">
+                <table className="min-w-full text-xs">
                   <thead>
-                    <tr className="border-b border-gray-50 bg-gray-50">
-                      <th className="px-6 py-2.5 text-left text-xs font-semibold text-gray-500">Invoice</th>
-                      <th className="px-6 py-2.5 text-right text-xs font-semibold text-gray-500">Amount</th>
-                      <th className="px-6 py-2.5 text-right text-xs font-semibold text-gray-500">Outstanding</th>
-                      <th className="px-6 py-2.5 text-left text-xs font-semibold text-gray-500">Due Date</th>
-                      <th className="px-6 py-2.5 text-center text-xs font-semibold text-gray-500">Days</th>
-                      <th className="px-6 py-2.5 text-right text-xs font-semibold text-gray-500">Action</th>
+                    <tr className="border-b border-slate-100 bg-slate-50/80 text-slate-500">
+                      <th className="px-5 py-3 text-left font-bold uppercase tracking-wider">Invoice</th>
+                      <th className="px-5 py-3 text-right font-bold uppercase tracking-wider">Amount</th>
+                      <th className="px-5 py-3 text-right font-bold uppercase tracking-wider">Outstanding</th>
+                      <th className="px-5 py-3 text-left font-bold uppercase tracking-wider">Due Date</th>
+                      <th className="px-5 py-3 text-center font-bold uppercase tracking-wider">Aging Status</th>
+                      <th className="px-5 py-3 text-right font-bold uppercase tracking-wider">Action</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-gray-100">
-                    {customer.invoices.map((inv: CustomerInvoice) => (
-                      <tr key={inv.id} className="hover:bg-gray-50">
-                        <td className="px-6 py-3 font-medium text-gray-900">{inv.number}</td>
-                        <td className="px-6 py-3 text-right text-gray-700">{formatINR(inv.amount)}</td>
-                        <td className="px-6 py-3 text-right text-red-600 font-medium">{formatINR(inv.outstanding)}</td>
-                        <td className="px-6 py-3 text-gray-500">
-                          {new Date(inv.dueDate).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}
-                        </td>
-                        <td className="px-6 py-3 text-center">
-                          <span className={`inline-flex rounded-full px-2 py-0.5 text-xs font-semibold ${
-                            inv.daysOverdue > 14 ? "bg-red-100 text-red-700" : inv.daysOverdue > 0 ? "bg-orange-100 text-orange-700" : "bg-green-100 text-green-700"
-                          }`}>
-                            {inv.daysOverdue > 0 ? `${inv.daysOverdue}d overdue` : "Due"}
-                          </span>
-                        </td>
-                        <td className="px-6 py-3 text-right">
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setInvoiceForReminder(inv);
-                              setIsReminderOpen(true);
-                            }}
-                            className="text-xs font-medium text-blue-600 hover:text-blue-800 hover:underline"
-                          >
-                            Remind
-                          </button>
-                        </td>
-                      </tr>
-                    ))}
+                  <tbody className="divide-y divide-slate-100">
+                    {customer.invoices.map((inv: CustomerInvoice) => {
+                      const isInvOverdue = inv.daysOverdue > 0;
+                      return (
+                        <tr key={inv.id} className="hover:bg-slate-50/80 transition-colors">
+                          <td className="px-5 py-3.5 font-bold text-slate-900 font-mono">
+                            <Link href={`/dashboard/invoices/${inv.id}`} className="hover:text-blue-600 transition-colors">
+                              {inv.number}
+                            </Link>
+                          </td>
+                          <td className="px-5 py-3.5 text-right font-mono text-slate-700">
+                            {formatINR(inv.amount)}
+                          </td>
+                          <td className="px-5 py-3.5 text-right font-mono font-bold text-rose-600">
+                            {formatINR(inv.outstanding)}
+                          </td>
+                          <td className="px-5 py-3.5 text-slate-600 text-[11px]">
+                            {new Date(inv.dueDate).toLocaleDateString("en-IN", {
+                              day: "numeric",
+                              month: "short",
+                              year: "numeric",
+                            })}
+                          </td>
+                          <td className="px-5 py-3.5 text-center">
+                            <Badge
+                              variant={inv.daysOverdue > 30 ? "danger" : inv.daysOverdue > 0 ? "warning" : "success"}
+                              size="sm"
+                            >
+                              {isInvOverdue ? `${inv.daysOverdue}d overdue` : "Current"}
+                            </Badge>
+                          </td>
+                          <td className="px-5 py-3.5 text-right">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => {
+                                setInvoiceForReminder(inv);
+                                setIsReminderOpen(true);
+                              }}
+                              className="h-7 px-2 text-blue-600 hover:text-blue-800 hover:bg-blue-50/60 font-semibold"
+                            >
+                              <Send className="h-3 w-3 mr-1" />
+                              <span>Remind</span>
+                            </Button>
+                          </td>
+                        </tr>
+                      );
+                    })}
                   </tbody>
                 </table>
               </div>
             )}
           </div>
 
-          <div className="rounded-xl border border-gray-200 bg-white shadow-sm">
-            <div className="px-6 py-4 border-b border-gray-100">
-              <h2 className="font-semibold text-gray-900">Collection Timeline</h2>
+          {/* Collection Timeline Card */}
+          <div className="rounded-3xl border border-slate-200/90 bg-white shadow-2xs overflow-hidden">
+            <div className="p-5 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
+              <div>
+                <h2 className="font-bold text-slate-900 text-xs uppercase tracking-wider">
+                  Collection Activity &amp; Audit Trail
+                </h2>
+                <p className="text-[11px] text-slate-500 mt-0.5">
+                  Chronological log of phone calls, messages, promises, and payments
+                </p>
+              </div>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setShowActions(true)}
+                className="gap-1 shadow-2xs"
+              >
+                <Plus className="h-3 w-3" />
+                <span>Log Event</span>
+              </Button>
             </div>
+
             <div className="p-6">
               {customer.timeline.length === 0 ? (
-                <p className="text-sm text-gray-500">No activity recorded yet.</p>
+                <EmptyState
+                  icon={Clock}
+                  title="No collection activity recorded yet"
+                  description="Use the quick action buttons to log phone calls, WhatsApp reminders, or payment promises."
+                  className="py-8 border-0"
+                />
               ) : (
-                <div className="space-y-4">
+                <div className="relative pl-6 space-y-6 before:absolute before:left-3.5 before:top-2 before:bottom-2 before:w-0.5 before:bg-slate-200">
                   {customer.timeline.map((event: CustomerTimelineEvent, i) => (
-                    <div key={event.id ?? i} className="flex items-start gap-3">
-                      <TimelineIcon type={event.type} />
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm text-gray-900">{event.text}</p>
-                        <p className="text-xs text-gray-400 mt-0.5">
-                          {new Date(event.date).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}
+                    <div key={event.id ?? i} className="relative flex items-start gap-3.5 group">
+                      <div className="absolute -left-6 top-0">
+                        <TimelineIcon type={event.type} />
+                      </div>
+                      <div className="flex-1 min-w-0 bg-slate-50/60 rounded-2xl p-3.5 border border-slate-100 hover:border-slate-200 hover:bg-slate-50 transition-all">
+                        <div className="flex items-center justify-between gap-2">
+                          <p className="text-xs font-bold text-slate-900">{event.text}</p>
                           {event.status === "broken" && (
-                            <span className="ml-2 text-red-600 font-semibold">Broken</span>
+                            <Badge variant="danger" size="sm">
+                              Broken Commitment
+                            </Badge>
                           )}
+                          {event.status === "kept" && (
+                            <Badge variant="success" size="sm">
+                              Promise Kept
+                            </Badge>
+                          )}
+                        </div>
+                        <p className="text-[11px] text-slate-400 mt-1 flex items-center gap-1.5 font-medium">
+                          <Clock className="h-3 w-3" />
+                          <span>
+                            {new Date(event.date).toLocaleDateString("en-IN", {
+                              day: "numeric",
+                              month: "short",
+                              year: "numeric",
+                              hour: "2-digit",
+                              minute: "2-digit",
+                            })}
+                          </span>
                         </p>
                       </div>
                     </div>
@@ -266,78 +504,116 @@ export default function CustomerDetailPage({
           </div>
         </div>
 
+        {/* Right 1 Col: Debtor Summary, Contacts & Notes */}
         <div className="space-y-6">
-          <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm space-y-4">
-            <h3 className="font-semibold text-gray-900">Summary</h3>
-            <div className="space-y-3">
-              <div className="flex justify-between text-sm">
-                <span className="text-gray-500">Total outstanding</span>
-                <span className="font-semibold text-gray-900">{formatINR(customer.totalOutstanding)}</span>
-              </div>
-              <div className="flex justify-between text-sm">
-                <span className="text-gray-500">Total overdue</span>
-                <span className="font-semibold text-red-600">{formatINR(customer.totalOverdue)}</span>
-              </div>
-              <div className="flex justify-between text-sm">
-                <span className="text-gray-500">Risk score</span>
-                <span className={`inline-flex rounded-full px-2 py-0.5 text-xs font-semibold ${
-                  customer.riskScore > 70 ? "bg-red-100 text-red-700" : customer.riskScore > 40 ? "bg-orange-100 text-orange-700" : "bg-green-100 text-green-700"
-                }`}>
-                  {customer.riskScore}/100
+          {/* Debtor Profile Summary Card */}
+          <div className="rounded-3xl border border-slate-200/90 bg-white p-5 shadow-2xs space-y-4">
+            <h3 className="text-xs font-bold uppercase tracking-wider text-slate-900 border-b border-slate-100 pb-3">
+              Account Overview
+            </h3>
+            <div className="space-y-3 text-xs">
+              <div className="flex justify-between items-center py-1">
+                <span className="text-slate-500 font-medium">Total Outstanding</span>
+                <span className="font-mono font-bold text-slate-900 text-sm">
+                  {formatINR(customer.totalOutstanding)}
                 </span>
               </div>
-              <div className="flex justify-between text-sm">
-                <span className="text-gray-500">Status</span>
-                <span className="font-medium text-gray-900 capitalize">{customer.status}</span>
+              <div className="flex justify-between items-center py-1">
+                <span className="text-slate-500 font-medium">Total Overdue</span>
+                <span className="font-mono font-bold text-rose-600">
+                  {formatINR(customer.totalOverdue)}
+                </span>
               </div>
-              <div className="flex justify-between text-sm">
-                <span className="text-gray-500">GSTIN</span>
-                <span className="font-mono text-xs text-gray-700">{customer.gstin ?? "-"}</span>
+              <div className="flex justify-between items-center py-1">
+                <span className="text-slate-500 font-medium">Delinquency Risk</span>
+                <Badge
+                  variant={isHighRisk ? "danger" : isMedRisk ? "warning" : "success"}
+                  size="sm"
+                >
+                  {customer.riskScore}/100
+                </Badge>
+              </div>
+              <div className="flex justify-between items-center py-1">
+                <span className="text-slate-500 font-medium">Account Status</span>
+                <span className="font-bold text-slate-900 capitalize">{customer.status}</span>
+              </div>
+              <div className="flex justify-between items-center py-1">
+                <span className="text-slate-500 font-medium">GSTIN</span>
+                <span className="font-mono text-[11px] font-bold text-slate-700 bg-slate-100 px-2 py-0.5 rounded">
+                  {customer.gstin ?? "Not Provided"}
+                </span>
               </div>
             </div>
           </div>
 
-          <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="font-semibold text-gray-900">Contacts</h3>
+          {/* Contacts Manager Card */}
+          <div className="rounded-3xl border border-slate-200/90 bg-white p-5 shadow-2xs">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100 mb-4">
+              <h3 className="text-xs font-bold uppercase tracking-wider text-slate-900">
+                Key Decision Makers ({customer.contacts.length})
+              </h3>
               <ContactEditor
                 customerId={customer.id}
                 contacts={customer.contacts}
                 onChange={() => load()}
               />
             </div>
+
             {customer.contacts.length === 0 ? (
-              <p className="text-sm text-gray-500">No contacts.</p>
+              <p className="text-xs text-slate-400 py-3 text-center">
+                No individual contact persons added yet. Click &ldquo;Manage&rdquo; to add accounts managers or promoters.
+              </p>
             ) : (
               <div className="space-y-3">
                 {customer.contacts.map((contact: CustomerContact, i) => (
-                  <div key={contact.id ?? i} className="rounded-lg border border-gray-100 p-3">
+                  <div
+                    key={contact.id ?? i}
+                    className="rounded-2xl border border-slate-200/80 bg-slate-50/60 p-3.5 text-xs space-y-1"
+                  >
                     <div className="flex items-center justify-between">
-                      <p className="text-sm font-medium text-gray-900">{contact.name}</p>
+                      <p className="font-bold text-slate-900">{contact.name}</p>
                       {contact.isPrimary && (
-                        <span className="text-[10px] font-semibold text-blue-600 bg-blue-50 border border-blue-200 rounded px-1.5 py-0.5">
+                        <Badge variant="blue" size="sm">
                           PRIMARY
-                        </span>
+                        </Badge>
                       )}
                     </div>
-                    <p className="text-xs text-gray-500">{contact.designation}</p>
-                    <p className="text-xs text-gray-600 mt-1">{contact.phone}</p>
-                    <p className="text-xs text-gray-600">{contact.email}</p>
+                    {contact.designation && (
+                      <p className="text-[11px] text-slate-500 font-medium">{contact.designation}</p>
+                    )}
+                    <div className="pt-1 text-[11px] text-slate-600 space-y-0.5">
+                      {contact.phone && (
+                        <p className="flex items-center gap-1">
+                          <Phone className="h-3 w-3 text-slate-400" />
+                          <span>{contact.phone}</span>
+                        </p>
+                      )}
+                      {contact.email && (
+                        <p className="flex items-center gap-1">
+                          <Mail className="h-3 w-3 text-slate-400" />
+                          <span>{contact.email}</span>
+                        </p>
+                      )}
+                    </div>
                   </div>
                 ))}
               </div>
             )}
           </div>
 
-          <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
-            <h3 className="font-semibold text-gray-900 mb-2">Notes</h3>
-            <p className="text-sm text-gray-600">
-              {customer.notes || "No notes yet."}
+          {/* Internal Notes Card */}
+          <div className="rounded-3xl border border-slate-200/90 bg-white p-5 shadow-2xs space-y-2.5">
+            <h3 className="text-xs font-bold uppercase tracking-wider text-slate-900">
+              Internal Ledger Notes
+            </h3>
+            <p className="text-xs text-slate-600 bg-slate-50/70 rounded-2xl p-3.5 border border-slate-100 leading-relaxed">
+              {customer.notes || "No internal remarks recorded for this customer account."}
             </p>
           </div>
         </div>
       </div>
 
+      {/* Quick Action Modal */}
       {showActions && customer && (
         <CustomerActionsModal
           customerId={customer.id}
@@ -350,6 +626,7 @@ export default function CustomerDetailPage({
         />
       )}
 
+      {/* Send Reminder Modal */}
       {isReminderOpen && customer && (
         <SendReminderModal
           customerId={customer.id}
@@ -373,6 +650,7 @@ export default function CustomerDetailPage({
         />
       )}
 
+      {/* Payment Plan Modal */}
       {isPaymentPlanOpen && customer && (
         <PaymentPlanModal
           customerId={customer.id}
@@ -386,6 +664,7 @@ export default function CustomerDetailPage({
         />
       )}
 
+      {/* Legal Notice Modal */}
       {isLegalNoticeOpen && customer && (
         <LegalNoticeModal
           customerId={customer.id}
@@ -507,86 +786,87 @@ function CustomerActionsModal({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/40 p-4 backdrop-blur-xs animate-in fade-in duration-150"
       role="dialog"
       aria-modal="true"
       aria-labelledby="quick-action-title"
     >
-      <div className="w-full max-w-md rounded-2xl bg-white shadow-xl border border-gray-200 max-h-[90vh] overflow-y-auto">
-        <div className="p-5 border-b border-gray-100 flex items-center justify-between">
+      <div className="w-full max-w-md rounded-3xl bg-white shadow-2xl border border-slate-200/90 overflow-hidden">
+        <div className="p-5 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
           <div>
-            <h3 id="quick-action-title" className="font-semibold text-gray-900">{customerName}</h3>
-            <p className="text-sm text-gray-500">Quick action</p>
+            <h3 id="quick-action-title" className="font-bold text-slate-900 text-base">{customerName}</h3>
+            <p className="text-xs text-slate-500 mt-0.5">Record collection interaction or settlement</p>
           </div>
           <button
             onClick={onClose}
             aria-label="Close"
-            className="rounded-lg p-1 text-gray-400 hover:text-gray-600"
+            className="rounded-xl p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-600 transition"
           >
-            ✕
+            <X className="h-4 w-4" />
           </button>
         </div>
 
         {error && (
-          <div className="mx-5 mt-4 rounded-lg bg-red-50 p-3 text-sm text-red-700 border border-red-100">
-            {error}
+          <div className="mx-5 mt-4 rounded-xl bg-rose-50 p-3 text-xs text-rose-800 border border-rose-200 flex items-center gap-2">
+            <AlertCircle className="h-4 w-4 text-rose-600 shrink-0" />
+            <span>{error}</span>
           </div>
         )}
 
-        <div className="flex border-b border-gray-100">
+        <div className="flex border-b border-slate-100 bg-white">
           {(["payment", "promise", "event"] as const).map((t) => (
             <button
               key={t}
               onClick={() => setTab(t)}
-              className={`flex-1 py-2.5 text-sm font-medium capitalize transition-colors ${
+              className={`flex-1 py-3 text-xs font-bold transition-colors ${
                 tab === t
-                  ? "border-b-2 border-blue-600 text-blue-600"
-                  : "text-gray-500 hover:text-gray-700"
+                  ? "border-b-2 border-blue-600 text-blue-600 bg-blue-50/30"
+                  : "text-slate-500 hover:text-slate-900"
               }`}
             >
-              {t === "payment" ? "Payment" : t === "promise" ? "Promise" : "Event"}
+              {t === "payment" ? "Record Payment" : t === "promise" ? "Log Promise" : "Log Activity"}
             </button>
           ))}
         </div>
 
-        <div className="p-5 space-y-4">
+        <div className="p-5 space-y-3.5">
           {tab === "payment" && (
             <>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Amount (₹) *
+                <label className="block text-xs font-bold text-slate-700 mb-1">
+                  Settlement Amount (₹) *
                 </label>
                 <input
                   type="number"
                   min={1}
                   value={amount}
                   onChange={(e) => setAmount(e.target.value)}
-                  className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
-                  placeholder="0"
+                  className="w-full rounded-xl border border-slate-200 bg-slate-50/50 px-3.5 py-2 text-xs font-medium focus:bg-white focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 transition-all font-mono"
+                  placeholder="e.g. 50000"
                 />
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Date *
+                  <label className="block text-xs font-bold text-slate-700 mb-1">
+                    Payment Date *
                   </label>
                   <input
                     type="date"
                     value={paymentDate}
                     onChange={(e) => setPaymentDate(e.target.value)}
-                    className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                    className="w-full rounded-xl border border-slate-200 bg-slate-50/50 px-3.5 py-2 text-xs font-medium focus:bg-white focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 transition-all"
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Mode
+                  <label className="block text-xs font-bold text-slate-700 mb-1">
+                    Payment Mode
                   </label>
                   <select
                     value={mode}
                     onChange={(e) => setMode(e.target.value)}
-                    className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                    className="w-full rounded-xl border border-slate-200 bg-slate-50/50 px-3 py-2 text-xs font-medium focus:bg-white focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 transition-all"
                   >
-                    <option value="">Select…</option>
+                    <option value="">Select mode…</option>
                     <option value="UPI">UPI</option>
                     <option value="IMPS">IMPS</option>
                     <option value="NEFT">NEFT</option>
@@ -598,99 +878,102 @@ function CustomerActionsModal({
                 </div>
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Reference
+                <label className="block text-xs font-bold text-slate-700 mb-1">
+                  Reference / UTR Number
                 </label>
                 <input
                   value={reference}
                   onChange={(e) => setReference(e.target.value)}
-                  className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
-                  placeholder="UTR / txn id"
+                  className="w-full rounded-xl border border-slate-200 bg-slate-50/50 px-3.5 py-2 text-xs font-mono font-medium focus:bg-white focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 transition-all"
+                  placeholder="e.g. UTR12345678"
                 />
               </div>
-              <button
+              <Button
                 onClick={recordPayment}
                 disabled={saving || !amount || Number(amount) <= 0}
-                className="w-full rounded-lg bg-blue-600 px-4 py-2.5 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50 transition-colors"
+                loading={saving}
+                className="w-full mt-2"
               >
-                {saving ? "Saving…" : "Record payment"}
-              </button>
+                Record Payment Settlement
+              </Button>
             </>
           )}
 
           {tab === "promise" && (
             <>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Amount (₹) *
+                <label className="block text-xs font-bold text-slate-700 mb-1">
+                  Promised Amount (₹) *
                 </label>
                 <input
                   type="number"
                   min={1}
                   value={promiseAmount}
                   onChange={(e) => setPromiseAmount(e.target.value)}
-                  className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
-                  placeholder="0"
+                  className="w-full rounded-xl border border-slate-200 bg-slate-50/50 px-3.5 py-2 text-xs font-medium focus:bg-white focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 transition-all font-mono"
+                  placeholder="e.g. 75000"
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Promise date *
+                <label className="block text-xs font-bold text-slate-700 mb-1">
+                  Commitment Deadline Date *
                 </label>
                 <input
                   type="date"
                   value={promiseDate}
                   onChange={(e) => setPromiseDate(e.target.value)}
-                  className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                  className="w-full rounded-xl border border-slate-200 bg-slate-50/50 px-3.5 py-2 text-xs font-medium focus:bg-white focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 transition-all"
                 />
               </div>
-              <button
+              <Button
                 onClick={logPromise}
                 disabled={saving || !promiseAmount || Number(promiseAmount) <= 0}
-                className="w-full rounded-lg bg-yellow-600 px-4 py-2.5 text-sm font-medium text-white hover:bg-yellow-700 disabled:opacity-50 transition-colors"
+                loading={saving}
+                className="w-full mt-2"
               >
-                {saving ? "Saving…" : "Log promise"}
-              </button>
+                Log Payment Commitment
+              </Button>
             </>
           )}
 
           {tab === "event" && (
             <>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Type
+                <label className="block text-xs font-bold text-slate-700 mb-1">
+                  Interaction Channel
                 </label>
                 <select
                   value={eventType}
                   onChange={(e) => setEventType(e.target.value)}
-                  className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                  className="w-full rounded-xl border border-slate-200 bg-slate-50/50 px-3 py-2 text-xs font-medium focus:bg-white focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 transition-all"
                 >
-                  <option value="CALL">Call</option>
-                  <option value="EMAIL">Email</option>
-                  <option value="WHATSAPP">WhatsApp</option>
-                  <option value="MEETING">Meeting</option>
-                  <option value="NOTE">Note</option>
+                  <option value="CALL">Phone Call</option>
+                  <option value="EMAIL">Email Outreach</option>
+                  <option value="WHATSAPP">WhatsApp Notice</option>
+                  <option value="MEETING">In-Person Meeting</option>
+                  <option value="NOTE">Internal Remark</option>
                 </select>
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Details
+                <label className="block text-xs font-bold text-slate-700 mb-1">
+                  Activity Notes &amp; Outcome
                 </label>
                 <textarea
                   rows={3}
                   value={eventNote}
                   onChange={(e) => setEventNote(e.target.value)}
-                  className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 resize-none"
-                  placeholder="What happened on this call?"
+                  className="w-full rounded-xl border border-slate-200 bg-slate-50/50 p-3 text-xs font-medium focus:bg-white focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 resize-none transition-all"
+                  placeholder="Record summary of call, disputed line items, or customer response…"
                 />
               </div>
-              <button
+              <Button
                 onClick={logEvent}
                 disabled={saving}
-                className="w-full rounded-lg bg-gray-900 px-4 py-2.5 text-sm font-medium text-white hover:bg-gray-800 disabled:opacity-50 transition-colors"
+                loading={saving}
+                className="w-full mt-2"
               >
-                {saving ? "Saving…" : "Log event"}
-              </button>
+                Log Activity Record
+              </Button>
             </>
           )}
         </div>
@@ -752,77 +1035,87 @@ function EditCustomerModal({
 
   return (
     <>
-      <button
+      <Button
+        variant="outline"
+        size="sm"
         onClick={openModal}
-        className="rounded-lg border border-gray-200 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
+        className="gap-1.5 shadow-2xs"
       >
-        Edit
-      </button>
+        <Edit3 className="h-3.5 w-3.5 text-slate-500" />
+        <span>Edit</span>
+      </Button>
       {open && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-          <div className="w-full max-w-md rounded-2xl bg-white shadow-xl border border-gray-200 max-h-[90vh] overflow-y-auto">
-            <div className="p-5 border-b border-gray-100">
-              <h3 className="font-semibold text-gray-900">Edit customer</h3>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/40 p-4 backdrop-blur-xs animate-in fade-in duration-150">
+          <div className="w-full max-w-md rounded-3xl bg-white shadow-2xl border border-slate-200/90 overflow-hidden">
+            <div className="p-5 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
+              <h3 className="font-bold text-slate-900 text-base">Edit Debtor Details</h3>
+              <button
+                onClick={() => setOpen(false)}
+                className="rounded-xl p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-600 transition"
+              >
+                <X className="h-4 w-4" />
+              </button>
             </div>
 
             {error && (
-              <div className="mx-5 mt-4 rounded-lg bg-red-50 p-3 text-sm text-red-700 border border-red-100">
-                {error}
+              <div className="mx-5 mt-4 rounded-xl bg-rose-50 p-3 text-xs text-rose-800 border border-rose-200 flex items-center gap-2">
+                <AlertCircle className="h-4 w-4 text-rose-600 shrink-0" />
+                <span>{error}</span>
               </div>
             )}
 
-            <div className="p-5 space-y-4">
+            <div className="p-5 space-y-3.5">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Name *
+                <label className="block text-xs font-bold text-slate-700 mb-1">
+                  Customer / Business Name *
                 </label>
                 <input
                   value={name}
                   onChange={(e) => setName(e.target.value)}
-                  className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                  className="w-full rounded-xl border border-slate-200 bg-slate-50/50 px-3.5 py-2 text-xs font-medium focus:bg-white focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 transition-all"
                 />
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Email
+                  <label className="block text-xs font-bold text-slate-700 mb-1">
+                    Email Address
                   </label>
                   <input
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
-                    className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                    className="w-full rounded-xl border border-slate-200 bg-slate-50/50 px-3.5 py-2 text-xs font-medium focus:bg-white focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 transition-all"
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Phone
+                  <label className="block text-xs font-bold text-slate-700 mb-1">
+                    Phone Number
                   </label>
                   <input
                     value={phone}
                     onChange={(e) => setPhone(e.target.value)}
-                    className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                    className="w-full rounded-xl border border-slate-200 bg-slate-50/50 px-3.5 py-2 text-xs font-medium focus:bg-white focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 transition-all"
                   />
                 </div>
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                  <label className="block text-xs font-bold text-slate-700 mb-1">
                     GSTIN
                   </label>
                   <input
                     value={gstin}
                     onChange={(e) => setGstin(e.target.value)}
-                    className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                    className="w-full rounded-xl border border-slate-200 bg-slate-50/50 px-3.5 py-2 text-xs font-mono font-medium uppercase focus:bg-white focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 transition-all"
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                  <label className="block text-xs font-bold text-slate-700 mb-1">
                     Status
                   </label>
                   <select
                     value={status}
                     onChange={(e) => setStatus(e.target.value)}
-                    className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                    className="w-full rounded-xl border border-slate-200 bg-slate-50/50 px-3 py-2 text-xs font-medium focus:bg-white focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 transition-all"
                   >
                     <option value="active">Active</option>
                     <option value="inactive">Inactive</option>
@@ -830,31 +1123,37 @@ function EditCustomerModal({
                 </div>
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Notes
+                <label className="block text-xs font-bold text-slate-700 mb-1">
+                  Internal Notes
                 </label>
                 <textarea
                   rows={3}
                   value={notes}
                   onChange={(e) => setNotes(e.target.value)}
-                  className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 resize-none"
+                  className="w-full rounded-xl border border-slate-200 bg-slate-50/50 p-3 text-xs font-medium focus:bg-white focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 resize-none transition-all"
                 />
               </div>
 
-              <div className="flex gap-3 pt-2">
-                <button
+              <div className="flex items-center justify-end gap-2.5 pt-3 border-t border-slate-100">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
                   onClick={() => setOpen(false)}
-                  className="flex-1 rounded-lg border border-gray-200 px-4 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50"
+                  disabled={saving}
                 >
                   Cancel
-                </button>
-                <button
+                </Button>
+                <Button
+                  type="button"
+                  size="sm"
                   onClick={save}
-                  disabled={saving || name.trim().length < 2}
-                  className="flex-1 rounded-lg bg-blue-600 px-4 py-2.5 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50 transition-colors"
+                  loading={saving}
+                  disabled={name.trim().length < 2}
+                  className="gap-1.5"
                 >
-                  {saving ? "Saving…" : "Save changes"}
-                </button>
+                  <span>Save Changes</span>
+                </Button>
               </div>
             </div>
           </div>
@@ -941,127 +1240,139 @@ function ContactEditor({
 
   return (
     <>
-      <button
+      <Button
+        variant="ghost"
+        size="sm"
         onClick={() => setOpen(true)}
-        className="rounded-lg border border-gray-200 px-3 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50"
+        className="h-7 px-2 text-xs text-blue-600 hover:text-blue-700"
       >
-        Manage
-      </button>
+        <span>Manage</span>
+      </Button>
       {open && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/40 p-4 backdrop-blur-xs animate-in fade-in duration-150"
           role="dialog"
           aria-modal="true"
           aria-labelledby="manage-contacts-title"
         >
-          <div className="w-full max-w-md rounded-2xl bg-white shadow-xl border border-gray-200 max-h-[90vh] overflow-y-auto">
-            <div className="p-5 border-b border-gray-100 flex items-center justify-between">
-              <h3 id="manage-contacts-title" className="font-semibold text-gray-900">Manage contacts</h3>
+          <div className="w-full max-w-md rounded-3xl bg-white shadow-2xl border border-slate-200/90 overflow-hidden max-h-[90vh] flex flex-col">
+            <div className="p-5 border-b border-slate-100 flex items-center justify-between bg-slate-50/50 shrink-0">
+              <div>
+                <h3 id="manage-contacts-title" className="font-bold text-slate-900 text-base">Key Account Contacts</h3>
+                <p className="text-xs text-slate-500 mt-0.5">Manage decision makers, promoters &amp; finance personnel</p>
+              </div>
               <button
                 onClick={() => setOpen(false)}
                 aria-label="Close"
-                className="rounded-lg p-1 text-gray-400 hover:text-gray-600"
+                className="rounded-xl p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-600 transition"
               >
-                ✕
+                <X className="h-4 w-4" />
               </button>
             </div>
 
             {error && (
-              <div className="mx-5 mt-4 rounded-lg bg-red-50 p-3 text-sm text-red-700 border border-red-100">
-                {error}
+              <div className="mx-5 mt-4 rounded-xl bg-rose-50 p-3 text-xs text-rose-800 border border-rose-200 flex items-center gap-2 shrink-0">
+                <AlertCircle className="h-4 w-4 text-rose-600 shrink-0" />
+                <span>{error}</span>
               </div>
             )}
 
-            <div className="p-5 space-y-4">
+            <div className="p-5 space-y-4 overflow-y-auto flex-1">
               <div className="space-y-2">
                 {contacts.length === 0 ? (
-                  <p className="text-sm text-gray-500">No contacts yet.</p>
+                  <p className="text-xs text-slate-400 text-center py-2">No contact persons registered yet.</p>
                 ) : (
                   contacts.map((c) => (
                     <div
                       key={c.id}
-                      className="flex items-center justify-between rounded-lg border border-gray-100 px-3 py-2"
+                      className="flex items-center justify-between rounded-2xl border border-slate-200/80 bg-slate-50/60 p-3 text-xs"
                     >
                       <div>
-                        <p className="text-sm font-medium text-gray-900">
-                          {c.name}
+                        <div className="flex items-center gap-2">
+                          <p className="font-bold text-slate-900">{c.name}</p>
                           {c.isPrimary && (
-                            <span className="ml-2 text-[10px] font-semibold text-blue-600 bg-blue-50 rounded px-1.5 py-0.5">
+                            <Badge variant="blue" size="sm">
                               PRIMARY
-                            </span>
+                            </Badge>
                           )}
-                        </p>
-                        <p className="text-xs text-gray-500">
-                          {c.designation ?? ""}
-                          {c.phone ?? ""}
-                          {c.email ?? ""}
+                        </div>
+                        <p className="text-[11px] text-slate-500 mt-0.5">
+                          {c.designation && <span>{c.designation} · </span>}
+                          {c.phone && <span>{c.phone} · </span>}
+                          {c.email && <span>{c.email}</span>}
                         </p>
                       </div>
-                      <div className="flex gap-2">
+                      <div className="flex items-center gap-1.5 shrink-0">
                         {!c.isPrimary && (
-                          <button
+                          <Button
+                            variant="ghost"
+                            size="sm"
                             onClick={() => makePrimary(c.id)}
-                            className="rounded px-2 py-1 text-xs text-blue-600 hover:bg-blue-50"
+                            className="h-7 px-2 text-xs text-blue-600"
                           >
-                            Set primary
-                          </button>
+                            Set Primary
+                          </Button>
                         )}
-                        <button
+                        <Button
+                          variant="ghost"
+                          size="sm"
                           onClick={() => remove(c.id)}
-                          className="rounded px-2 py-1 text-xs text-red-600 hover:bg-red-50"
+                          className="h-7 px-2 text-xs text-rose-600 hover:bg-rose-50"
                         >
                           Remove
-                        </button>
+                        </Button>
                       </div>
                     </div>
                   ))
                 )}
               </div>
 
-              <div className="border-t border-gray-100 pt-4 space-y-3">
-                <p className="text-sm font-medium text-gray-700">Add contact</p>
+              <div className="border-t border-slate-100 pt-4 space-y-3">
+                <p className="text-xs font-bold uppercase tracking-wider text-slate-700">Add New Contact</p>
                 <input
                   value={name}
                   onChange={(e) => setName(e.target.value)}
-                  placeholder="Name *"
-                  className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                  placeholder="Contact Full Name *"
+                  className="w-full rounded-xl border border-slate-200 bg-slate-50/50 px-3.5 py-2 text-xs font-medium focus:bg-white focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 transition-all"
                 />
                 <div className="grid grid-cols-2 gap-3">
                   <input
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
-                    placeholder="Email"
-                    className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                    placeholder="Email Address"
+                    className="w-full rounded-xl border border-slate-200 bg-slate-50/50 px-3.5 py-2 text-xs font-medium focus:bg-white focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 transition-all"
                   />
                   <input
                     value={phone}
                     onChange={(e) => setPhone(e.target.value)}
-                    placeholder="Phone"
-                    className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                    placeholder="Phone Number"
+                    className="w-full rounded-xl border border-slate-200 bg-slate-50/50 px-3.5 py-2 text-xs font-medium focus:bg-white focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 transition-all"
                   />
                 </div>
                 <input
                   value={designation}
                   onChange={(e) => setDesignation(e.target.value)}
-                  placeholder="Designation"
-                  className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                  placeholder="Designation (e.g. CFO, Managing Director)"
+                  className="w-full rounded-xl border border-slate-200 bg-slate-50/50 px-3.5 py-2 text-xs font-medium focus:bg-white focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 transition-all"
                 />
-                <label className="flex items-center gap-2 text-sm text-gray-700">
+                <label className="flex items-center gap-2 text-xs font-semibold text-slate-700 cursor-pointer">
                   <input
                     type="checkbox"
                     checked={isPrimary}
                     onChange={(e) => setIsPrimary(e.target.checked)}
-                    className="h-4 w-4 rounded border-gray-300 text-blue-600"
+                    className="h-4 w-4 rounded-md border-slate-300 text-blue-600 focus:ring-blue-500"
                   />
-                  Primary contact
+                  <span>Designate as primary collection contact</span>
                 </label>
-                <button
+                <Button
                   onClick={create}
                   disabled={saving || name.trim().length < 2}
-                  className="w-full rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50 transition-colors"
+                  loading={saving}
+                  className="w-full gap-1.5"
                 >
-                  {saving ? "Adding…" : "Add contact"}
-                </button>
+                  <Plus className="h-3.5 w-3.5" />
+                  <span>Add Contact Person</span>
+                </Button>
               </div>
             </div>
           </div>

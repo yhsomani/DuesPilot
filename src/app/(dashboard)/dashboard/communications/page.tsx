@@ -3,6 +3,22 @@
 import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import { DEFAULT_TEMPLATES, interpolateTemplate, type TemplateDefinition } from "@/lib/templates";
+import {
+  Send,
+  Mail,
+  MessageSquare,
+  Smartphone,
+  CheckCircle2,
+  AlertCircle,
+  Plus,
+  RefreshCw,
+  Search,
+  X,
+} from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { StatCard } from "@/components/ui/stat-card";
+import { EmptyState } from "@/components/ui/empty-state";
 
 interface MessageItem {
   id: string;
@@ -277,69 +293,115 @@ export default function CommunicationsPage() {
 
   return (
     <div className="space-y-6">
-      {/* Top Header */}
+      {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900 tracking-tight">
-            Communications & Outbox
-          </h1>
-          <p className="mt-1 text-sm text-gray-500">
-            Multi-channel collection reminders, automated dunning logs, and direct customer outreach.
+          <div className="flex items-center gap-2">
+            <h1 className="text-xl font-bold text-slate-900 tracking-tight">
+              Communications & Dispatch Outbox
+            </h1>
+            <Badge variant="blue" size="sm">
+              {totalCount} Messages
+            </Badge>
+          </div>
+          <p className="mt-0.5 text-xs text-slate-500">
+            Multi-channel outreach hub: Email, WhatsApp Business, SMS dunning dispatches, and delivery status logs.
           </p>
         </div>
-        <button
-          onClick={() => {
-            setComposeError(null);
-            setComposeSuccess(false);
-            updateInterpolatedTemplate(composeTemplateId, selectedCustomer);
-            setIsComposeOpen(true);
-          }}
-          className="inline-flex items-center justify-center gap-2 rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white shadow-xs hover:bg-blue-700 transition focus:outline-hidden"
-        >
-          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-          </svg>
-          <span>Compose Reminder</span>
-        </button>
+
+        <div className="flex items-center gap-2.5">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => fetchMessages()}
+            className="gap-1.5 shadow-2xs"
+          >
+            <RefreshCw className="h-3.5 w-3.5 text-slate-500" />
+            <span>Refresh</span>
+          </Button>
+
+          <Button
+            size="sm"
+            onClick={() => {
+              setComposeError(null);
+              setComposeSuccess(false);
+              updateInterpolatedTemplate(composeTemplateId, selectedCustomer);
+              setIsComposeOpen(true);
+            }}
+            className="gap-1.5 shadow-2xs"
+          >
+            <Plus className="h-3.5 w-3.5" />
+            <span>Compose Reminder</span>
+          </Button>
+        </div>
       </div>
 
-      {/* Metrics Banner */}
+      {/* KPI Overview Cards */}
       <div className="grid grid-cols-2 sm:grid-cols-5 gap-4">
-        <div className="rounded-xl border border-gray-200 bg-white p-4 shadow-xs">
-          <p className="text-xs font-medium text-gray-500">Total Dispatched</p>
-          <p className="mt-2 text-2xl font-bold text-gray-900">{totalCount}</p>
-        </div>
-        <div className="rounded-xl border border-gray-200 bg-white p-4 shadow-xs">
-          <p className="text-xs font-medium text-blue-600">📧 Emails Sent</p>
-          <p className="mt-2 text-2xl font-bold text-gray-900">{emailCount}</p>
-        </div>
-        <div className="rounded-xl border border-gray-200 bg-white p-4 shadow-xs">
-          <p className="text-xs font-medium text-emerald-600">💬 WhatsApp</p>
-          <p className="mt-2 text-2xl font-bold text-gray-900">{whatsappCount}</p>
-        </div>
-        <div className="rounded-xl border border-gray-200 bg-white p-4 shadow-xs">
-          <p className="text-xs font-medium text-amber-600">📱 SMS Sent</p>
-          <p className="mt-2 text-2xl font-bold text-gray-900">{smsCount}</p>
-        </div>
-        <div className="rounded-xl border border-gray-200 bg-white p-4 shadow-xs col-span-2 sm:col-span-1">
-          <p className="text-xs font-medium text-gray-500">Delivery Rate</p>
-          <p className="mt-2 text-2xl font-bold text-emerald-600">{successRate}%</p>
-        </div>
+        <StatCard
+          title="Total Dispatched"
+          value={totalCount.toString()}
+          subtitle="All dunning channels"
+          icon={Send}
+          variant="default"
+        />
+        <StatCard
+          title="Email Reminders"
+          value={emailCount.toString()}
+          subtitle="Transactional SMTP"
+          icon={Mail}
+          variant="blue"
+        />
+        <StatCard
+          title="WhatsApp Sent"
+          value={whatsappCount.toString()}
+          subtitle="Gupshup / Twilio"
+          icon={MessageSquare}
+          variant="success"
+        />
+        <StatCard
+          title="SMS Dispatched"
+          value={smsCount.toString()}
+          subtitle="DLT compliant SMS"
+          icon={Smartphone}
+          variant="warning"
+        />
+        <StatCard
+          title="Delivery Success"
+          value={`${successRate}%`}
+          subtitle="Delivered / Read"
+          icon={CheckCircle2}
+          variant={successRate >= 90 ? "success" : "warning"}
+        />
       </div>
+
+      {/* Error Alert */}
+      {error && (
+        <div
+          role="alert"
+          className="rounded-2xl border border-rose-200 bg-rose-50 p-4 text-xs text-rose-800 flex items-start gap-3 shadow-2xs"
+        >
+          <AlertCircle className="h-4 w-4 text-rose-600 shrink-0 mt-0.5" />
+          <div className="flex-1">
+            <p className="font-bold">Failed to load communications history</p>
+            <p className="mt-0.5 text-rose-700">{error}</p>
+          </div>
+        </div>
+      )}
 
       {/* Filters Bar */}
-      <div className="flex flex-col sm:flex-row gap-3 items-center justify-between bg-white p-3 rounded-xl border border-gray-200 shadow-xs">
+      <div className="flex flex-col sm:flex-row gap-3 items-center justify-between bg-white p-2.5 rounded-2xl border border-slate-200/90 shadow-2xs">
         <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
           {/* Channel selector */}
-          <div className="flex rounded-lg bg-gray-100 p-1 text-xs font-medium">
+          <div className="flex rounded-xl bg-slate-100 p-1 text-xs font-semibold">
             {(["ALL", "EMAIL", "WHATSAPP", "SMS"] as const).map((ch) => (
               <button
                 key={ch}
                 onClick={() => setChannelFilter(ch)}
-                className={`px-3 py-1.5 rounded-md transition ${
+                className={`px-3 py-1.5 rounded-lg transition-all ${
                   channelFilter === ch
-                    ? "bg-white text-gray-900 shadow-xs font-semibold"
-                    : "text-gray-600 hover:text-gray-900"
+                    ? "bg-white text-slate-900 shadow-2xs font-bold"
+                    : "text-slate-600 hover:text-slate-900"
                 }`}
               >
                 {ch === "ALL"
@@ -357,7 +419,7 @@ export default function CommunicationsPage() {
           <select
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value)}
-            className="rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-xs text-gray-700 focus:border-blue-500 focus:outline-hidden"
+            className="rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
           >
             <option value="ALL">All Statuses</option>
             <option value="SENT">Sent</option>
@@ -369,152 +431,144 @@ export default function CommunicationsPage() {
 
         {/* Search input */}
         <div className="relative w-full sm:w-64">
+          <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-2.5" />
           <input
             type="text"
             placeholder="Search recipient, body, customer..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full rounded-lg border border-gray-200 pl-8 pr-3 py-1.5 text-xs focus:border-blue-500 focus:outline-hidden"
+            className="w-full rounded-xl border border-slate-200 pl-8 pr-3 py-1.5 text-xs font-medium focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 bg-slate-50/50 focus:bg-white transition-all"
           />
-          <svg
-            className="w-4 h-4 text-gray-400 absolute left-2.5 top-2"
-            fill="none"
-            viewBox="0 0 24 24"
-            stroke="currentColor"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-              d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
-            />
-          </svg>
         </div>
       </div>
 
       {/* Messages Table */}
-      <div className="rounded-xl border border-gray-200 bg-white shadow-xs overflow-hidden">
+      <div className="rounded-3xl border border-slate-200/90 bg-white shadow-2xs overflow-hidden">
         {loading ? (
-          <div className="p-12 text-center text-sm text-gray-500 flex flex-col items-center gap-3">
-            <div className="w-6 h-6 border-2 border-blue-600 border-t-transparent rounded-full animate-spin" />
-            <span>Loading communications history...</span>
-          </div>
-        ) : error ? (
-          <div className="p-8 text-center text-sm text-red-600">{error}</div>
+          <div className="p-12 text-center text-xs text-slate-400">Loading communications history…</div>
         ) : messages.length === 0 ? (
-          <div className="p-12 text-center">
-            <div className="w-12 h-12 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center mx-auto mb-3">
-              <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={1.5}
-                  d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"
-                />
-              </svg>
-            </div>
-            <h3 className="text-sm font-semibold text-gray-900">No communications found</h3>
-            <p className="mt-1 text-xs text-gray-500 max-w-sm mx-auto">
-              You haven&apos;t sent any reminders matching this filter. Click &quot;Compose Reminder&quot; or trigger a reminder from the Collection Queue.
-            </p>
-          </div>
+          <EmptyState
+            icon={Send}
+            title="No communications found"
+            description="You haven't sent any reminders matching this filter. Click 'Compose Reminder' or trigger a reminder from the Collection Queue."
+            className="py-12 border-0"
+          />
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs text-gray-600">
-              <thead className="bg-gray-50/75 border-b border-gray-200 text-gray-700 font-semibold uppercase tracking-wider text-[10px]">
-                <tr>
-                  <th className="py-3 px-4">Recipient / Customer</th>
-                  <th className="py-3 px-4">Channel</th>
-                  <th className="py-3 px-4">Subject & Message</th>
-                  <th className="py-3 px-4">Status</th>
-                  <th className="py-3 px-4">Dispatched At</th>
-                  <th className="py-3 px-4 text-right">Actions</th>
+            <table className="min-w-full text-xs">
+              <thead>
+                <tr className="border-b border-slate-100 bg-slate-50/80 text-slate-500">
+                  <th className="px-6 py-3 text-left font-bold uppercase tracking-wider">Recipient / Account</th>
+                  <th className="px-6 py-3 text-left font-bold uppercase tracking-wider">Channel</th>
+                  <th className="px-6 py-3 text-left font-bold uppercase tracking-wider">Subject & Message Preview</th>
+                  <th className="px-6 py-3 text-left font-bold uppercase tracking-wider">Status</th>
+                  <th className="px-6 py-3 text-left font-bold uppercase tracking-wider">Dispatched</th>
+                  <th className="px-6 py-3 text-right font-bold uppercase tracking-wider">Actions</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-100">
-                {messages.map((m) => (
-                  <tr key={m.id} className="hover:bg-gray-50/50 transition">
-                    <td className="py-3 px-4">
-                      {m.customerId ? (
-                        <Link
-                          href={`/dashboard/customers/${m.customerId}`}
-                          className="font-medium text-gray-900 hover:text-blue-600 transition block"
+              <tbody className="divide-y divide-slate-100">
+                {messages.map((m) => {
+                  const isDelivered = m.status === "DELIVERED" || m.status === "READ";
+                  const isSent = m.status === "SENT";
+                  const isFailed = m.status === "FAILED";
+
+                  return (
+                    <tr key={m.id} className="hover:bg-slate-50/60 transition-colors">
+                      <td className="px-6 py-3.5">
+                        {m.customerId ? (
+                          <Link
+                            href={`/dashboard/customers/${m.customerId}`}
+                            className="font-bold text-slate-900 hover:text-blue-600 transition-colors block"
+                          >
+                            {m.customerName || "Customer Account"}
+                          </Link>
+                        ) : (
+                          <span className="font-bold text-slate-900 block">
+                            {m.customerName || "External Recipient"}
+                          </span>
+                        )}
+                        <span className="text-[11px] text-slate-500 font-mono">{m.recipient}</span>
+                      </td>
+
+                      <td className="px-6 py-3.5">
+                        <Badge
+                          variant={
+                            m.channel === "WHATSAPP"
+                              ? "success"
+                              : m.channel === "EMAIL"
+                              ? "blue"
+                              : "warning"
+                          }
+                          size="sm"
                         >
-                          {m.customerName || "Customer Record"}
-                        </Link>
-                      ) : (
-                        <span className="font-medium text-gray-900 block">
-                          {m.customerName || "External Contact"}
-                        </span>
-                      )}
-                      <span className="text-[11px] text-gray-500 font-mono">{m.recipient}</span>
-                    </td>
-                    <td className="py-3 px-4">
-                      <span
-                        className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-medium ${
-                          m.channel === "EMAIL"
-                            ? "bg-blue-50 text-blue-700 border border-blue-100"
+                          {m.channel === "EMAIL"
+                            ? "📧 Email"
                             : m.channel === "WHATSAPP"
-                            ? "bg-emerald-50 text-emerald-700 border border-emerald-100"
-                            : "bg-amber-50 text-amber-700 border border-amber-100"
-                        }`}
-                      >
-                        {m.channel === "EMAIL"
-                          ? "📧 Email"
-                          : m.channel === "WHATSAPP"
-                          ? "💬 WhatsApp"
-                          : "📱 SMS"}
-                      </span>
-                    </td>
-                    <td className="py-3 px-4 max-w-md">
-                      {m.subject && <p className="font-medium text-gray-900 truncate">{m.subject}</p>}
-                      <p className="text-gray-500 truncate text-[11px]">{m.body}</p>
-                    </td>
-                    <td className="py-3 px-4">
-                      <span
-                        className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold uppercase ${
-                          m.status === "SENT"
-                            ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
-                            : m.status === "DELIVERED"
-                            ? "bg-blue-50 text-blue-700 border border-blue-200"
-                            : m.status === "READ"
-                            ? "bg-purple-50 text-purple-700 border border-purple-200"
-                            : "bg-red-50 text-red-700 border border-red-200"
-                        }`}
-                      >
-                        {m.status}
-                      </span>
-                    </td>
-                    <td className="py-3 px-4 text-gray-500 whitespace-nowrap">
-                      {m.sentAt
-                        ? new Date(m.sentAt).toLocaleString("en-IN", {
-                            dateStyle: "short",
-                            timeStyle: "short",
-                          })
-                        : new Date(m.createdAt).toLocaleString("en-IN", {
-                            dateStyle: "short",
-                            timeStyle: "short",
-                          })}
-                    </td>
-                    <td className="py-3 px-4 text-right whitespace-nowrap space-x-2">
-                      <button
-                        onClick={() => setSelectedMessage(m)}
-                        className="text-xs font-medium text-blue-600 hover:text-blue-800 transition"
-                      >
-                        View
-                      </button>
-                      {m.status === "FAILED" && (
-                        <button
-                          onClick={() => handleRetry(m.id)}
-                          disabled={retryingId === m.id}
-                          className="text-xs font-medium text-amber-600 hover:text-amber-800 transition disabled:opacity-50"
+                            ? "💬 WhatsApp"
+                            : "📱 SMS"}
+                        </Badge>
+                      </td>
+
+                      <td className="px-6 py-3.5 max-w-md">
+                        {m.subject && (
+                          <p className="font-bold text-slate-900 truncate mb-0.5">{m.subject}</p>
+                        )}
+                        <p className="text-slate-500 truncate text-[11px] font-mono leading-relaxed">
+                          {m.body}
+                        </p>
+                      </td>
+
+                      <td className="px-6 py-3.5">
+                        <Badge
+                          variant={
+                            isDelivered ? "success" : isSent ? "blue" : isFailed ? "danger" : "default"
+                          }
+                          size="sm"
                         >
-                          {retryingId === m.id ? "Retrying..." : "Retry"}
-                        </button>
-                      )}
-                    </td>
-                  </tr>
-                ))}
+                          {m.status}
+                        </Badge>
+                      </td>
+
+                      <td className="px-6 py-3.5 text-slate-500 whitespace-nowrap">
+                        {m.sentAt
+                          ? new Date(m.sentAt).toLocaleString("en-IN", {
+                              day: "numeric",
+                              month: "short",
+                              hour: "numeric",
+                              minute: "2-digit",
+                            })
+                          : new Date(m.createdAt).toLocaleString("en-IN", {
+                              day: "numeric",
+                              month: "short",
+                              hour: "numeric",
+                              minute: "2-digit",
+                            })}
+                      </td>
+
+                      <td className="px-6 py-3.5 text-right whitespace-nowrap space-x-2">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => setSelectedMessage(m)}
+                          className="h-7 text-xs text-blue-600 hover:text-blue-800"
+                        >
+                          Inspect
+                        </Button>
+                        {m.status === "FAILED" && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleRetry(m.id)}
+                            disabled={retryingId === m.id}
+                            className="h-7 text-xs text-amber-700 border-amber-200 hover:bg-amber-50"
+                          >
+                            {retryingId === m.id ? "Retrying…" : "Retry"}
+                          </Button>
+                        )}
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>
@@ -523,75 +577,81 @@ export default function CommunicationsPage() {
 
       {/* View Message Detail Modal */}
       {selectedMessage && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-xs">
-          <div className="w-full max-w-lg rounded-2xl bg-white shadow-2xl border border-gray-100 overflow-hidden">
-            <div className="flex items-center justify-between border-b border-gray-100 px-6 py-4 bg-gray-50/50">
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="view-msg-title"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/40 p-4 backdrop-blur-xs animate-in fade-in duration-150"
+        >
+          <div className="w-full max-w-lg rounded-3xl bg-white shadow-2xl border border-slate-200/90 overflow-hidden flex flex-col max-h-[90vh]">
+            <div className="flex items-center justify-between border-b border-slate-100 px-6 py-4 bg-slate-50/50 shrink-0">
               <div>
-                <h3 className="text-base font-semibold text-gray-900">Message Details</h3>
-                <p className="text-xs text-gray-500">ID: {selectedMessage.id}</p>
+                <h3 id="view-msg-title" className="text-sm font-bold text-slate-900">
+                  Message Dispatch Audit
+                </h3>
+                <p className="text-[11px] text-slate-500 font-mono">ID: {selectedMessage.id}</p>
               </div>
               <button
                 onClick={() => setSelectedMessage(null)}
-                className="rounded-lg p-1.5 text-gray-400 hover:bg-gray-100 hover:text-gray-600 transition"
+                className="rounded-xl p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-600 transition"
               >
-                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                </svg>
+                <X className="w-4 h-4" />
               </button>
             </div>
-            <div className="p-6 space-y-4 text-xs">
-              <div className="grid grid-cols-2 gap-3 bg-gray-50 p-3 rounded-lg border border-gray-100">
+
+            <div className="p-6 space-y-4 text-xs overflow-y-auto flex-1">
+              <div className="grid grid-cols-2 gap-3 bg-slate-50/80 p-3.5 rounded-2xl border border-slate-100">
                 <div>
-                  <span className="text-gray-400 block text-[10px] uppercase font-semibold">Recipient</span>
-                  <span className="text-gray-900 font-medium">{selectedMessage.recipient}</span>
+                  <span className="text-slate-400 block text-[10px] uppercase font-bold">Recipient</span>
+                  <span className="text-slate-900 font-semibold font-mono">{selectedMessage.recipient}</span>
                 </div>
                 <div>
-                  <span className="text-gray-400 block text-[10px] uppercase font-semibold">
+                  <span className="text-slate-400 block text-[10px] uppercase font-bold">
                     Channel / Status
                   </span>
-                  <span className="text-gray-900 font-medium">
+                  <span className="text-slate-900 font-semibold">
                     {selectedMessage.channel} · {selectedMessage.status}
                   </span>
                 </div>
                 <div>
-                  <span className="text-gray-400 block text-[10px] uppercase font-semibold">
-                    External Dispatch ID
+                  <span className="text-slate-400 block text-[10px] uppercase font-bold">
+                    Gateway Dispatch Ref
                   </span>
-                  <span className="text-gray-900 font-mono text-[11px] truncate block">
-                    {selectedMessage.externalId || "N/A"}
+                  <span className="text-slate-900 font-mono text-[11px] truncate block">
+                    {selectedMessage.externalId || "N/A (Simulated Dispatch)"}
                   </span>
                 </div>
                 <div>
-                  <span className="text-gray-400 block text-[10px] uppercase font-semibold">Dispatched At</span>
-                  <span className="text-gray-900 font-medium">
-                    {selectedMessage.sentAt ? new Date(selectedMessage.sentAt).toLocaleString("en-IN") : "Pending"}
+                  <span className="text-slate-400 block text-[10px] uppercase font-bold">Dispatched At</span>
+                  <span className="text-slate-900 font-semibold">
+                    {selectedMessage.sentAt
+                      ? new Date(selectedMessage.sentAt).toLocaleString("en-IN")
+                      : "Pending"}
                   </span>
                 </div>
               </div>
 
               {selectedMessage.subject && (
                 <div>
-                  <span className="text-gray-400 block text-[10px] uppercase font-semibold mb-1">Subject</span>
-                  <p className="font-semibold text-gray-900 bg-gray-50 p-2.5 rounded-lg border border-gray-100">
+                  <span className="text-slate-400 block text-[10px] uppercase font-bold mb-1">Subject</span>
+                  <p className="font-semibold text-slate-900 bg-slate-50 p-2.5 rounded-xl border border-slate-100">
                     {selectedMessage.subject}
                   </p>
                 </div>
               )}
 
               <div>
-                <span className="text-gray-400 block text-[10px] uppercase font-semibold mb-1">Content</span>
-                <div className="p-3 bg-gray-50 rounded-lg border border-gray-100 font-mono text-gray-800 whitespace-pre-wrap leading-relaxed max-h-56 overflow-y-auto">
+                <span className="text-slate-400 block text-[10px] uppercase font-bold mb-1">Message Content</span>
+                <div className="p-3.5 bg-slate-50 rounded-2xl border border-slate-100 font-mono text-slate-800 whitespace-pre-wrap leading-relaxed max-h-56 overflow-y-auto text-[11px]">
                   {selectedMessage.body}
                 </div>
               </div>
             </div>
-            <div className="flex items-center justify-end px-6 py-3 bg-gray-50/50 border-t border-gray-100">
-              <button
-                onClick={() => setSelectedMessage(null)}
-                className="rounded-lg bg-gray-900 px-4 py-2 text-xs font-semibold text-white hover:bg-black transition"
-              >
-                Close
-              </button>
+
+            <div className="flex items-center justify-end px-6 py-3.5 bg-slate-50/50 border-t border-slate-100 shrink-0">
+              <Button size="sm" onClick={() => setSelectedMessage(null)}>
+                Dismiss
+              </Button>
             </div>
           </div>
         </div>
@@ -599,58 +659,62 @@ export default function CommunicationsPage() {
 
       {/* Compose Reminder Modal */}
       {isComposeOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-xs">
-          <div className="w-full max-w-xl rounded-2xl bg-white shadow-2xl border border-gray-100 overflow-hidden">
-            <div className="flex items-center justify-between border-b border-gray-100 px-6 py-4 bg-gray-50/50">
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="compose-modal-title"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/40 p-4 backdrop-blur-xs animate-in fade-in duration-150"
+        >
+          <div className="w-full max-w-xl rounded-3xl bg-white shadow-2xl border border-slate-200/90 overflow-hidden flex flex-col max-h-[90vh]">
+            <div className="flex items-center justify-between border-b border-slate-100 px-6 py-4 bg-slate-50/50 shrink-0">
               <div>
-                <h3 className="text-base font-semibold text-gray-900">Compose & Dispatch Reminder</h3>
-                <p className="text-xs text-gray-500">
-                  Send tailored collection communications with dynamic variables
+                <h3 id="compose-modal-title" className="text-sm font-bold text-slate-900">
+                  Compose & Dispatch Collection Reminder
+                </h3>
+                <p className="text-xs text-slate-500 mt-0.5">
+                  Send tailored dunning messages with dynamic debt variables & payment links
                 </p>
               </div>
               <button
                 onClick={() => setIsComposeOpen(false)}
-                className="rounded-lg p-1.5 text-gray-400 hover:bg-gray-100 hover:text-gray-600 transition"
+                className="rounded-xl p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-600 transition"
               >
-                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                </svg>
+                <X className="w-4 h-4" />
               </button>
             </div>
 
             {composeSuccess ? (
               <div className="p-8 text-center space-y-3">
-                <div className="w-12 h-12 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center mx-auto">
-                  <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                  </svg>
+                <div className="w-12 h-12 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center mx-auto border border-emerald-100">
+                  <CheckCircle2 className="w-6 h-6" />
                 </div>
-                <h4 className="text-lg font-semibold text-gray-900">Message Dispatched!</h4>
-                <p className="text-xs text-gray-500">
-                  Successfully logged to customer timeline and sent via {composeChannel}.
+                <h4 className="text-base font-bold text-slate-900">Reminder Dispatched!</h4>
+                <p className="text-xs text-slate-500">
+                  Successfully logged to customer audit timeline and dispatched via {composeChannel}.
                 </p>
               </div>
             ) : (
-              <form onSubmit={handleSendMessage} className="p-6 space-y-4">
+              <form onSubmit={handleSendMessage} className="p-6 space-y-4 overflow-y-auto flex-1">
                 {composeError && (
-                  <div className="rounded-lg bg-red-50 p-3 text-xs text-red-600 border border-red-100">
-                    {composeError}
+                  <div className="rounded-xl bg-rose-50 p-3 text-xs text-rose-700 border border-rose-200 flex items-center gap-2">
+                    <AlertCircle className="h-4 w-4 text-rose-600 shrink-0" />
+                    <span>{composeError}</span>
                   </div>
                 )}
 
                 {/* Recipient Customer */}
                 <div>
-                  <label className="block text-xs font-medium text-gray-700 mb-1">Target Customer</label>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">Target Account *</label>
                   <select
                     value={selectedCustomer?.id || ""}
                     onChange={(e) => handleSelectCustomer(e.target.value)}
-                    className="w-full rounded-lg border border-gray-200 px-3 py-2 text-xs focus:border-blue-500 focus:outline-hidden bg-white"
+                    className="w-full rounded-xl border border-slate-200 px-3 py-2 text-xs font-medium focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 bg-slate-50/50 focus:bg-white transition-all"
                     required
                   >
-                    <option value="">-- Select Customer --</option>
+                    <option value="">Select debtor account…</option>
                     {customers.map((c) => (
                       <option key={c.id} value={c.id}>
-                        {c.name} {c.outstanding ? `(₹${c.outstanding.toLocaleString("en-IN")} outstanding)` : ""}
+                        {c.name} {c.outstanding ? `(₹${c.outstanding.toLocaleString("en-IN")} open)` : ""}
                       </option>
                     ))}
                   </select>
@@ -658,17 +722,17 @@ export default function CommunicationsPage() {
 
                 {/* Channel Selector */}
                 <div>
-                  <label className="block text-xs font-medium text-gray-700 mb-1.5">Channel</label>
+                  <label className="block text-xs font-bold text-slate-700 mb-1.5">Dispatch Channel</label>
                   <div className="grid grid-cols-3 gap-2">
                     {(["EMAIL", "WHATSAPP", "SMS"] as const).map((ch) => (
                       <button
                         key={ch}
                         type="button"
                         onClick={() => handleSelectChannel(ch)}
-                        className={`py-2 px-3 text-xs font-medium rounded-lg border transition text-center ${
+                        className={`py-2 px-3 text-xs font-semibold rounded-xl border transition-all text-center ${
                           composeChannel === ch
-                            ? "border-blue-600 bg-blue-50/50 text-blue-700 font-semibold"
-                            : "border-gray-200 text-gray-600 hover:bg-gray-50"
+                            ? "border-blue-600 bg-blue-50 text-blue-700 shadow-2xs font-bold"
+                            : "border-slate-200 text-slate-600 hover:bg-slate-50"
                         }`}
                       >
                         {ch === "EMAIL" ? "📧 Email" : ch === "WHATSAPP" ? "💬 WhatsApp" : "📱 SMS"}
@@ -679,26 +743,26 @@ export default function CommunicationsPage() {
 
                 {/* Recipient Field */}
                 <div>
-                  <label className="block text-xs font-medium text-gray-700 mb-1">
-                    Recipient {composeChannel === "EMAIL" ? "Email Address" : "Phone Number"}
+                  <label className="block text-xs font-bold text-slate-700 mb-1">
+                    Recipient {composeChannel === "EMAIL" ? "Email Address" : "Phone Number"} *
                   </label>
                   <input
                     type={composeChannel === "EMAIL" ? "email" : "tel"}
                     value={composeRecipient}
                     onChange={(e) => setComposeRecipient(e.target.value)}
                     placeholder={composeChannel === "EMAIL" ? "finance@customer.com" : "+91 98765 43210"}
-                    className="w-full rounded-lg border border-gray-200 px-3 py-2 text-xs focus:border-blue-500 focus:outline-hidden"
+                    className="w-full rounded-xl border border-slate-200 px-3 py-2 text-xs font-mono focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 bg-slate-50/50 focus:bg-white transition-all"
                     required
                   />
                 </div>
 
                 {/* Template Selector */}
                 <div>
-                  <label className="block text-xs font-medium text-gray-700 mb-1">Template Preset</label>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">Template Preset</label>
                   <select
                     value={composeTemplateId}
                     onChange={(e) => handleSelectTemplate(e.target.value)}
-                    className="w-full rounded-lg border border-gray-200 px-3 py-2 text-xs focus:border-blue-500 focus:outline-hidden bg-white"
+                    className="w-full rounded-xl border border-slate-200 px-3 py-2 text-xs font-medium focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 bg-slate-50/50 focus:bg-white transition-all"
                   >
                     {DEFAULT_TEMPLATES.map((tpl: TemplateDefinition) => (
                       <option key={tpl.id} value={tpl.id}>
@@ -711,12 +775,12 @@ export default function CommunicationsPage() {
                 {/* Email Subject */}
                 {composeChannel === "EMAIL" && (
                   <div>
-                    <label className="block text-xs font-medium text-gray-700 mb-1">Email Subject</label>
+                    <label className="block text-xs font-bold text-slate-700 mb-1">Email Subject *</label>
                     <input
                       type="text"
                       value={composeSubject}
                       onChange={(e) => setComposeSubject(e.target.value)}
-                      className="w-full rounded-lg border border-gray-200 px-3 py-2 text-xs focus:border-blue-500 focus:outline-hidden"
+                      className="w-full rounded-xl border border-slate-200 px-3 py-2 text-xs font-medium focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 bg-slate-50/50 focus:bg-white transition-all"
                       required
                     />
                   </div>
@@ -724,47 +788,51 @@ export default function CommunicationsPage() {
 
                 {/* Message Body */}
                 <div>
-                  <label className="block text-xs font-medium text-gray-700 mb-1">Message Body</label>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">Message Body *</label>
                   <textarea
-                    rows={6}
+                    rows={5}
                     value={composeBody}
                     onChange={(e) => setComposeBody(e.target.value)}
-                    className="w-full rounded-lg border border-gray-200 p-3 text-xs font-mono text-gray-800 focus:border-blue-500 focus:outline-hidden resize-none leading-relaxed"
+                    className="w-full rounded-xl border border-slate-200 p-3 text-xs font-mono text-slate-800 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 resize-none leading-relaxed bg-slate-50/50 focus:bg-white transition-all"
                     required
                   />
                 </div>
 
                 {/* Payment Link Option */}
-                <div className="flex items-center gap-2 bg-emerald-50/50 p-2.5 rounded-lg border border-emerald-100">
+                <div className="flex items-center gap-2.5 bg-emerald-50/70 p-3 rounded-2xl border border-emerald-100">
                   <input
                     type="checkbox"
                     id="includePaymentLinkCompose"
                     checked={includePaymentLink}
                     onChange={(e) => setIncludePaymentLink(e.target.checked)}
-                    className="h-4 w-4 rounded border-gray-300 text-emerald-600 focus:ring-emerald-500"
+                    className="h-4 w-4 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500 cursor-pointer"
                   />
-                  <label htmlFor="includePaymentLinkCompose" className="text-xs text-gray-700 font-medium cursor-pointer">
+                  <label htmlFor="includePaymentLinkCompose" className="text-xs text-slate-700 font-semibold cursor-pointer">
                     Include dynamic UPI / Razorpay payment link & QR data in message
                   </label>
                 </div>
 
                 {/* Actions */}
-                <div className="flex items-center justify-end gap-2 pt-2 border-t border-gray-100">
-                  <button
+                <div className="flex items-center justify-end gap-2.5 pt-3 border-t border-slate-100">
+                  <Button
                     type="button"
+                    variant="outline"
+                    size="sm"
                     onClick={() => setIsComposeOpen(false)}
                     disabled={composeLoading}
-                    className="rounded-lg px-4 py-2 text-xs font-medium text-gray-600 hover:bg-gray-100 transition"
                   >
                     Cancel
-                  </button>
-                  <button
+                  </Button>
+                  <Button
                     type="submit"
+                    size="sm"
+                    loading={composeLoading}
                     disabled={composeLoading}
-                    className="rounded-lg bg-blue-600 px-4 py-2 text-xs font-medium text-white hover:bg-blue-700 transition flex items-center gap-1.5 disabled:opacity-50"
+                    className="gap-1.5"
                   >
-                    {composeLoading ? "Dispatching..." : "Send Reminder"}
-                  </button>
+                    <Send className="h-3.5 w-3.5" />
+                    <span>Send Reminder</span>
+                  </Button>
                 </div>
               </form>
             )}

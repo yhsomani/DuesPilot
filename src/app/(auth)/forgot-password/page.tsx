@@ -2,6 +2,9 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { Mail, CheckCircle2, AlertCircle, ArrowLeft, KeyRound } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
 
 export default function ForgotPasswordPage() {
   const [email, setEmail] = useState("");
@@ -35,74 +38,109 @@ export default function ForgotPasswordPage() {
   }
 
   return (
-    <div className="min-h-screen flex bg-white">
-      <div className="flex flex-1 flex-col justify-center px-6 py-12 lg:px-16">
-        <div className="mx-auto w-full max-w-sm">
-          <div className="flex items-center gap-2 mb-10">
-            <div className="h-8 w-8 rounded-lg bg-blue-600 flex items-center justify-center">
-              <span className="text-white font-bold text-sm">DP</span>
+    <div className="min-h-screen flex items-center justify-center bg-slate-50 px-4 py-12">
+      <div className="w-full max-w-md">
+        {/* Brand Header */}
+        <div className="flex flex-col items-center justify-center text-center mb-8">
+          <Link href="/" className="inline-flex items-center gap-2.5 mb-4 group">
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-600 text-white shadow-xs group-hover:bg-blue-700 transition-colors">
+              <span className="font-bold text-base">DP</span>
             </div>
-            <span className="text-xl font-bold text-gray-900">DuesPilot</span>
+            <span className="text-xl font-bold text-slate-900 tracking-tight">DuesPilot</span>
+          </Link>
+          <div className="inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-blue-50 text-blue-600 mb-3 border border-blue-100">
+            <KeyRound className="h-6 w-6" />
           </div>
-
-          <h1 className="text-2xl font-bold text-gray-900">Reset password</h1>
-          <p className="mt-2 text-sm text-gray-600">
-            Enter your account email and we&apos;ll send you a reset link.
+          <h1 className="text-2xl font-bold text-slate-900 tracking-tight">Reset password</h1>
+          <p className="mt-1 text-xs text-slate-500 max-w-xs">
+            Enter your work email address and we&apos;ll send you instructions to reset your password.
           </p>
+        </div>
 
-          <form onSubmit={handleSubmit} className="mt-6 space-y-5">
-            <div>
-              <label htmlFor="email" className="block text-sm font-medium text-gray-700">
-                Email address
-              </label>
-              <input
-                id="email"
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                required
-                className="mt-1.5 block w-full rounded-lg border border-gray-300 px-3 py-2.5 text-sm shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
-                placeholder="you@company.com"
-              />
+        {/* Form Card */}
+        <div className="rounded-3xl border border-slate-200/90 bg-white p-8 shadow-xl">
+          {error && (
+            <div className="mb-5 flex items-center gap-2 text-xs text-rose-800 bg-rose-50 border border-rose-200 rounded-xl p-3" role="alert">
+              <AlertCircle className="h-4 w-4 text-rose-600 shrink-0" />
+              <span>{error}</span>
             </div>
+          )}
 
-            {error && (
-              <p className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2">
-                {error}
-              </p>
-            )}
-
-            {done && (
-              <div className="text-sm bg-green-50 border border-green-200 rounded-lg px-3 py-2">
-                <p className="text-green-800">
-                  If an account exists for that email, a reset link has been
-                  created.
-                </p>
-                {devResetUrl && (
-                  <p className="mt-2 text-green-700">
-                    <span className="font-medium">Dev reset link:</span>{" "}
-                    <Link href={devResetUrl} className="font-mono underline break-all">
-                      open reset form
-                    </Link>
+          {done ? (
+            <div className="space-y-4">
+              <div className="flex items-start gap-3 text-xs text-emerald-800 bg-emerald-50 border border-emerald-200 rounded-2xl p-4">
+                <CheckCircle2 className="h-5 w-5 text-emerald-600 shrink-0 mt-0.5" />
+                <div>
+                  <p className="font-bold text-slate-900 mb-0.5">Reset link generated</p>
+                  <p className="text-slate-600 leading-relaxed">
+                    If an account exists for <strong>{email}</strong>, a password reset link has been created.
                   </p>
-                )}
+                </div>
               </div>
-            )}
 
-            <button
-              type="submit"
-              disabled={loading}
-              className="w-full rounded-lg bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-blue-700 transition-colors disabled:opacity-50"
+              {devResetUrl && (
+                <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200 text-xs">
+                  <p className="font-semibold text-slate-700 mb-1">Development Reset Link:</p>
+                  <Link
+                    href={devResetUrl}
+                    className="font-mono text-[11px] text-blue-600 hover:text-blue-700 underline break-all"
+                  >
+                    Open Password Reset Form →
+                  </Link>
+                </div>
+              )}
+
+              <Button
+                variant="outline"
+                className="w-full mt-2"
+                onClick={() => {
+                  setDone(false);
+                  setEmail("");
+                }}
+              >
+                Send to another email
+              </Button>
+            </div>
+          ) : (
+            <form onSubmit={handleSubmit} className="space-y-4">
+              <div>
+                <label htmlFor="email" className="block text-xs font-semibold text-slate-700 mb-1.5">
+                  Work Email Address
+                </label>
+                <div className="relative">
+                  <Mail className="absolute left-3 top-2.5 h-4 w-4 text-slate-400" />
+                  <Input
+                    id="email"
+                    type="email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    required
+                    placeholder="you@company.com"
+                    className="pl-9"
+                    autoComplete="email"
+                  />
+                </div>
+              </div>
+
+              <Button
+                type="submit"
+                loading={loading}
+                className="w-full h-10 text-xs font-semibold shadow-xs"
+              >
+                Send Reset Link
+              </Button>
+            </form>
+          )}
+
+          <div className="mt-6 pt-5 border-t border-slate-100 text-center">
+            <Link
+              href="/login"
+              className="inline-flex items-center gap-1.5 text-xs font-semibold text-blue-600 hover:text-blue-700 hover:underline"
             >
-              {loading ? "Sending…" : "Send reset link"}
-            </button>
-          </form>
-
-          <p className="mt-6 text-center text-sm text-gray-600">
-            <Link href="/login" className="font-medium text-blue-600 hover:text-blue-500">
-              ← Back to login
+              <ArrowLeft className="h-3.5 w-3.5" />
+              Back to sign in
             </Link>
-          </p>
+          </div>
         </div>
       </div>
     </div>

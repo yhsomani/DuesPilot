@@ -7,6 +7,24 @@ import { api, apiPost } from "@/lib/api";
 import type { QueueItem } from "@/lib/types";
 import { AllActionsModal } from "@/components/queue/manage-modal";
 import { SendReminderModal } from "@/components/queue/send-reminder-modal";
+import {
+  Download,
+  Search,
+  AlertTriangle,
+  Send,
+  PhoneCall,
+  CheckCircle2,
+  AlertCircle,
+  Clock,
+  RefreshCw,
+  SlidersHorizontal,
+  X,
+} from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { StatCard } from "@/components/ui/stat-card";
+import { StatCardSkeleton } from "@/components/ui/skeleton";
+import { EmptyState } from "@/components/ui/empty-state";
 
 export default function QueuePage() {
   const [queue, setQueue] = useState<QueueItem[]>([]);
@@ -28,7 +46,7 @@ export default function QueuePage() {
       const data = await api<QueueItem[]>("/api/queue");
       setQueue(data);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Failed to load");
+      setError(e instanceof Error ? e.message : "Failed to load collection queue");
     } finally {
       setLoading(false);
     }
@@ -43,7 +61,7 @@ export default function QueuePage() {
         const data = await api<QueueItem[]>("/api/queue");
         if (!cancelled) setQueue(data);
       } catch (e) {
-        if (!cancelled) setError(e instanceof Error ? e.message : "Failed to load");
+        if (!cancelled) setError(e instanceof Error ? e.message : "Failed to load collection queue");
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -55,9 +73,19 @@ export default function QueuePage() {
 
   const filtered = queue
     .filter((q) => (filter === "all" ? true : q.priority === filter))
-    .filter((q) => (search.trim() ? q.customer.toLowerCase().includes(search.toLowerCase()) : true));
+    .filter((q) =>
+      search.trim()
+        ? q.customer.toLowerCase().includes(search.toLowerCase()) ||
+          q.nextAction.toLowerCase().includes(search.toLowerCase()) ||
+          (q.why && q.why.toLowerCase().includes(search.toLowerCase()))
+        : true
+    );
 
   const totalOverdue = queue.reduce((sum, q) => sum + q.amount, 0);
+  const highItems = queue.filter((q) => q.priority === "high");
+  const medItems = queue.filter((q) => q.priority === "medium");
+  const lowItems = queue.filter((q) => q.priority === "low");
+  const brokenPromiseCount = queue.filter((q) => q.promiseBroken).length;
 
   const handleExportCsv = () => {
     const a = document.createElement("a");
@@ -91,7 +119,7 @@ export default function QueuePage() {
     const selectedItems = filtered.filter((i) => selectedIds.has(i.id));
     if (
       !window.confirm(
-        `Send payment reminder emails to ${selectedItems.length} selected account(s)?`
+        `Send collection reminders to ${selectedItems.length} selected account(s)?`
       )
     ) {
       return;
@@ -127,133 +155,215 @@ export default function QueuePage() {
 
   return (
     <div className="space-y-6">
+      {/* Page Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Collection Queue</h1>
-          <p className="mt-1 text-sm text-gray-500">
-            Today&apos;s prioritized actions — {formatINR(totalOverdue)} overdue
+          <div className="flex items-center gap-2">
+            <h1 className="text-xl font-bold text-slate-900 tracking-tight">Collection Queue</h1>
+            <Badge variant="danger" size="sm">
+              {queue.length} Accounts Pending
+            </Badge>
+          </div>
+          <p className="mt-0.5 text-xs text-slate-500">
+            Intelligent daily call and dunning queue ranked by risk severity, aging buckets, and broken promises.
           </p>
         </div>
-        <div className="flex items-center gap-2">
-          <button
-            onClick={handleExportCsv}
-            className="inline-flex items-center gap-1.5 rounded-lg border border-gray-200 bg-white px-3.5 py-2 text-xs font-semibold text-gray-700 hover:bg-gray-50 transition shadow-xs"
+
+        <div className="flex items-center gap-2.5">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setRetryKey((k) => k + 1)}
+            className="gap-1.5 shadow-2xs"
           >
-            <svg className="w-4 h-4 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-            </svg>
+            <RefreshCw className="h-3.5 w-3.5 text-slate-500" />
+            <span>Refresh</span>
+          </Button>
+
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleExportCsv}
+            className="gap-1.5 shadow-2xs"
+          >
+            <Download className="h-3.5 w-3.5 text-slate-500" />
             <span>Export CSV</span>
-          </button>
+          </Button>
         </div>
       </div>
 
+      {/* KPI Overview Cards */}
+      {loading ? (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          <StatCardSkeleton />
+          <StatCardSkeleton />
+          <StatCardSkeleton />
+          <StatCardSkeleton />
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          <StatCard
+            title="Total Queue Overdue"
+            value={formatINR(totalOverdue)}
+            subtitle={`${queue.length} debtor accounts requiring action`}
+            icon={Clock}
+            variant="danger"
+          />
+          <StatCard
+            title="High Priority"
+            value={`${highItems.length} Accounts`}
+            subtitle={formatINR(highItems.reduce((s, i) => s + i.amount, 0))}
+            icon={AlertCircle}
+            variant="danger"
+          />
+          <StatCard
+            title="Medium Priority"
+            value={`${medItems.length} Accounts`}
+            subtitle={formatINR(medItems.reduce((s, i) => s + i.amount, 0))}
+            icon={SlidersHorizontal}
+            variant="warning"
+          />
+          <StatCard
+            title="Broken Promises"
+            value={`${brokenPromiseCount} Escalated`}
+            subtitle="Immediate phone outreach recommended"
+            icon={AlertTriangle}
+            variant="purple"
+          />
+        </div>
+      )}
+
+      {/* Bulk Result Banner */}
       {bulkResult && (
-        <div className="rounded-xl border border-blue-200 bg-blue-50 p-4 text-xs font-medium text-blue-900 flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <span>✉️</span>
+        <div className="rounded-2xl border border-emerald-200 bg-emerald-50/90 p-4 text-xs font-semibold text-emerald-900 flex items-center justify-between shadow-2xs">
+          <div className="flex items-center gap-2.5">
+            <CheckCircle2 className="h-4 w-4 text-emerald-600 shrink-0" />
             <span>{bulkResult}</span>
           </div>
           <button
             onClick={() => setBulkResult(null)}
-            className="font-bold text-blue-700 hover:text-blue-900"
+            className="rounded-lg p-1 text-emerald-700 hover:bg-emerald-100 hover:text-emerald-950 transition-colors"
           >
-            ✕
+            <X className="h-4 w-4" />
           </button>
         </div>
       )}
 
-      {loading && <p className="text-sm text-gray-500">Loading queue…</p>}
+      {/* Error Alert */}
       {error && (
         <div
           role="alert"
-          className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700"
+          className="rounded-2xl border border-rose-200 bg-rose-50 p-4 text-xs text-rose-800 flex items-start gap-3 shadow-2xs"
         >
-          <p>{error}</p>
-          <button
-            onClick={() => setRetryKey((n) => n + 1)}
-            className="mt-2 rounded-lg border border-red-200 bg-white px-3 py-1.5 text-xs font-medium text-red-700 hover:bg-red-100"
-          >
-            Try again
-          </button>
+          <AlertCircle className="h-4 w-4 text-rose-600 shrink-0 mt-0.5" />
+          <div className="flex-1">
+            <p className="font-bold">Failed to load collection queue</p>
+            <p className="mt-0.5 text-rose-700">{error}</p>
+            <button
+              onClick={() => setRetryKey((n) => n + 1)}
+              className="mt-2 text-xs font-semibold text-rose-900 underline hover:text-rose-950"
+            >
+              Try reloading
+            </button>
+          </div>
         </div>
       )}
 
       {!loading && !error && (
         <>
-          {/* Controls Bar */}
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white p-3 rounded-xl border border-gray-200 shadow-xs">
-            <div className="flex items-center gap-2">
-              {(["all", "high", "medium", "low"] as const).map((p) => (
-                <button
-                  key={p}
-                  onClick={() => setFilter(p)}
-                  className={`rounded-lg px-3 py-1.5 text-xs font-medium transition-colors ${
-                    filter === p
-                      ? "bg-blue-600 text-white shadow-xs"
-                      : "bg-white border border-gray-200 text-gray-600 hover:bg-gray-50"
-                  }`}
-                >
-                  {p === "all" ? "All" : p.charAt(0).toUpperCase() + p.slice(1)}
-                  {p !== "all" && (
-                    <span className="ml-1 text-xs opacity-80">
-                      ({queue.filter((q) => q.priority === p).length})
+          {/* Controls Bar: Priority Filters & Search */}
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white p-3.5 rounded-2xl border border-slate-200/90 shadow-2xs">
+            {/* Filter buttons */}
+            <div className="flex flex-wrap items-center gap-1.5">
+              {(
+                [
+                  { id: "all", label: "All Items", count: queue.length },
+                  { id: "high", label: "High", count: highItems.length },
+                  { id: "medium", label: "Medium", count: medItems.length },
+                  { id: "low", label: "Low", count: lowItems.length },
+                ] as const
+              ).map((tab) => {
+                const isActive = filter === tab.id;
+                return (
+                  <button
+                    key={tab.id}
+                    onClick={() => setFilter(tab.id)}
+                    className={`flex items-center gap-1.5 rounded-xl px-3 py-1.5 text-xs font-semibold transition-all ${
+                      isActive
+                        ? "bg-blue-600 text-white shadow-2xs"
+                        : "bg-slate-50 border border-slate-200/80 text-slate-600 hover:bg-slate-100 hover:text-slate-900"
+                    }`}
+                  >
+                    <span>{tab.label}</span>
+                    <span
+                      className={`text-[11px] px-1.5 py-0.2 rounded-full font-mono ${
+                        isActive
+                          ? "bg-blue-700 text-white"
+                          : "bg-slate-200/80 text-slate-700"
+                      }`}
+                    >
+                      {tab.count}
                     </span>
-                  )}
-                </button>
-              ))}
+                  </button>
+                );
+              })}
             </div>
 
-            <div className="relative w-full sm:w-64">
+            {/* Search Input */}
+            <div className="relative w-full sm:w-72">
+              <Search className="h-3.5 w-3.5 text-slate-400 absolute left-3 top-3 pointer-events-none" />
               <input
                 type="text"
-                placeholder="Search debtor name..."
+                placeholder="Search debtor name, action, or risk reason…"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                className="w-full rounded-lg border border-gray-200 pl-8 pr-3 py-1.5 text-xs focus:border-blue-500 focus:outline-hidden"
+                className="w-full rounded-xl border border-slate-200 bg-slate-50/60 pl-8 pr-8 py-2 text-xs font-medium text-slate-900 placeholder-slate-400 focus:bg-white focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 transition-all"
               />
-              <svg className="w-4 h-4 text-gray-400 absolute left-2.5 top-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-              </svg>
+              {search && (
+                <button
+                  type="button"
+                  onClick={() => setSearch("")}
+                  className="absolute right-2.5 top-2.5 text-slate-400 hover:text-slate-600"
+                >
+                  <X className="h-3.5 w-3.5" />
+                </button>
+              )}
             </div>
           </div>
 
           {/* Bulk Action Header Toolbar */}
           {selectedIds.size > 0 && (
-            <div className="flex items-center justify-between bg-blue-50/80 border border-blue-200 px-4 py-2.5 rounded-xl text-xs">
+            <div className="flex items-center justify-between bg-blue-50/90 border border-blue-200/90 px-4 py-3 rounded-2xl text-xs shadow-2xs animate-in fade-in duration-150">
               <div className="flex items-center gap-3">
-                <span className="font-bold text-blue-900">
-                  {selectedIds.size} account{selectedIds.size > 1 ? "s" : ""} selected
+                <span className="font-bold text-blue-950">
+                  {selectedIds.size} debtor account{selectedIds.size > 1 ? "s" : ""} selected
                 </span>
                 <button
                   onClick={() => setSelectedIds(new Set())}
-                  className="text-blue-700 hover:underline"
+                  className="text-blue-700 font-semibold hover:underline"
                 >
                   Clear selection
                 </button>
               </div>
 
               <div className="flex items-center gap-2">
-                <button
+                <Button
+                  size="sm"
                   onClick={handleBulkRemind}
-                  disabled={bulkSending}
-                  className="rounded-lg bg-blue-600 px-3 py-1.5 font-semibold text-white hover:bg-blue-700 disabled:opacity-50 transition shadow-xs flex items-center gap-1.5"
+                  loading={bulkSending}
+                  className="gap-1.5 shadow-xs"
                 >
-                  {bulkSending ? (
-                    <span>Sending…</span>
-                  ) : (
-                    <>
-                      <span>✉️</span>
-                      <span>Bulk Send Reminders</span>
-                    </>
-                  )}
-                </button>
+                  <Send className="h-3.5 w-3.5" />
+                  <span>Bulk Send Reminders</span>
+                </Button>
               </div>
             </div>
           )}
 
-          <div className="rounded-xl border border-gray-200 bg-white shadow-xs overflow-hidden">
+          {/* Main Queue List Card */}
+          <div className="rounded-3xl border border-slate-200/90 bg-white shadow-2xs overflow-hidden">
             {/* Table Header with Select All */}
-            <div className="px-6 py-2.5 bg-gray-50 border-b border-gray-100 flex items-center justify-between text-xs text-gray-500">
+            <div className="px-5 py-3 bg-slate-50/70 border-b border-slate-100 flex items-center justify-between text-xs text-slate-500">
               <div className="flex items-center gap-3">
                 <input
                   type="checkbox"
@@ -261,113 +371,144 @@ export default function QueuePage() {
                     filtered.length > 0 && selectedIds.size === filtered.length
                   }
                   onChange={toggleSelectAll}
-                  className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                  className="h-4 w-4 rounded-md border-slate-300 text-blue-600 focus:ring-blue-500 cursor-pointer"
                 />
-                <span className="font-semibold text-gray-700">Select All in View</span>
+                <span className="font-bold text-slate-700">Select All in View</span>
               </div>
-              <span>Showing {filtered.length} account{filtered.length === 1 ? "" : "s"}</span>
+              <span className="font-medium text-slate-500">
+                Showing {filtered.length} of {queue.length} accounts
+              </span>
             </div>
 
             {filtered.length === 0 ? (
-              <p className="px-6 py-10 text-sm text-gray-500 text-center">
-                No overdue accounts matching your filter.
-              </p>
+              <EmptyState
+                icon={CheckCircle2}
+                title="No accounts in this queue view"
+                description={
+                  search
+                    ? `No debtor accounts matched "${search}". Try clearing your search query.`
+                    : "All debtor accounts in this priority category are settled or currently scheduled."
+                }
+                className="py-12 border-0"
+              />
             ) : (
-              <div className="divide-y divide-gray-100">
-                {filtered.map((item) => (
-                  <div
-                    key={item.id}
-                    className={`px-6 py-4 hover:bg-gray-50/75 transition-colors flex items-center gap-4 ${
-                      selectedIds.has(item.id) ? "bg-blue-50/30" : ""
-                    }`}
-                  >
-                    {/* Row checkbox */}
-                    <input
-                      type="checkbox"
-                      checked={selectedIds.has(item.id)}
-                      onClick={(e) => toggleSelectOne(item.id, e)}
-                      onChange={() => {}}
-                      className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500 shrink-0"
-                    />
+              <div className="divide-y divide-slate-100">
+                {filtered.map((item) => {
+                  const isHigh = item.priority === "high";
+                  const isMedium = item.priority === "medium";
+                  const isSelected = selectedIds.has(item.id);
 
-                    <div className="flex-1 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                      <Link
-                        href={`/dashboard/customers/${item.customerId}`}
-                        className="flex items-start gap-4 flex-1 cursor-pointer group"
-                      >
+                  return (
+                    <div
+                      key={item.id}
+                      className={`p-4 sm:p-5 hover:bg-slate-50/80 transition-colors flex flex-col sm:flex-row sm:items-center justify-between gap-4 ${
+                        isSelected ? "bg-blue-50/40" : ""
+                      }`}
+                    >
+                      <div className="flex items-start gap-3.5 flex-1 min-w-0">
+                        {/* Row checkbox */}
+                        <div className="pt-1">
+                          <input
+                            type="checkbox"
+                            checked={isSelected}
+                            onClick={(e) => toggleSelectOne(item.id, e)}
+                            onChange={() => {}}
+                            className="h-4 w-4 rounded-md border-slate-300 text-blue-600 focus:ring-blue-500 cursor-pointer"
+                          />
+                        </div>
+
+                        {/* Avatar */}
                         <div
-                          className={`h-11 w-11 rounded-lg flex items-center justify-center shrink-0 ${
-                            item.priority === "high"
-                              ? "bg-red-50 border border-red-200"
-                              : item.priority === "medium"
-                              ? "bg-orange-50 border border-orange-200"
-                              : "bg-green-50 border border-green-200"
+                          className={`flex h-10 w-10 items-center justify-center rounded-2xl font-bold text-xs shrink-0 border ${
+                            isHigh
+                              ? "bg-rose-100 text-rose-800 border-rose-200"
+                              : isMedium
+                              ? "bg-amber-100 text-amber-900 border-amber-200"
+                              : "bg-emerald-100 text-emerald-800 border-emerald-200"
                           }`}
                         >
-                          <span
-                            className={`font-bold text-xs ${
-                              item.priority === "high"
-                                ? "text-red-700"
-                                : item.priority === "medium"
-                                ? "text-orange-700"
-                                : "text-green-700"
-                            }`}
-                          >
-                            {item.initials}
-                          </span>
+                          {item.initials}
                         </div>
 
-                        <div className="space-y-1">
-                          <div className="flex items-center gap-2">
-                            <p className="font-semibold text-gray-900 group-hover:text-blue-600 transition">
+                        {/* Customer Information */}
+                        <div className="space-y-1 flex-1 min-w-0">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <Link
+                              href={`/dashboard/customers/${item.customerId}`}
+                              className="text-sm font-bold text-slate-900 hover:text-blue-600 transition-colors truncate"
+                            >
                               {item.customer}
-                            </p>
+                            </Link>
+                            <Badge
+                              variant={isHigh ? "danger" : isMedium ? "warning" : "success"}
+                              size="sm"
+                            >
+                              {item.priority.toUpperCase()}
+                            </Badge>
                             {item.promiseBroken && (
-                              <span className="rounded bg-red-100 px-1.5 py-0.5 text-[10px] font-semibold text-red-700 uppercase">
-                                Promise broken
-                              </span>
+                              <Badge variant="purple" size="sm">
+                                Broken Promise
+                              </Badge>
                             )}
                           </div>
-                          <p className="text-sm text-gray-600">
-                            {formatINR(item.amount)} · {item.daysOverdue} days overdue ·{" "}
-                            {item.status}
-                          </p>
+
+                          <div className="flex flex-wrap items-center gap-2 text-xs text-slate-500">
+                            <span className="font-mono font-bold text-slate-900">
+                              {formatINR(item.amount)}
+                            </span>
+                            <span>•</span>
+                            <span className={isHigh ? "text-rose-600 font-semibold" : "text-slate-600"}>
+                              {item.daysOverdue} days overdue
+                            </span>
+                            <span>•</span>
+                            <span className="capitalize">{item.status}</span>
+                          </div>
+
                           {item.why && (
-                            <p className="text-xs text-gray-400">{item.why}</p>
+                            <p className="text-[11px] text-slate-500 line-clamp-1 bg-slate-50 rounded-lg px-2 py-0.5 border border-slate-100 inline-block">
+                              <span className="font-semibold text-slate-700">Trigger:</span> {item.why}
+                            </p>
                           )}
-                          <div className="flex items-center gap-4 text-xs text-gray-400">
+
+                          <div className="flex flex-wrap items-center gap-3 pt-0.5 text-[11px] text-slate-400">
                             <span>Last: {item.lastAction}</span>
-                            <span>Next: {item.nextAction}</span>
+                            <span>•</span>
+                            <span className="text-slate-600 font-medium">Recommended: {item.nextAction}</span>
                           </div>
                         </div>
-                      </Link>
+                      </div>
 
-                      <div className="flex items-center gap-2 shrink-0 self-end sm:self-center">
-                        <button
-                          type="button"
+                      {/* Action Buttons */}
+                      <div className="flex items-center gap-2 shrink-0 self-end sm:self-center pl-7 sm:pl-0">
+                        <Button
+                          variant="outline"
+                          size="sm"
                           onClick={() => setReminderItem(item)}
-                          className="rounded-lg border border-blue-200 bg-blue-50 px-3 py-1.5 text-xs font-semibold text-blue-700 hover:bg-blue-100 transition shadow-xs flex items-center gap-1"
+                          className="gap-1.5 shadow-2xs border-slate-200 hover:border-blue-300 hover:bg-blue-50/50 hover:text-blue-700"
                         >
-                          <span>✉️</span>
+                          <Send className="h-3.5 w-3.5 text-blue-600" />
                           <span>Send Reminder</span>
-                        </button>
-                        <button
-                          type="button"
+                        </Button>
+
+                        <Button
+                          size="sm"
                           onClick={() => setActive(item)}
-                          className="rounded-lg bg-blue-600 px-4 py-1.5 text-xs font-semibold text-white hover:bg-blue-700 transition shadow-xs"
+                          className="gap-1.5 shadow-xs"
                         >
-                          Take action
-                        </button>
+                          <PhoneCall className="h-3.5 w-3.5" />
+                          <span>Take Action</span>
+                        </Button>
                       </div>
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             )}
           </div>
         </>
       )}
 
+      {/* Action Modals */}
       {active && (
         <AllActionsModal
           item={active}

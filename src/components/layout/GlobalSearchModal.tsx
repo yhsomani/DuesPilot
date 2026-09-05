@@ -5,6 +5,8 @@ import { useRouter } from "next/navigation";
 import { api } from "@/lib/api";
 import { formatINR } from "@/lib/utils";
 import type { SearchResultItem } from "@/app/api/search/route";
+import { Search, Building2, FileText, Clock, AlertTriangle, ArrowRight, CornerDownLeft, Loader2 } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
 
 interface SearchResponse {
   results: SearchResultItem[];
@@ -15,12 +17,14 @@ interface SearchResponse {
 export function GlobalSearchModal({
   isOpen,
   onClose,
+  initialQuery = "",
 }: {
   isOpen: boolean;
   onClose: () => void;
+  initialQuery?: string;
 }) {
   const router = useRouter();
-  const [query, setQuery] = useState("");
+  const [query, setQuery] = useState(initialQuery);
   const [results, setResults] = useState<SearchResultItem[]>([]);
   const [loading, setLoading] = useState(false);
   const [selectedIndex, setSelectedIndex] = useState(0);
@@ -29,15 +33,19 @@ export function GlobalSearchModal({
   useEffect(() => {
     if (isOpen) {
       const timer = setTimeout(() => {
+        if (initialQuery) {
+          setQuery(initialQuery);
+        }
         inputRef.current?.focus();
       }, 50);
       return () => clearTimeout(timer);
     }
-  }, [isOpen]);
+  }, [isOpen, initialQuery]);
 
   // Debounced search
   useEffect(() => {
-    if (!query.trim() || query.trim().length < 2) {
+    const trimmed = query.trim();
+    if (trimmed.length < 2) {
       return;
     }
 
@@ -46,7 +54,7 @@ export function GlobalSearchModal({
       setLoading(true);
       try {
         const res = await api<SearchResponse>(
-          `/api/search?q=${encodeURIComponent(query.trim())}`
+          `/api/search?q=${encodeURIComponent(trimmed)}`
         );
         if (!ignore) {
           setResults(res.results);
@@ -61,7 +69,7 @@ export function GlobalSearchModal({
           setLoading(false);
         }
       }
-    }, 200);
+    }, 180);
 
     return () => {
       ignore = true;
@@ -104,45 +112,34 @@ export function GlobalSearchModal({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-start justify-center pt-16 sm:pt-24 bg-black/50 backdrop-blur-xs p-4"
+      className="fixed inset-0 z-50 flex items-start justify-center pt-14 sm:pt-20 bg-slate-950/40 backdrop-blur-xs p-4 animate-in fade-in-20 duration-150"
       onClick={handleClose}
       role="dialog"
       aria-modal="true"
     >
       <div
-        className="w-full max-w-2xl rounded-2xl bg-white shadow-2xl border border-gray-200 overflow-hidden flex flex-col"
+        className="w-full max-w-2xl rounded-3xl bg-white shadow-2xl border border-slate-200/90 overflow-hidden flex flex-col"
         onClick={(e) => e.stopPropagation()}
         onKeyDown={handleKeyDown}
       >
         {/* Search Input Bar */}
-        <div className="flex items-center px-4 py-3.5 border-b border-gray-100 gap-3">
-          <svg
-            className="w-5 h-5 text-gray-400 shrink-0"
-            fill="none"
-            viewBox="0 0 24 24"
-            stroke="currentColor"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-              d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
-            />
-          </svg>
+        <div className="flex items-center px-4 py-3.5 border-b border-slate-100 gap-3 bg-white">
+          <Search className="h-5 w-5 text-slate-400 shrink-0" />
           <input
             ref={inputRef}
             type="text"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder="Search customers, invoices, promises, disputes… (Esc to close)"
-            className="w-full text-sm text-gray-900 placeholder-gray-400 focus:outline-hidden bg-transparent"
+            placeholder="Search customers, GSTIN, invoice #, promises, disputes…"
+            className="w-full text-sm font-medium text-slate-900 placeholder-slate-400 focus:outline-none bg-transparent"
           />
           {loading && (
-            <div className="w-4 h-4 border-2 border-blue-600 border-t-transparent rounded-full animate-spin shrink-0" />
+            <Loader2 className="w-4 h-4 text-blue-600 animate-spin shrink-0" />
           )}
           <button
+            type="button"
             onClick={handleClose}
-            className="rounded-md px-1.5 py-0.5 text-xs text-gray-400 hover:text-gray-600 border border-gray-200"
+            className="rounded-lg px-2 py-1 text-[10px] font-bold text-slate-400 hover:text-slate-600 border border-slate-200 bg-slate-50 transition-colors"
           >
             ESC
           </button>
@@ -151,22 +148,22 @@ export function GlobalSearchModal({
         {/* Results List */}
         <div className="max-h-[60vh] overflow-y-auto p-2">
           {query.trim().length >= 2 && activeResults.length === 0 && !loading && (
-            <div className="py-12 text-center text-sm text-gray-500">
-              <p className="font-medium">No results found for &ldquo;{query}&rdquo;</p>
-              <p className="text-xs text-gray-400 mt-1">
-                Try searching by customer name, GSTIN, invoice number, or notes.
+            <div className="py-12 text-center text-xs text-slate-500">
+              <p className="font-bold text-slate-800 text-sm">No matching records found</p>
+              <p className="text-slate-400 mt-1 max-w-xs mx-auto">
+                Try searching with a customer name, GST number, or invoice identifier.
               </p>
             </div>
           )}
 
           {query.trim().length < 2 && (
-            <div className="py-8 px-4 text-xs text-gray-400 text-center space-y-2">
-              <p className="font-medium text-gray-500">Quick Navigation Tips</p>
-              <div className="flex justify-center gap-4 text-[11px]">
-                <span>Type <strong>Cust</strong> for customers</span>
-                <span>Type <strong>INV-</strong> for invoices</span>
-                <span>Press <strong>↑ / ↓</strong> to navigate</span>
-                <span>Press <strong>↵</strong> to select</span>
+            <div className="py-8 px-4 text-xs text-slate-400 text-center space-y-3">
+              <p className="font-semibold text-slate-600 text-xs">Quick Search Navigation</p>
+              <div className="flex flex-wrap items-center justify-center gap-2 text-[11px] text-slate-500">
+                <span className="px-2 py-1 rounded-lg bg-slate-100 border border-slate-200/60 font-medium">Customer name</span>
+                <span className="px-2 py-1 rounded-lg bg-slate-100 border border-slate-200/60 font-medium">GSTIN</span>
+                <span className="px-2 py-1 rounded-lg bg-slate-100 border border-slate-200/60 font-medium">INV-XXXX</span>
+                <span className="px-2 py-1 rounded-lg bg-slate-100 border border-slate-200/60 font-medium">Notes</span>
               </div>
             </div>
           )}
@@ -175,71 +172,74 @@ export function GlobalSearchModal({
             <div className="space-y-1">
               {activeResults.map((item, idx) => {
                 const isSelected = idx === selectedIndex;
-                const typeIcon =
-                  item.type === "customer"
-                    ? "🏢"
-                    : item.type === "invoice"
-                    ? "📄"
-                    : item.type === "promise"
-                    ? "🤝"
-                    : "⚠️";
+                let IconComponent = Building2;
+                let badgeVariant: "blue" | "success" | "purple" | "warning" = "blue";
 
-                const typeColor =
-                  item.type === "customer"
-                    ? "text-blue-700 bg-blue-50 border-blue-200"
-                    : item.type === "invoice"
-                    ? "text-emerald-700 bg-emerald-50 border-emerald-200"
-                    : item.type === "promise"
-                    ? "text-purple-700 bg-purple-50 border-purple-200"
-                    : "text-amber-700 bg-amber-50 border-amber-200";
+                if (item.type === "invoice") {
+                  IconComponent = FileText;
+                  badgeVariant = "success";
+                } else if (item.type === "promise") {
+                  IconComponent = Clock;
+                  badgeVariant = "purple";
+                } else if (item.type === "dispute") {
+                  IconComponent = AlertTriangle;
+                  badgeVariant = "warning";
+                }
 
                 return (
                   <div
                     key={`${item.type}-${item.id}`}
                     onClick={() => handleSelect(item)}
                     onMouseEnter={() => setSelectedIndex(idx)}
-                    className={`flex items-center justify-between p-3 rounded-xl cursor-pointer transition ${
+                    className={`flex items-center justify-between p-3 rounded-2xl cursor-pointer transition-all ${
                       isSelected
-                        ? "bg-blue-50/80 border border-blue-200 shadow-xs"
-                        : "hover:bg-gray-50 border border-transparent"
+                        ? "bg-blue-50/80 border border-blue-200 shadow-2xs"
+                        : "hover:bg-slate-50 border border-transparent"
                     }`}
                   >
                     <div className="flex items-center gap-3 min-w-0">
-                      <span className="text-lg shrink-0">{typeIcon}</span>
+                      <div
+                        className={`flex h-8 w-8 items-center justify-center rounded-xl border shrink-0 ${
+                          isSelected ? "bg-white border-blue-200 text-blue-600" : "bg-slate-50 border-slate-200/80 text-slate-500"
+                        }`}
+                      >
+                        <IconComponent className="h-4 w-4" />
+                      </div>
                       <div className="min-w-0">
                         <div className="flex items-center gap-2">
                           <p
-                            className={`text-sm font-semibold truncate ${
-                              isSelected ? "text-blue-900" : "text-gray-900"
+                            className={`text-xs font-bold truncate ${
+                              isSelected ? "text-blue-950" : "text-slate-900"
                             }`}
                           >
                             {item.title}
                           </p>
-                          <span
-                            className={`rounded px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wider border ${typeColor}`}
-                          >
+                          <Badge variant={badgeVariant} size="sm">
                             {item.type}
-                          </span>
+                          </Badge>
                           {item.badge && (
-                            <span className="rounded bg-gray-100 px-1.5 py-0.5 text-[10px] font-medium text-gray-600">
+                            <Badge variant="neutral" size="sm">
                               {item.badge}
-                            </span>
+                            </Badge>
                           )}
                         </div>
-                        <p className="text-xs text-gray-500 truncate mt-0.5">
+                        <p className="text-[11px] text-slate-500 truncate mt-0.5">
                           {item.subtitle}
                         </p>
                       </div>
                     </div>
 
-                    {item.amount !== undefined && (
-                      <div className="text-right shrink-0 pl-3">
-                        <p className="text-xs font-bold text-gray-900">
-                          {formatINR(item.amount)}
-                        </p>
-                        <span className="text-[10px] text-gray-400">Outstanding</span>
-                      </div>
-                    )}
+                    <div className="flex items-center gap-3 shrink-0 pl-3">
+                      {item.amount !== undefined && (
+                        <div className="text-right">
+                          <p className="text-xs font-bold text-slate-900 font-mono">
+                            {formatINR(item.amount)}
+                          </p>
+                          <span className="text-[10px] text-slate-400 font-medium">Outstanding</span>
+                        </div>
+                      )}
+                      <ArrowRight className={`h-4 w-4 ${isSelected ? "text-blue-600" : "text-slate-300"}`} />
+                    </div>
                   </div>
                 );
               })}
@@ -248,11 +248,20 @@ export function GlobalSearchModal({
         </div>
 
         {/* Footer info */}
-        <div className="flex items-center justify-between px-4 py-2 bg-gray-50 border-t border-gray-100 text-[11px] text-gray-500">
-          <span>Search across your tenant data</span>
-          <div className="flex items-center gap-2">
-            <span>Navigate with <kbd className="px-1 py-0.5 bg-white border border-gray-200 rounded font-mono text-[10px]">↑</kbd> <kbd className="px-1 py-0.5 bg-white border border-gray-200 rounded font-mono text-[10px]">↓</kbd></span>
-            <span>Select with <kbd className="px-1 py-0.5 bg-white border border-gray-200 rounded font-mono text-[10px]">Enter</kbd></span>
+        <div className="flex items-center justify-between px-4 py-2.5 bg-slate-50/70 border-t border-slate-100 text-[11px] text-slate-500">
+          <span>Search across your tenant database</span>
+          <div className="flex items-center gap-3">
+            <span className="inline-flex items-center gap-1">
+              <kbd className="px-1.5 py-0.5 bg-white border border-slate-200 rounded font-mono text-[10px] font-semibold">↑</kbd>
+              <kbd className="px-1.5 py-0.5 bg-white border border-slate-200 rounded font-mono text-[10px] font-semibold">↓</kbd>
+              <span className="ml-0.5">Navigate</span>
+            </span>
+            <span className="inline-flex items-center gap-1">
+              <kbd className="px-1.5 py-0.5 bg-white border border-slate-200 rounded font-mono text-[10px] font-semibold flex items-center">
+                <CornerDownLeft className="h-2.5 w-2.5" />
+              </kbd>
+              <span>Select</span>
+            </span>
           </div>
         </div>
       </div>

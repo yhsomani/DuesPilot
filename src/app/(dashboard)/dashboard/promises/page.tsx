@@ -1,9 +1,27 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import Link from "next/link";
 import { formatINR } from "@/lib/utils";
-import { api, ApiError } from "@/lib/api";
+import { api, apiPost, ApiError } from "@/lib/api";
 import type { PromiseRow } from "@/lib/types";
+import {
+  CheckCircle2,
+  XCircle,
+  Clock,
+  Plus,
+  RefreshCw,
+  AlertCircle,
+  Calendar,
+  Layers,
+  X,
+  Check,
+} from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { StatCard } from "@/components/ui/stat-card";
+import { EmptyState } from "@/components/ui/empty-state";
+import { PaymentPlanModal } from "@/components/promises/payment-plan-modal";
 
 type FilterStatus = "all" | "ACTIVE" | "KEPT" | "BROKEN" | "RENEGOTIATED";
 
@@ -12,12 +30,22 @@ export default function PromisesPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [filter, setFilter] = useState<FilterStatus>("all");
-  const [showModal, setShowModal] = useState(false);
+  const [showLogModal, setShowLogModal] = useState(false);
+  const [showPlanModal, setShowPlanModal] = useState(false);
   const [retryKey, setRetryKey] = useState(0);
+  const [actionLoadingId, setActionLoadingId] = useState<string | null>(null);
 
   const load = async () => {
-    setPromises(await api<PromiseRow[]>("/api/promises"));
-    setLoading(false);
+    setLoading(true);
+    setError(null);
+    try {
+      const data = await api<PromiseRow[]>("/api/promises");
+      setPromises(data);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Failed to load payment promises");
+    } finally {
+      setLoading(false);
+    }
   };
 
   useEffect(() => {
@@ -29,7 +57,7 @@ export default function PromisesPage() {
         const data = await api<PromiseRow[]>("/api/promises");
         if (active) setPromises(data);
       } catch (e) {
-        if (active) setError(e instanceof Error ? e.message : "Failed to load");
+        if (active) setError(e instanceof Error ? e.message : "Failed to load payment promises");
       } finally {
         if (active) setLoading(false);
       }
@@ -38,6 +66,21 @@ export default function PromisesPage() {
       active = false;
     };
   }, [retryKey]);
+
+  const handleManagePromise = async (promiseId: string, action: "mark_kept" | "mark_broken") => {
+    setActionLoadingId(promiseId);
+    try {
+      await apiPost(`/api/promises/${promiseId}/manage`, {
+        action,
+        note: action === "mark_kept" ? "Settlement verified by collector" : "Customer missed promised payment commitment date",
+      });
+      await load();
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "Failed to update promise");
+    } finally {
+      setActionLoadingId(null);
+    }
+  };
 
   const filtered =
     filter === "all" ? promises : promises.filter((p) => p.status === filter);
@@ -52,188 +95,292 @@ export default function PromisesPage() {
     .filter((p) => p.status === "KEPT")
     .reduce((sum, p) => sum + p.amount, 0);
 
+  const keptCount = promises.filter((p) => p.status === "KEPT").length;
+  const completedCount = promises.filter((p) => p.status === "KEPT" || p.status === "BROKEN").length;
+  const fulfillmentRate = completedCount > 0 ? Math.round((keptCount / completedCount) * 100) : 0;
+
   return (
     <div className="space-y-6">
-      <div className="flex items-start justify-between">
+      {/* Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Promises to Pay</h1>
-          <p className="mt-1 text-sm text-gray-500">
-            Track customer payment commitments
+          <div className="flex items-center gap-2">
+            <h1 className="text-xl font-bold text-slate-900 tracking-tight">Promises to Pay (PTP)</h1>
+            <Badge variant="blue" size="sm">
+              {promises.length} Commitments
+            </Badge>
+          </div>
+          <p className="mt-0.5 text-xs text-slate-500">
+            Track verbal and written settlement promises, monitor confidence scores, and reconcile fulfillment.
           </p>
         </div>
-        <button
-          onClick={() => setShowModal(true)}
-          className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 transition-colors"
-        >
-          Log promise
-        </button>
+
+        <div className="flex items-center gap-2.5">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setRetryKey((n) => n + 1)}
+            className="gap-1.5 shadow-2xs"
+          >
+            <RefreshCw className="h-3.5 w-3.5 text-slate-500" />
+            <span>Refresh</span>
+          </Button>
+
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setShowPlanModal(true)}
+            className="gap-1.5 shadow-2xs"
+          >
+            <Layers className="h-3.5 w-3.5 text-slate-500" />
+            <span>Multi-Installment Plan</span>
+          </Button>
+
+          <Button
+            size="sm"
+            onClick={() => setShowLogModal(true)}
+            className="gap-1.5 shadow-2xs"
+          >
+            <Plus className="h-3.5 w-3.5" />
+            <span>Log Commitment</span>
+          </Button>
+        </div>
       </div>
 
-      {/* Stats */}
-      {!loading && !error && (
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-          <div className="rounded-xl border border-blue-200 bg-blue-50 p-5">
-            <p className="text-sm font-medium text-blue-600">Active Promises</p>
-            <p className="mt-1 text-2xl font-bold text-blue-700">{formatINR(totalPromised)}</p>
-            <p className="text-xs text-blue-500 mt-1">
-              {promises.filter((p) => p.status === "ACTIVE").length} promises
-            </p>
-          </div>
-          <div className="rounded-xl border border-red-200 bg-red-50 p-5">
-            <p className="text-sm font-medium text-red-600">Broken Promises</p>
-            <p className="mt-1 text-2xl font-bold text-red-700">{formatINR(totalBroken)}</p>
-            <p className="text-xs text-red-500 mt-1">
-              {promises.filter((p) => p.status === "BROKEN").length} broken
-            </p>
-          </div>
-          <div className="rounded-xl border border-green-200 bg-green-50 p-5">
-            <p className="text-sm font-medium text-green-600">Kept Promises</p>
-            <p className="mt-1 text-2xl font-bold text-green-700">{formatINR(totalKept)}</p>
-            <p className="text-xs text-green-500 mt-1">
-              {promises.filter((p) => p.status === "KEPT").length} kept
-            </p>
-          </div>
-        </div>
-      )}
+      {/* KPI Overview Cards */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <StatCard
+          title="Active PTP Commitments"
+          value={formatINR(totalPromised)}
+          subtitle={`${promises.filter((p) => p.status === "ACTIVE").length} active settlement milestones`}
+          icon={Clock}
+          variant="blue"
+        />
+        <StatCard
+          title="Kept & Recovered"
+          value={formatINR(totalKept)}
+          subtitle={`${keptCount} commitments honored`}
+          icon={CheckCircle2}
+          variant="success"
+        />
+        <StatCard
+          title="Broken Commitments"
+          value={formatINR(totalBroken)}
+          subtitle={`${promises.filter((p) => p.status === "BROKEN").length} missed promise deadlines`}
+          icon={XCircle}
+          variant="danger"
+        />
+        <StatCard
+          title="PTP Fulfillment Rate"
+          value={`${fulfillmentRate}%`}
+          subtitle={`${completedCount} total resolved commitments`}
+          icon={Calendar}
+          variant={fulfillmentRate >= 60 ? "success" : "warning"}
+        />
+      </div>
 
-      {loading && <p className="text-sm text-gray-500">Loading promises…</p>}
+      {/* Error Alert */}
       {error && (
         <div
           role="alert"
-          className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700"
+          className="rounded-2xl border border-rose-200 bg-rose-50 p-4 text-xs text-rose-800 flex items-start gap-3 shadow-2xs"
         >
-          <p>{error}</p>
-          <button
-            onClick={() => setRetryKey((n) => n + 1)}
-            className="mt-2 rounded-lg border border-red-200 bg-white px-3 py-1.5 text-xs font-medium text-red-700 hover:bg-red-100"
-          >
-            Try again
-          </button>
+          <AlertCircle className="h-4 w-4 text-rose-600 shrink-0 mt-0.5" />
+          <div className="flex-1">
+            <p className="font-bold">Failed to load promises</p>
+            <p className="mt-0.5 text-rose-700">{error}</p>
+            <button
+              onClick={() => setRetryKey((n) => n + 1)}
+              className="mt-2 text-xs font-semibold text-rose-900 underline hover:text-rose-950"
+            >
+              Try reloading
+            </button>
+          </div>
         </div>
       )}
 
-      {!loading && !error && (
-        <>
-          <div className="flex items-center gap-2">
-            {(["all", "ACTIVE", "BROKEN", "KEPT", "RENEGOTIATED"] as const).map((s) => (
-              <button
-                key={s}
-                onClick={() => setFilter(s)}
-                className={`rounded-lg px-3 py-1.5 text-sm font-medium transition-colors ${
-                  filter === s
-                    ? "bg-blue-600 text-white"
-                    : "bg-white border border-gray-200 text-gray-600 hover:bg-gray-50"
-                }`}
-              >
-                {s === "all"
-                  ? "All"
-                  : s.charAt(0) + s.slice(1).toLowerCase()}
-              </button>
-            ))}
-          </div>
+      {/* Filter Tabs */}
+      <div className="flex items-center gap-1.5 bg-white p-2 rounded-2xl border border-slate-200/90 shadow-2xs w-fit">
+        {(
+          [
+            ["all", `All (${promises.length})`],
+            ["ACTIVE", `Active (${promises.filter((p) => p.status === "ACTIVE").length})`],
+            ["KEPT", `Kept (${promises.filter((p) => p.status === "KEPT").length})`],
+            ["BROKEN", `Broken (${promises.filter((p) => p.status === "BROKEN").length})`],
+            ["RENEGOTIATED", "Renegotiated"],
+          ] as [FilterStatus, string][]
+        ).map(([s, label]) => (
+          <button
+            key={s}
+            onClick={() => setFilter(s)}
+            className={`rounded-xl px-3.5 py-1.5 text-xs font-semibold transition-all ${
+              filter === s
+                ? "bg-blue-600 text-white shadow-2xs"
+                : "text-slate-600 hover:bg-slate-50 hover:text-slate-900"
+            }`}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
 
-          <div className="rounded-xl border border-gray-200 bg-white shadow-sm overflow-hidden">
-            {filtered.length === 0 ? (
-              <p className="px-6 py-10 text-sm text-gray-500">
-                No payment promises to show.
-              </p>
-            ) : (
-              <div className="divide-y divide-gray-100">
-                {filtered.map((promise) => {
-                  const broken = promise.status === "BROKEN";
-                  const kept = promise.status === "KEPT";
-                  return (
-                    <div key={promise.id} className="px-6 py-4 hover:bg-gray-50 transition-colors">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-4">
-                          <div
-                            className={`h-10 w-10 rounded-lg flex items-center justify-center ${
-                              broken
-                                ? "bg-red-50 border border-red-200"
-                                : kept
-                                ? "bg-green-50 border border-green-200"
-                                : "bg-yellow-50 border border-yellow-200"
-                            }`}
-                          >
-                            <span
-                              className={`font-bold text-xs ${
-                                broken
-                                  ? "text-red-700"
-                                  : kept
-                                  ? "text-green-700"
-                                  : "text-yellow-700"
-                              }`}
-                            >
-                              {promise.initials}
-                            </span>
-                          </div>
-                          <div>
-                            <div className="flex items-center gap-2">
-                              <p className="font-semibold text-gray-900">{promise.customer}</p>
-                              {promise.invoiceNumber && (
-                                <span className="text-xs text-gray-400">{promise.invoiceNumber}</span>
-                              )}
-                            </div>
-                            <p className="text-sm text-gray-500">
-                              {formatINR(promise.amount)} · Due{" "}
-                              {new Date(promise.promiseDate).toLocaleDateString("en-IN", {
-                                day: "numeric",
-                                month: "short",
-                              })}{" "}
-                              · {promise.source}
-                            </p>
-                          </div>
-                        </div>
-                        <div className="flex items-center gap-3">
-                          <div className="text-right">
-                            <p className="text-xs text-gray-400">Confidence</p>
-                            <div className="flex items-center gap-1.5 mt-0.5">
-                              <div className="w-16 h-1.5 rounded-full bg-gray-100 overflow-hidden">
-                                <div
-                                  className={`h-full rounded-full ${
-                                    promise.confidence > 70
-                                      ? "bg-green-500"
-                                      : promise.confidence > 40
-                                      ? "bg-yellow-500"
-                                      : "bg-red-500"
-                                  }`}
-                                  style={{ width: `${promise.confidence}%` }}
-                                />
-                              </div>
-                              <span className="text-xs text-gray-500">{promise.confidence}%</span>
-                            </div>
-                          </div>
-                          <span
-                            className={`rounded-lg px-2.5 py-1 text-xs font-semibold ${
-                              broken
-                                ? "bg-red-50 border border-red-200 text-red-700"
-                                : kept
-                                ? "bg-green-50 border border-green-200 text-green-700"
-                                : "bg-yellow-50 border border-yellow-200 text-yellow-700"
-                            }`}
-                          >
-                            {broken ? "BROKEN" : kept ? "KEPT" : promise.status}
+      {/* Promises List */}
+      <div className="rounded-3xl border border-slate-200/90 bg-white shadow-2xs overflow-hidden">
+        {loading ? (
+          <div className="p-8 text-center text-xs text-slate-400">Loading payment promises…</div>
+        ) : filtered.length === 0 ? (
+          <EmptyState
+            icon={Clock}
+            title="No payment promises found"
+            description="No debtor commitments match the selected status filter."
+            className="py-12 border-0"
+          />
+        ) : (
+          <div className="divide-y divide-slate-100">
+            {filtered.map((promise) => {
+              const isBroken = promise.status === "BROKEN";
+              const isKept = promise.status === "KEPT";
+              const isActive = promise.status === "ACTIVE";
+
+              return (
+                <div
+                  key={promise.id}
+                  className="p-4 sm:p-5 hover:bg-slate-50/70 transition-colors flex flex-col sm:flex-row sm:items-center justify-between gap-4"
+                >
+                  <div className="flex items-start gap-3.5">
+                    {/* Customer Initials Avatar */}
+                    <div
+                      className={`h-10 w-10 rounded-2xl flex items-center justify-center font-bold text-xs shrink-0 border shadow-2xs ${
+                        isBroken
+                          ? "bg-rose-50 text-rose-700 border-rose-200"
+                          : isKept
+                          ? "bg-emerald-50 text-emerald-700 border-emerald-200"
+                          : "bg-blue-50 text-blue-700 border-blue-200"
+                      }`}
+                    >
+                      {promise.initials || "DP"}
+                    </div>
+
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <Link
+                          href={`/dashboard/customers/${promise.customerId}`}
+                          className="font-bold text-slate-900 text-sm hover:text-blue-600 transition-colors"
+                        >
+                          {promise.customer}
+                        </Link>
+                        {promise.invoiceNumber && (
+                          <span className="text-[11px] font-mono text-slate-400 font-semibold">
+                            {promise.invoiceNumber}
                           </span>
+                        )}
+                      </div>
+
+                      <p className="text-xs text-slate-500 mt-0.5">
+                        <strong className="text-slate-900 font-mono font-semibold">
+                          {formatINR(promise.amount)}
+                        </strong>{" "}
+                        committed for{" "}
+                        <strong className="text-slate-800">
+                          {new Date(promise.promiseDate).toLocaleDateString("en-IN", {
+                            day: "numeric",
+                            month: "short",
+                            year: "numeric",
+                          })}
+                        </strong>{" "}
+                        · Source: {promise.source}
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Right Side: Confidence Gauge, Status Badge, Quick Resolve Buttons */}
+                  <div className="flex items-center gap-3 sm:gap-4 self-end sm:self-center">
+                    {/* Confidence Score */}
+                    <div className="text-right hidden sm:block">
+                      <span className="text-[10px] uppercase font-bold tracking-wider text-slate-400 block">
+                        Confidence
+                      </span>
+                      <div className="flex items-center gap-1.5 mt-0.5">
+                        <div className="w-16 h-1.5 rounded-full bg-slate-100 overflow-hidden">
+                          <div
+                            className={`h-full rounded-full ${
+                              promise.confidence > 70
+                                ? "bg-emerald-500"
+                                : promise.confidence > 40
+                                ? "bg-amber-500"
+                                : "bg-rose-500"
+                            }`}
+                            style={{ width: `${promise.confidence}%` }}
+                          />
                         </div>
+                        <span className="text-xs font-mono font-bold text-slate-700">
+                          {promise.confidence}%
+                        </span>
                       </div>
                     </div>
-                  );
-                })}
-              </div>
-            )}
-          </div>
-        </>
-      )}
 
-      {showModal && (
+                    {/* Status Badge */}
+                    <Badge
+                      variant={isBroken ? "danger" : isKept ? "success" : "warning"}
+                      size="sm"
+                    >
+                      {promise.status}
+                    </Badge>
+
+                    {/* Active Action Triggers */}
+                    {isActive && (
+                      <div className="flex items-center gap-1.5">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          disabled={actionLoadingId === promise.id}
+                          onClick={() => handleManagePromise(promise.id, "mark_kept")}
+                          className="h-8 px-2.5 text-emerald-700 border-emerald-200 hover:bg-emerald-50 text-xs font-bold"
+                        >
+                          <Check className="h-3 w-3 mr-1" />
+                          <span>Kept</span>
+                        </Button>
+
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          disabled={actionLoadingId === promise.id}
+                          onClick={() => handleManagePromise(promise.id, "mark_broken")}
+                          className="h-8 px-2.5 text-rose-700 border-rose-200 hover:bg-rose-50 text-xs font-bold"
+                        >
+                          <X className="h-3 w-3 mr-1" />
+                          <span>Broken</span>
+                        </Button>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
+
+      {/* Log Promise Modal */}
+      {showLogModal && (
         <LogPromiseModal
-          onClose={() => setShowModal(false)}
+          onClose={() => setShowLogModal(false)}
           onDone={async () => {
-            setShowModal(false);
+            setShowLogModal(false);
             await load();
           }}
         />
       )}
+
+      {/* Payment Plan Modal */}
+      <PaymentPlanModal
+        isOpen={showPlanModal}
+        onClose={() => setShowPlanModal(false)}
+        onSuccess={async () => {
+          setShowPlanModal(false);
+          await load();
+        }}
+      />
     </div>
   );
 }
@@ -253,11 +400,12 @@ function LogPromiseModal({
   >([]);
   const [customerId, setCustomerId] = useState("");
   const [amount, setAmount] = useState("");
-  const [promiseDate, setPromiseDate] = useState(
-    new Date().toISOString().slice(0, 10)
+  const [promiseDate, setPromiseDate] = useState(() =>
+    new Date(Date.now() + 7 * 86_400_000).toISOString().slice(0, 10)
   );
   const [invoiceId, setInvoiceId] = useState("");
   const [note, setNote] = useState("");
+  const [confidence, setConfidence] = useState(75);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const idemKeyRef = useRef<string | null>(null);
@@ -287,7 +435,8 @@ function LogPromiseModal({
     })();
   }, []);
 
-  const submit = async () => {
+  const submit = async (e: React.FormEvent) => {
+    e.preventDefault();
     setSaving(true);
     setError(null);
     try {
@@ -299,49 +448,66 @@ function LogPromiseModal({
           amount: Number(amount),
           promiseDate,
           invoiceId: invoiceId || null,
-          note: note || null,
+          note: note.trim() || null,
           source: "manual",
-          confidence: 75,
+          confidence,
         }),
       });
       onDone();
     } catch (e) {
-      setError(e instanceof ApiError ? e.message : "Something went wrong.");
+      setError(e instanceof ApiError ? e.message : "Failed to record promise commitment");
     } finally {
       setSaving(false);
     }
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-      <div className="w-full max-w-lg rounded-2xl bg-white shadow-xl border border-gray-200">
-        <div className="p-5 border-b border-gray-100">
-          <h3 className="font-semibold text-gray-900">Log a payment promise</h3>
-          <p className="text-sm text-gray-500">
-            Record a commitment the customer made to pay.
-          </p>
+    <div
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="log-ptp-title"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/40 p-4 backdrop-blur-xs animate-in fade-in duration-150"
+    >
+      <div className="w-full max-w-lg rounded-3xl bg-white shadow-2xl border border-slate-200/90 max-h-[90vh] flex flex-col overflow-hidden">
+        <div className="p-5 border-b border-slate-100 flex items-center justify-between bg-slate-50/50 shrink-0">
+          <div>
+            <h3 id="log-ptp-title" className="font-bold text-slate-900 text-base">
+              Log Payment Promise (PTP)
+            </h3>
+            <p className="text-xs text-slate-500 mt-0.5">
+              Record a formal settlement commitment made during dunning outreach
+            </p>
+          </div>
+          <button
+            onClick={onClose}
+            className="rounded-xl p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-600 transition"
+          >
+            <X className="h-4 w-4" />
+          </button>
         </div>
 
         {error && (
-          <div className="mx-5 mt-4 rounded-lg bg-red-50 p-3 text-sm text-red-700 border border-red-100">
-            {error}
+          <div className="mx-5 mt-4 rounded-xl bg-rose-50 p-3 text-xs text-rose-800 border border-rose-200 flex items-center gap-2 shrink-0">
+            <AlertCircle className="h-4 w-4 text-rose-600 shrink-0" />
+            <span>{error}</span>
           </div>
         )}
 
-        <div className="p-5 space-y-4">
+        <form onSubmit={submit} className="p-5 space-y-3.5 overflow-y-auto flex-1">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Customer *
+            <label className="block text-xs font-bold text-slate-700 mb-1">
+              Customer / Debtor *
             </label>
             <select
+              required
               value={customerId}
               onChange={(e) => setCustomerId(e.target.value)}
-              className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+              className="w-full rounded-xl border border-slate-200 bg-slate-50/50 px-3 py-2 text-xs font-medium focus:bg-white focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 transition-all"
             >
-              <option value="">Select customer…</option>
+              <option value="">Select debtor account…</option>
               {customers.map((c) => (
                 <option key={c.id} value={c.id}>
-                  {c.name}
+                  {c.name} ({formatINR(c.totalOutstanding)} open)
                 </option>
               ))}
             </select>
@@ -349,79 +515,102 @@ function LogPromiseModal({
 
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Amount (₹) *
+              <label className="block text-xs font-bold text-slate-700 mb-1">
+                Committed Amount (₹) *
               </label>
               <input
                 type="number"
+                required
                 min={1}
                 value={amount}
                 onChange={(e) => setAmount(e.target.value)}
-                className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
-                placeholder="0"
+                placeholder="e.g. 50000"
+                className="w-full rounded-xl border border-slate-200 bg-slate-50/50 px-3.5 py-2 text-xs font-mono font-medium focus:bg-white focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 transition-all"
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Promise date *
+              <label className="block text-xs font-bold text-slate-700 mb-1">
+                Target Settlement Date *
               </label>
               <input
                 type="date"
+                required
                 value={promiseDate}
                 onChange={(e) => setPromiseDate(e.target.value)}
-                className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                className="w-full rounded-xl border border-slate-200 bg-slate-50/50 px-3.5 py-2 text-xs font-medium focus:bg-white focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 transition-all"
               />
             </div>
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Related invoice (optional)
+            <label className="block text-xs font-bold text-slate-700 mb-1">
+              Related Invoice (Optional)
             </label>
             <select
               value={invoiceId}
               onChange={(e) => setInvoiceId(e.target.value)}
-              className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+              className="w-full rounded-xl border border-slate-200 bg-slate-50/50 px-3 py-2 text-xs font-medium focus:bg-white focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 transition-all"
             >
-              <option value="">No specific invoice</option>
+              <option value="">No specific invoice (General account balance)</option>
               {invoices
-                .filter((i) => i.customer === customers.find((c) => c.id === customerId)?.name)
+                .filter(
+                  (i) =>
+                    i.customer ===
+                    customers.find((c) => c.id === customerId)?.name
+                )
                 .map((inv) => (
                   <option key={inv.id} value={inv.id}>
-                    {inv.number}
+                    {inv.number} ({formatINR(inv.outstanding)} open)
                   </option>
                 ))}
             </select>
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Note (optional)
-            </label>
+            <div className="flex justify-between items-center mb-1">
+              <label className="text-xs font-bold text-slate-700">Estimated Confidence Score</label>
+              <span className="text-xs font-mono font-bold text-blue-600">{confidence}%</span>
+            </div>
             <input
-              value={note}
-              onChange={(e) => setNote(e.target.value)}
-              className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
-              placeholder="Context from the call…"
+              type="range"
+              min={10}
+              max={100}
+              step={5}
+              value={confidence}
+              onChange={(e) => setConfidence(Number(e.target.value))}
+              className="w-full accent-blue-600 cursor-pointer"
             />
           </div>
 
-          <div className="flex gap-3 pt-2">
-            <button
-              onClick={onClose}
-              className="flex-1 rounded-lg border border-gray-200 px-4 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50"
-            >
-              Cancel
-            </button>
-            <button
-              onClick={submit}
-              disabled={saving || !customerId || !amount || Number(amount) <= 0}
-              className="flex-1 rounded-lg bg-blue-600 px-4 py-2.5 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50 transition-colors"
-            >
-              {saving ? "Saving…" : "Log promise"}
-            </button>
+          <div>
+            <label className="block text-xs font-bold text-slate-700 mb-1">
+              Call Remarks / Context
+            </label>
+            <textarea
+              rows={2}
+              value={note}
+              onChange={(e) => setNote(e.target.value)}
+              placeholder="Debtor confirmed transfer pending CFO signature on Friday…"
+              className="w-full rounded-xl border border-slate-200 bg-slate-50/50 p-3 text-xs font-medium focus:bg-white focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 resize-none transition-all"
+            />
           </div>
-        </div>
+
+          <div className="flex items-center justify-end gap-2.5 pt-3 border-t border-slate-100">
+            <Button type="button" variant="outline" size="sm" onClick={onClose} disabled={saving}>
+              Cancel
+            </Button>
+            <Button
+              type="submit"
+              size="sm"
+              loading={saving}
+              disabled={saving || !customerId || !amount || Number(amount) <= 0}
+              className="gap-1.5"
+            >
+              <CheckCircle2 className="h-3.5 w-3.5" />
+              <span>Log Commitment</span>
+            </Button>
+          </div>
+        </form>
       </div>
     </div>
   );

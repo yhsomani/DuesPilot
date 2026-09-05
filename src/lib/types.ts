@@ -46,6 +46,7 @@ export interface CustomerSummary {
   initials: string;
   email: string | null;
   phone: string | null;
+  gstin?: string | null;
   totalOutstanding: number;
   totalOverdue: number;
   invoicesCount: number;
@@ -112,6 +113,7 @@ export interface CustomerDetailData {
 export interface InvoiceRow {
   id: string;
   number: string;
+  customerId?: string;
   customer: string;
   date: string;
   dueDate: string;
@@ -167,6 +169,7 @@ export type PromiseStatusView = "ACTIVE" | "KEPT" | "BROKEN" | "RENEGOTIATED";
 
 export interface PromiseRow {
   id: string;
+  customerId?: string;
   customer: string;
   initials: string;
   amount: number;

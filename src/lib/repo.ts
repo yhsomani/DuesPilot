@@ -226,6 +226,7 @@ export async function listCustomers(
     initials: initials(c.name),
     email: c.email,
     phone: c.phone,
+    gstin: c.gstin ?? null,
     totalOutstanding: c.totalOutstanding,
     totalOverdue: c.totalOverdue,
     invoicesCount: c._count.invoices,
@@ -329,6 +330,7 @@ export async function listInvoices(
     return invoices.map((inv) => ({
       id: inv.id,
       number: inv.invoiceNumber,
+      customerId: inv.customerId,
       customer: inv.customer.name,
       date: inv.invoiceDate.toISOString(),
       dueDate: inv.dueDate.toISOString(),
@@ -422,6 +424,7 @@ export async function queryInvoices(
     items: invoices.map((inv) => ({
       id: inv.id,
       number: inv.invoiceNumber,
+      customerId: inv.customerId,
       customer: inv.customer.name,
       date: inv.invoiceDate.toISOString(),
       dueDate: inv.dueDate.toISOString(),
@@ -452,6 +455,7 @@ export async function listPromises(
   });
   return promises.map((p) => ({
     id: p.id,
+    customerId: p.customerId,
     customer: p.customer.name,
     initials: initials(p.customer.name),
     amount: p.amount,

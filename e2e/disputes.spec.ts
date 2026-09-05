@@ -1,0 +1,123 @@
+import { test, expect, MOCK_DISPUTES, MOCK_INVOICES } from "./fixtures";
+
+test.describe("Invoice Disputes Ledger & Resolution Management", () => {
+  test("renders disputes list, KPI cards, and status filter switching", async ({
+    authenticatedPage: page,
+  }) => {
+    await page.route("**/api/disputes", async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify(MOCK_DISPUTES),
+      });
+    });
+
+    await page.goto("/dashboard/disputes");
+
+    await expect(page.getByRole("heading", { name: "Invoice Disputes" })).toBeVisible();
+    await expect(page.getByText("Active Disputed Cases")).toBeVisible();
+    await expect(page.getByText("Successfully Resolved")).toBeVisible();
+
+    // Table rows
+    await expect(page.getByText("INV-2026-089")).toBeVisible();
+    await expect(page.getByText("Raj Steel & Forgings Pvt Ltd")).toBeVisible();
+    await expect(page.getByText("Quantity Shortfall")).toBeVisible();
+
+    // Filter by Open
+    await page.getByRole("button", { name: /Open \(/i }).click();
+    await expect(page.getByText("INV-2026-089")).toBeVisible();
+
+    // Filter by Resolved
+    await page.getByRole("button", { name: /Resolved \(/i }).click();
+    await expect(page.getByText("No disputes found")).toBeVisible();
+
+    // Reset to All
+    await page.getByRole("button", { name: /All \(/i }).click();
+    await expect(page.getByText("INV-2026-089")).toBeVisible();
+  });
+
+  test("Log Dispute modal enables creating a new dispute claim against an invoice", async ({
+    authenticatedPage: page,
+  }) => {
+    await page.route("**/api/disputes", async (route) => {
+      if (route.request().method() === "POST") {
+        const body = route.request().postDataJSON();
+        await route.fulfill({
+          status: 201,
+          contentType: "application/json",
+          body: JSON.stringify({ id: "disp_new_123", ...body, status: "open", createdAt: new Date().toISOString() }),
+        });
+      } else {
+        await route.fulfill({
+          status: 200,
+          contentType: "application/json",
+          body: JSON.stringify(MOCK_DISPUTES),
+        });
+      }
+    });
+
+    await page.route("**/api/invoices", async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify(MOCK_INVOICES),
+      });
+    });
+
+    await page.goto("/dashboard/disputes");
+
+    // Click Log Dispute button
+    await page.getByRole("button", { name: /Log Dispute/i }).click();
+
+    const dialog = page.getByRole("dialog");
+    await expect(dialog).toBeVisible();
+    await expect(dialog.getByText("Log Invoice Dispute")).toBeVisible();
+
+    // Select invoice
+    await dialog.getByRole("combobox").first().selectOption("inv_1");
+
+    // Select Category
+    await dialog.getByRole("combobox").nth(1).selectOption("quality");
+
+    // Fill Reason & Notes
+    await dialog.getByPlaceholder(/What specifically is the customer disputing/i).fill("Damaged shipment reported by factory receiver.");
+    await dialog.getByPlaceholder(/Sales representative checking/i).fill("Awaiting replacement delivery before settlement.");
+
+    // Submit
+    await dialog.getByRole("button", { name: /Log Dispute/i }).click();
+  });
+
+  test("Resolve and Withdraw buttons trigger status update API calls", async ({
+    authenticatedPage: page,
+  }) => {
+    await page.route("**/api/disputes", async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify(MOCK_DISPUTES),
+      });
+    });
+
+    let patchedStatus: string | null = null;
+    await page.route("**/api/disputes/disp_1", async (route) => {
+      if (route.request().method() === "PATCH") {
+        const body = route.request().postDataJSON();
+        patchedStatus = body.status;
+        await route.fulfill({
+          status: 200,
+          contentType: "application/json",
+          body: JSON.stringify({ id: "disp_1", status: patchedStatus }),
+        });
+      }
+    });
+
+    await page.goto("/dashboard/disputes");
+
+    // Click Resolve button on open dispute
+    const resolveBtn = page.getByRole("button", { name: /Resolve/i }).first();
+    await expect(resolveBtn).toBeVisible();
+    await resolveBtn.click();
+
+    expect(patchedStatus).toBe("resolved");
+  });
+});

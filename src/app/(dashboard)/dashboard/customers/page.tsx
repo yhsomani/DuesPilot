@@ -1,12 +1,32 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { formatINR } from "@/lib/utils";
 import { api, apiPost, ApiError } from "@/lib/api";
 import type { CustomerSummary, DuplicateGroup } from "@/lib/types";
+import {
+  Search,
+  Plus,
+  ArrowUpDown,
+  AlertCircle,
+  Building2,
+  Merge,
+  RefreshCw,
+  X,
+  Clock,
+  ShieldAlert,
+  ChevronRight,
+} from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { StatCard } from "@/components/ui/stat-card";
+import { StatCardSkeleton } from "@/components/ui/skeleton";
+import { EmptyState } from "@/components/ui/empty-state";
 
 export default function CustomersPage() {
+  const router = useRouter();
   const [customers, setCustomers] = useState<CustomerSummary[]>([]);
   const [duplicates, setDuplicates] = useState<DuplicateGroup[]>([]);
   const [loading, setLoading] = useState(true);
@@ -27,14 +47,50 @@ export default function CustomersPage() {
   });
   const [createSaving, setCreateSaving] = useState(false);
   const [createError, setCreateError] = useState<string | null>(null);
+  const [mergingKey, setMergingKey] = useState<string | null>(null);
 
   const loadDuplicates = useCallback(async () => {
     try {
       setDuplicates(await api<DuplicateGroup[]>("/api/customers/duplicates"));
     } catch {
-      // duplicates are best-effort; page works without them
+      // duplicates are best-effort
     }
   }, []);
+
+  const load = useCallback(async (searchQuery?: string) => {
+    const params = new URLSearchParams();
+    if (searchQuery !== undefined ? searchQuery.trim() : search.trim()) {
+      params.set("search", (searchQuery !== undefined ? searchQuery : search).trim());
+    }
+    const qs = params.toString();
+    const data = await api<CustomerSummary[]>(`/api/customers${qs ? `?${qs}` : ""}`);
+    setCustomers(data);
+  }, [search]);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      setLoading(true);
+      setError(null);
+      try {
+        const [c, d] = await Promise.all([
+          api<CustomerSummary[]>("/api/customers"),
+          api<DuplicateGroup[]>("/api/customers/duplicates").catch(() => []),
+        ]);
+        if (cancelled) return;
+        setCustomers(c);
+        setDuplicates(d);
+      } catch (e) {
+        if (cancelled) return;
+        setError(e instanceof Error ? e.message : "Failed to load customers");
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [retryKey]);
 
   const submitCreate = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -60,156 +116,203 @@ export default function CustomersPage() {
     }
   };
 
-  const applyMerge = async (targetId: string, sourceIds: string[]) => {
+  const applyMerge = async (targetId: string, sourceIds: string[], groupKey: string) => {
+    setMergingKey(groupKey);
     try {
       await apiPost(`/api/customers/${targetId}`, { sourceIds });
       await Promise.all([load(), loadDuplicates()]);
     } catch (e) {
       setError(e instanceof ApiError ? e.message : "Merge failed");
+    } finally {
+      setMergingKey(null);
     }
   };
 
-  useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      setLoading(true);
-      setError(null);
-      try {
-        const [c, d] = await Promise.all([
-          api<CustomerSummary[]>("/api/customers"),
-          api<DuplicateGroup[]>("/api/customers/duplicates"),
-        ]);
-        if (cancelled) return;
-        setCustomers(c);
-        setDuplicates(d);
-      } catch (e) {
-        if (cancelled) return;
-        setError(e instanceof Error ? e.message : "Failed to load");
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [retryKey]);
-
-  const load = async () => {
-    const params = new URLSearchParams();
-    if (search.trim()) params.set("search", search.trim());
-    const qs = params.toString();
-    setCustomers(
-      await api<CustomerSummary[]>(`/api/customers${qs ? `?${qs}` : ""}`)
-    );
+  const handleSearchSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    setSearch(searchInput.trim());
+    void load(searchInput.trim());
   };
 
-  useEffect(() => {
-    void load();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [search]);
+  const handleClearSearch = () => {
+    setSearchInput("");
+    setSearch("");
+    void load("");
+  };
 
-  const filtered = customers
-    .sort((a, b) => {
-      if (sortBy === "name") return a.name.localeCompare(b.name);
-      if (sortBy === "outstanding")
-        return b.totalOutstanding - a.totalOutstanding;
-      return b.totalOverdue - a.totalOverdue;
-    });
+  const sortedCustomers = [...customers].sort((a, b) => {
+    if (sortBy === "name") return a.name.localeCompare(b.name);
+    if (sortBy === "outstanding") return b.totalOutstanding - a.totalOutstanding;
+    return b.totalOverdue - a.totalOverdue;
+  });
 
-  const totalOutstanding = customers.reduce(
-    (s, c) => s + c.totalOutstanding,
-    0
-  );
+  const totalOutstanding = customers.reduce((s, c) => s + c.totalOutstanding, 0);
+  const totalOverdue = customers.reduce((s, c) => s + c.totalOverdue, 0);
+  const highRiskCount = customers.filter((c) => c.riskScore > 70).length;
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      {/* Header & Main Actions */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Customers</h1>
-          <p className="mt-1 text-sm text-gray-500">
-            {customers.length} customers · {formatINR(totalOutstanding)} total
-            outstanding
+          <div className="flex items-center gap-2">
+            <h1 className="text-xl font-bold text-slate-900 tracking-tight">Debtor Directory</h1>
+            <Badge variant="blue" size="sm">
+              {customers.length} Accounts
+            </Badge>
+          </div>
+          <p className="mt-0.5 text-xs text-slate-500">
+            Unified debtor accounts, GSTIN verification, delinquency scores, and historical payment timelines.
           </p>
         </div>
-        <button
-          onClick={() => {
-            setCreateError(null);
-            setShowCreate(true);
-          }}
-          className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 transition-colors"
-        >
-          Add customer
-        </button>
+
+        <div className="flex items-center gap-2.5">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setRetryKey((k) => k + 1)}
+            className="gap-1.5 shadow-2xs"
+          >
+            <RefreshCw className="h-3.5 w-3.5 text-slate-500" />
+            <span>Refresh</span>
+          </Button>
+
+          <Button
+            size="sm"
+            onClick={() => {
+              setCreateError(null);
+              setShowCreate(true);
+            }}
+            className="gap-1.5 shadow-2xs"
+          >
+            <Plus className="h-3.5 w-3.5" />
+            <span>Add Customer</span>
+          </Button>
+        </div>
       </div>
 
-      {loading && <p className="text-sm text-gray-500">Loading customers…</p>}
+      {/* KPI Overview Cards */}
+      {loading ? (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          <StatCardSkeleton />
+          <StatCardSkeleton />
+          <StatCardSkeleton />
+          <StatCardSkeleton />
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          <StatCard
+            title="Total Receivables"
+            value={formatINR(totalOutstanding)}
+            subtitle={`${customers.length} active customer accounts`}
+            icon={Building2}
+            variant="default"
+          />
+          <StatCard
+            title="Total Overdue"
+            value={formatINR(totalOverdue)}
+            subtitle="Delinquent across all aging buckets"
+            icon={Clock}
+            variant="danger"
+          />
+          <StatCard
+            title="High Delinquency Risk"
+            value={`${highRiskCount} Debtors`}
+            subtitle="Score > 70/100 requiring escalation"
+            icon={ShieldAlert}
+            variant="purple"
+          />
+          <StatCard
+            title="Duplicate Accounts"
+            value={`${duplicates.length} Groups`}
+            subtitle="Potential mergers to consolidate ledger"
+            icon={Merge}
+            variant="warning"
+          />
+        </div>
+      )}
+
+      {/* Error Alert */}
       {error && (
         <div
           role="alert"
-          className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700"
+          className="rounded-2xl border border-rose-200 bg-rose-50 p-4 text-xs text-rose-800 flex items-start gap-3 shadow-2xs"
         >
-          <p>{error}</p>
-          <button
-            onClick={() => setRetryKey((n) => n + 1)}
-            className="mt-2 rounded-lg border border-red-200 bg-white px-3 py-1.5 text-xs font-medium text-red-700 hover:bg-red-100"
-          >
-            Try again
-          </button>
+          <AlertCircle className="h-4 w-4 text-rose-600 shrink-0 mt-0.5" />
+          <div className="flex-1">
+            <p className="font-bold">Failed to load debtor records</p>
+            <p className="mt-0.5 text-rose-700">{error}</p>
+            <button
+              onClick={() => setRetryKey((n) => n + 1)}
+              className="mt-2 text-xs font-semibold text-rose-900 underline hover:text-rose-950"
+            >
+              Try reloading
+            </button>
+          </div>
         </div>
       )}
 
       {!loading && !error && (
         <>
+          {/* Duplicate Customers Merge Banner */}
           {duplicates.length > 0 && (
-            <div className="rounded-xl border border-amber-200 bg-amber-50 shadow-sm">
-              <div className="px-6 py-4 border-b border-amber-200">
-                <h2 className="font-semibold text-gray-900">
-                  Possible duplicate customers
+            <div className="rounded-3xl border border-amber-200/90 bg-amber-50/70 p-5 shadow-2xs space-y-3">
+              <div className="flex items-center gap-2">
+                <Merge className="h-4 w-4 text-amber-700" />
+                <h2 className="text-xs font-bold uppercase tracking-wider text-amber-950">
+                  Possible Duplicate Customer Accounts ({duplicates.length})
                 </h2>
-                <p className="text-sm text-amber-800 mt-0.5">
-                  Customers with matching names may be the same account. Merge
-                  them to combine invoices, payments, and history.
-                </p>
               </div>
-              <div className="divide-y divide-amber-200/70">
+              <p className="text-xs text-amber-800">
+                Accounts with identical names or phone numbers can be merged to combine all invoices, promises, and communication timelines into a single record.
+              </p>
+
+              <div className="divide-y divide-amber-200/60 rounded-2xl bg-white/80 border border-amber-200/80 overflow-hidden">
                 {duplicates.map((group) => {
                   const keeper = [...group.members].sort(
                     (a, b) => b.invoicesCount - a.invoicesCount
                   )[0];
                   const rest = group.members.filter((m) => m.id !== keeper.id);
+                  const isMerging = mergingKey === group.key;
+
                   return (
                     <div
                       key={group.key}
-                      className="px-6 py-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3"
+                      className="p-3.5 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3"
                     >
-                      <div className="flex flex-wrap gap-2">
+                      <div className="flex flex-wrap items-center gap-2">
                         {group.members.map((m) => (
                           <span
                             key={m.id}
-                            className={`rounded-lg border px-3 py-1.5 text-sm font-medium ${
+                            className={`rounded-xl border px-3 py-1 text-xs font-medium flex items-center gap-1.5 ${
                               m.id === keeper.id
-                                ? "border-blue-300 bg-blue-50 text-blue-800"
-                                : "border-gray-200 bg-white text-gray-700"
+                                ? "border-blue-300 bg-blue-50 text-blue-900 shadow-2xs"
+                                : "border-slate-200 bg-white text-slate-700"
                             }`}
                           >
-                            {m.name}
+                            <span>{m.name}</span>
+                            <span className="text-[10px] text-slate-400 font-mono">
+                              ({m.invoicesCount} inv)
+                            </span>
                             {m.id === keeper.id && (
-                              <span className="ml-1.5 text-[10px] font-semibold uppercase text-blue-600">
-                                Keep
-                              </span>
+                              <Badge variant="blue" size="sm">
+                                Primary Target
+                              </Badge>
                             )}
                           </span>
                         ))}
                       </div>
-                      <button
-                        onClick={() =>
-                          applyMerge(keeper.id, rest.map((m) => m.id))
-                        }
+
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        loading={isMerging}
                         disabled={rest.length === 0}
-                        className="shrink-0 rounded-lg bg-blue-600 px-4 py-2 text-xs font-semibold text-white hover:bg-blue-700 disabled:opacity-50 transition-colors"
+                        onClick={() => applyMerge(keeper.id, rest.map((m) => m.id), group.key)}
+                        className="border-amber-300 bg-amber-100/60 text-amber-900 hover:bg-amber-200/80 text-xs shrink-0 self-end sm:self-auto"
                       >
-                        Merge {rest.length === 0 ? "" : `${rest.length} into ${keeper.name}`}
-                      </button>
+                        Merge into {keeper.name}
+                      </Button>
                     </div>
                   );
                 })}
@@ -217,221 +320,187 @@ export default function CustomersPage() {
             </div>
           )}
 
-          <div className="flex items-center gap-3">
-            <div className="flex-1 max-w-sm">
-              <input
-                type="text"
-                placeholder="Search customers..."
-                value={searchInput}
-                onChange={(e) => setSearchInput(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") setSearch(searchInput.trim());
-                }}
-                className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
-              />
+          {/* Search, Filter & Sort Bar */}
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white p-3.5 rounded-2xl border border-slate-200/90 shadow-2xs">
+            <form onSubmit={handleSearchSubmit} className="flex items-center gap-2 flex-1 max-w-md">
+              <div className="relative flex-1">
+                <Search className="h-3.5 w-3.5 text-slate-400 absolute left-3 top-3 pointer-events-none" />
+                <input
+                  type="text"
+                  placeholder="Search customer name, GSTIN, email, phone…"
+                  value={searchInput}
+                  onChange={(e) => setSearchInput(e.target.value)}
+                  className="w-full rounded-xl border border-slate-200 bg-slate-50/60 pl-8 pr-8 py-2 text-xs font-medium text-slate-900 placeholder-slate-400 focus:bg-white focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 transition-all"
+                />
+                {searchInput && (
+                  <button
+                    type="button"
+                    onClick={handleClearSearch}
+                    className="absolute right-2.5 top-2.5 text-slate-400 hover:text-slate-600"
+                  >
+                    <X className="h-3.5 w-3.5" />
+                  </button>
+                )}
+              </div>
+              <Button type="submit" size="sm" variant="outline">
+                Search
+              </Button>
+            </form>
+
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-bold text-slate-500 flex items-center gap-1 shrink-0">
+                <ArrowUpDown className="h-3.5 w-3.5" />
+                Sort:
+              </span>
+              <select
+                value={sortBy}
+                onChange={(e) => setSortBy(e.target.value as typeof sortBy)}
+                className="rounded-xl border border-slate-200 bg-slate-50/60 px-3 py-2 text-xs font-semibold text-slate-700 focus:bg-white focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 transition-all"
+              >
+                <option value="outstanding">Highest Outstanding</option>
+                <option value="overdue">Highest Overdue</option>
+                <option value="name">Alphabetical (A–Z)</option>
+              </select>
             </div>
-            <button
-              onClick={() => setSearch(searchInput.trim())}
-              className="rounded-lg bg-blue-600 px-3 py-2 text-sm font-medium text-white hover:bg-blue-700 transition-colors"
-            >
-              Search
-            </button>
-            <button
-              onClick={() => {
-                setSearchInput("");
-                setSearch("");
-              }}
-              className="rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm font-medium text-gray-600 hover:bg-gray-50"
-            >
-              Clear
-            </button>
-            <select
-              value={sortBy}
-              onChange={(e) => setSortBy(e.target.value as typeof sortBy)}
-              className="rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
-            >
-              <option value="outstanding">Sort by outstanding</option>
-              <option value="overdue">Sort by overdue</option>
-              <option value="name">Sort by name</option>
-            </select>
           </div>
 
-          <div className="rounded-xl border border-gray-200 bg-white shadow-sm overflow-hidden">
-            {filtered.length === 0 ? (
+          {/* Main Customers Table Card */}
+          <div className="rounded-3xl border border-slate-200/90 bg-white shadow-2xs overflow-hidden">
+            {sortedCustomers.length === 0 ? (
               customers.length === 0 ? (
-                <div className="px-8 py-12 text-center">
-                  <div className="mx-auto h-14 w-14 rounded-2xl bg-blue-50 border border-blue-200 flex items-center justify-center mb-4">
-                    <svg
-                      className="h-7 w-7 text-blue-600"
-                      fill="none"
-                      viewBox="0 0 24 24"
-                      stroke="currentColor"
-                      strokeWidth={1.5}
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4 M17 8l-5-5-5 5 M12 3v12"
-                      />
-                    </svg>
-                  </div>
-                  <h2 className="text-lg font-bold text-gray-900">
-                    Get started with your receivables
-                  </h2>
-                  <p className="mx-auto mt-2 max-w-md text-sm text-gray-500">
-                    Import your outstanding invoices (from Tally, Excel, or any
-                    accounting export) to build your collection queue and start
-                    chasing payments.
-                  </p>
-                  <ol className="mx-auto mt-6 max-w-sm space-y-3 text-left">
-                    {[
-                      ["1", "Import a CSV", "Upload your receivables file"],
-                      ["2", "Auto-map columns", "Match your file to DuesPilot fields"],
-                      ["3", "See your queue", "Get a prioritized chase list instantly"],
-                    ].map(([step, title, sub]) => (
-                      <li key={step} className="flex items-center gap-3">
-                        <span className="h-7 w-7 rounded-full bg-blue-100 text-blue-700 text-xs font-bold flex items-center justify-center shrink-0">
-                          {step}
-                        </span>
-                        <div>
-                          <p className="text-sm font-medium text-gray-800">
-                            {title}
-                          </p>
-                          <p className="text-xs text-gray-400">{sub}</p>
-                        </div>
-                      </li>
-                    ))}
-                  </ol>
-                  <a
-                    href="/dashboard/import"
-                    className="mt-6 inline-block rounded-lg bg-blue-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-blue-700 transition-colors"
-                  >
-                    Import receivables
-                  </a>
-                </div>
+                <EmptyState
+                  icon={Building2}
+                  title="No debtor accounts recorded yet"
+                  description="Import your receivables from CSV or Tally XML to automatically populate your customer directory and ledger balances."
+                  actionLabel="Import Receivables →"
+                  onAction={() => {
+                    router.push("/dashboard/import");
+                  }}
+                  className="py-16 border-0"
+                />
               ) : (
-                <p className="px-6 py-10 text-sm text-gray-500">
-                  No customers match your search.
-                </p>
+                <EmptyState
+                  icon={Search}
+                  title="No matching customers"
+                  description={`No customer accounts matched "${search}". Try adjusting your search query or clear the filter.`}
+                  actionLabel="Clear Search Filter"
+                  onAction={handleClearSearch}
+                  className="py-12 border-0"
+                />
               )
             ) : (
               <div className="overflow-x-auto">
-                <table className="min-w-full">
+                <table className="min-w-full text-xs">
                   <thead>
-                    <tr className="border-b border-gray-100 bg-gray-50">
-                      <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase">
-                        Customer
-                      </th>
-                      <th className="px-6 py-3 text-right text-xs font-semibold text-gray-500 uppercase">
-                        Outstanding
-                      </th>
-                      <th className="px-6 py-3 text-right text-xs font-semibold text-gray-500 uppercase">
-                        Overdue
-                      </th>
-                      <th className="px-6 py-3 text-center text-xs font-semibold text-gray-500 uppercase">
-                        Risk
-                      </th>
-                      <th className="px-6 py-3 text-center text-xs font-semibold text-gray-500 uppercase">
-                        Invoices
-                      </th>
-                      <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase">
-                        Last Payment
-                      </th>
+                    <tr className="border-b border-slate-100 bg-slate-50/80 text-slate-500">
+                      <th className="px-5 py-3 text-left font-bold uppercase tracking-wider">Customer / Debtor</th>
+                      <th className="px-5 py-3 text-right font-bold uppercase tracking-wider">Total Outstanding</th>
+                      <th className="px-5 py-3 text-right font-bold uppercase tracking-wider">Overdue Balance</th>
+                      <th className="px-5 py-3 text-center font-bold uppercase tracking-wider">Risk Score</th>
+                      <th className="px-5 py-3 text-center font-bold uppercase tracking-wider">Invoices</th>
+                      <th className="px-5 py-3 text-left font-bold uppercase tracking-wider">Last Payment</th>
+                      <th className="px-5 py-3 text-right font-bold uppercase tracking-wider">Action</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-gray-100">
-                    {filtered.map((customer) => (
-                      <tr
-                        key={customer.id}
-                        className="hover:bg-gray-50 transition-colors"
-                      >
-                        <td className="px-6 py-4">
-                          <Link
-                            href={`/dashboard/customers/${customer.id}`}
-                            className="flex items-center gap-3"
-                          >
-                            <div
-                              className={`h-9 w-9 rounded-lg flex items-center justify-center ${
-                                customer.riskScore > 70
-                                  ? "bg-red-50 border border-red-200"
-                                  : customer.riskScore > 40
-                                  ? "bg-orange-50 border border-orange-200"
-                                  : "bg-green-50 border border-green-200"
-                              }`}
-                            >
-                              <span
-                                className={`font-bold text-xs ${
-                                  customer.riskScore > 70
-                                    ? "text-red-700"
-                                    : customer.riskScore > 40
-                                    ? "text-orange-700"
-                                    : "text-green-700"
+                  <tbody className="divide-y divide-slate-100">
+                    {sortedCustomers.map((customer) => {
+                      const isHighRisk = customer.riskScore > 70;
+                      const isMedRisk = customer.riskScore > 40;
+
+                      return (
+                        <tr
+                          key={customer.id}
+                          className="hover:bg-slate-50/80 transition-colors group cursor-pointer"
+                          onClick={() => {
+                            router.push(`/dashboard/customers/${customer.id}`);
+                          }}
+                        >
+                          <td className="px-5 py-3.5">
+                            <div className="flex items-center gap-3">
+                              <div
+                                className={`flex h-9 w-9 items-center justify-center rounded-xl font-bold text-xs shrink-0 border ${
+                                  isHighRisk
+                                    ? "bg-rose-100 text-rose-800 border-rose-200"
+                                    : isMedRisk
+                                    ? "bg-amber-100 text-amber-900 border-amber-200"
+                                    : "bg-emerald-100 text-emerald-800 border-emerald-200"
                                 }`}
                               >
                                 {customer.initials}
-                              </span>
+                              </div>
+                              <div className="min-w-0">
+                                <Link
+                                  href={`/dashboard/customers/${customer.id}`}
+                                  onClick={(e) => e.stopPropagation()}
+                                  className="font-bold text-slate-900 text-xs hover:text-blue-600 transition-colors truncate block"
+                                >
+                                  {customer.name}
+                                </Link>
+                                <div className="flex items-center gap-2 mt-0.5 text-[11px] text-slate-500">
+                                  <span>{customer.email ?? customer.phone ?? "No contact details"}</span>
+                                  {customer.gstin && (
+                                    <>
+                                      <span>•</span>
+                                      <span className="font-mono text-slate-600 font-medium">
+                                        {customer.gstin}
+                                      </span>
+                                    </>
+                                  )}
+                                </div>
+                              </div>
                             </div>
-                            <div>
-                              <p className="font-semibold text-gray-900 text-sm">
-                                {customer.name}
-                              </p>
-                              <p className="text-xs text-gray-500">
-                                {customer.email ?? "No email"}
-                              </p>
-                            </div>
-                          </Link>
-                        </td>
-                        <td className="px-6 py-4 text-right">
-                          <span className="text-sm font-medium text-gray-900">
-                            {formatINR(customer.totalOutstanding)}
-                          </span>
-                        </td>
-                        <td className="px-6 py-4 text-right">
-                          <span
-                            className={`text-sm font-medium ${
-                              customer.totalOverdue > 0
-                                ? "text-red-600"
-                                : "text-gray-500"
-                            }`}
-                          >
-                            {customer.totalOverdue > 0
-                              ? formatINR(customer.totalOverdue)
-                              : "-"}
-                          </span>
-                        </td>
-                        <td className="px-6 py-4 text-center">
-                          <span
-                            className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-semibold ${
-                              customer.riskScore > 70
-                                ? "bg-red-100 text-red-700"
-                                : customer.riskScore > 40
-                                ? "bg-orange-100 text-orange-700"
-                                : "bg-green-100 text-green-700"
-                            }`}
-                          >
-                            {customer.riskScore}
-                          </span>
-                        </td>
-                        <td className="px-6 py-4 text-center">
-                          <span className="text-sm text-gray-600">
+                          </td>
+
+                          <td className="px-5 py-3.5 text-right">
+                            <span className="font-mono font-bold text-slate-900 text-xs">
+                              {formatINR(customer.totalOutstanding)}
+                            </span>
+                          </td>
+
+                          <td className="px-5 py-3.5 text-right">
+                            <span
+                              className={`font-mono font-bold text-xs ${
+                                customer.totalOverdue > 0 ? "text-rose-600" : "text-slate-400"
+                              }`}
+                            >
+                              {customer.totalOverdue > 0 ? formatINR(customer.totalOverdue) : "₹0"}
+                            </span>
+                          </td>
+
+                          <td className="px-5 py-3.5 text-center">
+                            <Badge
+                              variant={isHighRisk ? "danger" : isMedRisk ? "warning" : "success"}
+                              size="sm"
+                            >
+                              {customer.riskScore}/100
+                            </Badge>
+                          </td>
+
+                          <td className="px-5 py-3.5 text-center font-mono font-semibold text-slate-700">
                             {customer.invoicesCount}
-                          </span>
-                        </td>
-                        <td className="px-6 py-4">
-                          <span className="text-sm text-gray-500">
+                          </td>
+
+                          <td className="px-5 py-3.5 text-slate-500 text-[11px]">
                             {customer.lastPaymentAt
-                              ? new Date(
-                                  customer.lastPaymentAt
-                                ).toLocaleDateString("en-IN", {
+                              ? new Date(customer.lastPaymentAt).toLocaleDateString("en-IN", {
                                   day: "numeric",
                                   month: "short",
                                   year: "numeric",
                                 })
-                              : "Never"}
-                          </span>
-                        </td>
-                      </tr>
-                    ))}
+                              : "No prior payments"}
+                          </td>
+
+                          <td className="px-5 py-3.5 text-right" onClick={(e) => e.stopPropagation()}>
+                            <Link href={`/dashboard/customers/${customer.id}`}>
+                              <Button variant="ghost" size="sm" className="h-7 px-2 text-slate-500 hover:text-blue-600">
+                                <span>360 View</span>
+                                <ChevronRight className="h-3.5 w-3.5 ml-1" />
+                              </Button>
+                            </Link>
+                          </td>
+                        </tr>
+                      );
+                    })}
                   </tbody>
                 </table>
               </div>
@@ -440,6 +509,7 @@ export default function CustomersPage() {
         </>
       )}
 
+      {/* Add Customer Modal */}
       {showCreate && (
         <div
           role="dialog"
@@ -448,126 +518,112 @@ export default function CustomersPage() {
           onKeyDown={(e) => {
             if (e.key === "Escape") setShowCreate(false);
           }}
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/40 p-4 backdrop-blur-xs animate-in fade-in duration-150"
         >
-          <div className="w-full max-w-md rounded-2xl bg-white shadow-xl border border-gray-200 max-h-[90vh] overflow-y-auto">
-            <div className="p-5 border-b border-gray-100">
-              <h3 id="create-customer-title" className="font-semibold text-gray-900">
-                Add customer
-              </h3>
-              <p className="text-sm text-gray-500">
-                A new customer with zero invoices. Import invoices from CSV to
-                attach balances.
-              </p>
+          <div className="w-full max-w-md rounded-3xl bg-white shadow-2xl border border-slate-200/90 overflow-hidden">
+            <div className="p-5 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
+              <div>
+                <h3 id="create-customer-title" className="font-bold text-slate-900 text-base">
+                  Add New Debtor Account
+                </h3>
+                <p className="text-xs text-slate-500 mt-0.5">
+                  Creates a customer master profile with zero initial ledger dues.
+                </p>
+              </div>
+              <button
+                onClick={() => setShowCreate(false)}
+                className="rounded-xl p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-600 transition"
+              >
+                <X className="h-4 w-4" />
+              </button>
             </div>
 
             {createError && (
-              <div className="mx-5 mt-4 rounded-lg bg-red-50 p-3 text-sm text-red-700 border border-red-100">
-                {createError}
+              <div className="mx-5 mt-4 rounded-xl bg-rose-50 p-3 text-xs text-rose-800 border border-rose-200 flex items-center gap-2">
+                <AlertCircle className="h-4 w-4 text-rose-600 shrink-0" />
+                <span>{createError}</span>
               </div>
             )}
 
-            <form onSubmit={submitCreate} className="p-5 space-y-4">
+            <form onSubmit={submitCreate} className="p-5 space-y-3.5">
               <div>
-                <label
-                  htmlFor="create-name"
-                  className="block text-sm font-medium text-gray-700"
-                >
-                  Name *
+                <label className="block text-xs font-bold text-slate-700 mb-1">
+                  Customer / Business Name *
                 </label>
                 <input
-                  id="create-name"
                   autoFocus
                   required
                   minLength={2}
                   value={createForm.name}
-                  onChange={(e) =>
-                    setCreateForm({ ...createForm, name: e.target.value })
-                  }
-                  className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                  onChange={(e) => setCreateForm({ ...createForm, name: e.target.value })}
+                  placeholder="e.g. Acme Industrial Solutions Pvt Ltd"
+                  className="w-full rounded-xl border border-slate-200 bg-slate-50/50 px-3.5 py-2 text-xs font-medium focus:bg-white focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 transition-all"
                 />
               </div>
-              <div>
-                <label
-                  htmlFor="create-email"
-                  className="block text-sm font-medium text-gray-700"
-                >
-                  Email
-                </label>
-                <input
-                  id="create-email"
-                  type="email"
-                  value={createForm.email}
-                  onChange={(e) =>
-                    setCreateForm({ ...createForm, email: e.target.value })
-                  }
-                  className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
-                />
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">Email Address</label>
+                  <input
+                    type="email"
+                    value={createForm.email}
+                    onChange={(e) => setCreateForm({ ...createForm, email: e.target.value })}
+                    placeholder="accounts@acme.com"
+                    className="w-full rounded-xl border border-slate-200 bg-slate-50/50 px-3.5 py-2 text-xs font-medium focus:bg-white focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 transition-all"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">Phone Number</label>
+                  <input
+                    type="tel"
+                    value={createForm.phone}
+                    onChange={(e) => setCreateForm({ ...createForm, phone: e.target.value })}
+                    placeholder="+91 98765 43210"
+                    className="w-full rounded-xl border border-slate-200 bg-slate-50/50 px-3.5 py-2 text-xs font-medium focus:bg-white focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 transition-all"
+                  />
+                </div>
               </div>
+
               <div>
-                <label
-                  htmlFor="create-phone"
-                  className="block text-sm font-medium text-gray-700"
-                >
-                  Phone
-                </label>
+                <label className="block text-xs font-bold text-slate-700 mb-1">GSTIN Number</label>
                 <input
-                  id="create-phone"
-                  value={createForm.phone}
-                  onChange={(e) =>
-                    setCreateForm({ ...createForm, phone: e.target.value })
-                  }
-                  className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
-                />
-              </div>
-              <div>
-                <label
-                  htmlFor="create-gstin"
-                  className="block text-sm font-medium text-gray-700"
-                >
-                  GSTIN
-                </label>
-                <input
-                  id="create-gstin"
                   value={createForm.gstin}
-                  onChange={(e) =>
-                    setCreateForm({ ...createForm, gstin: e.target.value })
-                  }
-                  className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                  onChange={(e) => setCreateForm({ ...createForm, gstin: e.target.value })}
+                  placeholder="27ABCDE1234F1Z5"
+                  className="w-full rounded-xl border border-slate-200 bg-slate-50/50 px-3.5 py-2 text-xs font-mono font-medium uppercase focus:bg-white focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 transition-all"
                 />
               </div>
+
               <div>
-                <label
-                  htmlFor="create-notes"
-                  className="block text-sm font-medium text-gray-700"
-                >
-                  Notes
-                </label>
+                <label className="block text-xs font-bold text-slate-700 mb-1">Internal Notes</label>
                 <textarea
-                  id="create-notes"
                   rows={2}
                   value={createForm.notes}
-                  onChange={(e) =>
-                    setCreateForm({ ...createForm, notes: e.target.value })
-                  }
-                  className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                  onChange={(e) => setCreateForm({ ...createForm, notes: e.target.value })}
+                  placeholder="Billing terms, verified contact person, or credit limit details…"
+                  className="w-full rounded-xl border border-slate-200 bg-slate-50/50 p-3 text-xs font-medium focus:bg-white focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 resize-none transition-all"
                 />
               </div>
-              <div className="flex justify-end gap-3 pt-1">
-                <button
+
+              <div className="flex items-center justify-end gap-2.5 pt-3 border-t border-slate-100">
+                <Button
                   type="button"
+                  variant="outline"
+                  size="sm"
                   onClick={() => setShowCreate(false)}
-                  className="rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-600 hover:bg-gray-50"
+                  disabled={createSaving}
                 >
                   Cancel
-                </button>
-                <button
+                </Button>
+                <Button
                   type="submit"
-                  disabled={createSaving || createForm.name.trim().length < 2}
-                  className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50 transition-colors"
+                  size="sm"
+                  loading={createSaving}
+                  disabled={createForm.name.trim().length < 2}
+                  className="gap-1.5"
                 >
-                  {createSaving ? "Saving…" : "Add customer"}
-                </button>
+                  <span>Create Account</span>
+                </Button>
               </div>
             </form>
           </div>

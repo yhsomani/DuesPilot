@@ -9,12 +9,33 @@ import type {
   DashboardStats,
   QueueItem,
 } from "@/lib/types";
+import {
+  DollarSign,
+  AlertCircle,
+  Clock,
+  CalendarCheck,
+  ArrowUpRight,
+  Upload,
+  PhoneCall,
+  Send,
+  Users,
+  AlertTriangle,
+  ChevronRight,
+  Sparkles,
+  BarChart3,
+  RefreshCw,
+} from "lucide-react";
+import { StatCard } from "@/components/ui/stat-card";
+import { StatCardSkeleton } from "@/components/ui/skeleton";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { EmptyState } from "@/components/ui/empty-state";
 
-const bucketColors: Record<string, string> = {
-  "1-30 days": "bg-yellow-500",
-  "31-60 days": "bg-orange-500",
-  "61-90 days": "bg-red-400",
-  "90+ days": "bg-red-600",
+const bucketColors: Record<string, { bar: string; text: string; bg: string }> = {
+  "1-30 days": { bar: "bg-amber-400", text: "text-amber-700", bg: "bg-amber-50" },
+  "31-60 days": { bar: "bg-amber-500", text: "text-amber-800", bg: "bg-amber-50" },
+  "61-90 days": { bar: "bg-rose-400", text: "text-rose-700", bg: "bg-rose-50" },
+  "90+ days": { bar: "bg-rose-600", text: "text-rose-800", bg: "bg-rose-50" },
 };
 
 export default function DashboardPage() {
@@ -40,7 +61,7 @@ export default function DashboardPage() {
         setAging(dash.aging);
         setQueue(q);
       } catch (e) {
-        if (active) setError(e instanceof Error ? e.message : "Failed to load");
+        if (active) setError(e instanceof Error ? e.message : "Failed to load dashboard data");
       } finally {
         if (active) setLoading(false);
       }
@@ -51,267 +72,366 @@ export default function DashboardPage() {
   }, [retryKey]);
 
   return (
-    <div className="space-y-8">
-      <div>
-        <h1 className="text-2xl font-bold text-gray-900">Dashboard</h1>
-        <p className="mt-1 text-sm text-gray-500">
-          Your collections at a glance
-        </p>
+    <div className="space-y-6">
+      {/* Header & Quick Action Bar */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div>
+          <div className="flex items-center gap-2">
+            <h1 className="text-xl font-bold text-slate-900 tracking-tight">Executive Overview</h1>
+            <Badge variant="blue" size="sm" className="hidden sm:inline-flex">Live Ledger</Badge>
+          </div>
+          <p className="mt-0.5 text-xs text-slate-500">
+            Real-time cash flow, overdue aging buckets, and prioritized daily dunning actions.
+          </p>
+        </div>
+
+        <div className="flex items-center gap-2.5">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setRetryKey((k) => k + 1)}
+            className="gap-1.5 shadow-2xs"
+          >
+            <RefreshCw className="h-3.5 w-3.5 text-slate-500" />
+            <span>Refresh</span>
+          </Button>
+          <Link href="/dashboard/import">
+            <Button size="sm" className="gap-1.5 shadow-2xs">
+              <Upload className="h-3.5 w-3.5" />
+              <span>Import Invoices</span>
+            </Button>
+          </Link>
+        </div>
       </div>
 
+      {/* Loading Skeleton */}
       {loading && (
-        <p className="text-sm text-gray-500">Loading dashboard…</p>
+        <div className="space-y-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            <StatCardSkeleton />
+            <StatCardSkeleton />
+            <StatCardSkeleton />
+            <StatCardSkeleton />
+          </div>
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <div className="h-64 rounded-3xl border border-slate-200 bg-white animate-pulse" />
+            <div className="lg:col-span-2 h-64 rounded-3xl border border-slate-200 bg-white animate-pulse" />
+          </div>
+        </div>
       )}
 
+      {/* Error Alert */}
       {error && (
         <div
           role="alert"
-          className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700"
+          className="rounded-2xl border border-rose-200 bg-rose-50 p-4 text-xs text-rose-800 flex items-start gap-3 shadow-2xs"
         >
-          <p>{error}</p>
-          <button
-            onClick={() => setRetryKey((n) => n + 1)}
-            className="mt-2 rounded-lg border border-red-200 bg-white px-3 py-1.5 text-xs font-medium text-red-700 hover:bg-red-100"
-          >
-            Try again
-          </button>
+          <AlertCircle className="h-4 w-4 text-rose-600 shrink-0 mt-0.5" />
+          <div className="flex-1">
+            <p className="font-bold">Failed to load dashboard metrics</p>
+            <p className="mt-0.5 text-rose-700">{error}</p>
+            <button
+              onClick={() => setRetryKey((n) => n + 1)}
+              className="mt-2 text-xs font-semibold text-rose-900 underline hover:text-rose-950"
+            >
+              Try reloading
+            </button>
+          </div>
         </div>
       )}
 
       {!loading && !error && stats && (
         <>
-          {/* First-run onboarding */}
+          {/* First-run onboarding banner */}
           {stats.totalReceivables === 0 && (
-            <div className="rounded-xl border border-blue-200 bg-blue-50 p-6 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-              <div>
-                <h2 className="font-semibold text-gray-900">
-                  Your workspace is ready
-                </h2>
-                <p className="mt-1 text-sm text-gray-600">
-                  Import your outstanding invoices to build your collection
-                  queue and get your first prioritize-and-chase list.
-                </p>
-              </div>
-              <Link
-                href="/dashboard/import"
-                className="shrink-0 rounded-lg bg-blue-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-blue-700 transition-colors"
-              >
-                Import receivables
-              </Link>
-            </div>
-          )}
-
-          {/* Broken-promise escalation banner */}
-          {stats.promiseBroken > 0 && (
-            <div className="rounded-xl border border-red-200 bg-red-50 p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
-              <div className="flex items-start gap-3">
-                <span className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-red-100 text-red-700">!</span>
+            <div className="rounded-3xl border border-blue-200/90 bg-gradient-to-r from-blue-50/80 via-indigo-50/50 to-white p-6 shadow-sm flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+              <div className="flex items-start gap-3.5">
+                <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-blue-600 text-white shadow-xs shrink-0">
+                  <Sparkles className="h-5 w-5" />
+                </div>
                 <div>
-                  <p className="text-sm font-semibold text-red-900">
-                    Broken customer promises require escalation
-                  </p>
-                  <p className="text-sm text-red-800">
-                    {formatINR(stats.promiseBroken)} promised for collection was
-                    not honored. Review the promises list and take the next
-                    action.
+                  <h2 className="text-sm font-bold text-slate-900">
+                    Your DuesPilot workspace is ready
+                  </h2>
+                  <p className="mt-1 text-xs text-slate-600 max-w-xl leading-relaxed">
+                    Import your outstanding B2B invoices via CSV or Tally XML to automatically calculate Section 15 statutory interest and build your intelligent collection queue.
                   </p>
                 </div>
               </div>
-              <Link
-                href="/dashboard/promises"
-                className="shrink-0 rounded-lg bg-red-600 px-4 py-2 text-sm font-semibold text-white hover:bg-red-700 transition-colors"
-              >
-                Review promises
+              <Link href="/dashboard/import" className="shrink-0">
+                <Button size="sm" className="shadow-xs">
+                  Import Receivables →
+                </Button>
               </Link>
             </div>
           )}
 
-          {/* Stat Cards */}
+          {/* Broken Promise Alert Banner */}
+          {stats.promiseBroken > 0 && (
+            <div className="rounded-2xl border border-rose-200 bg-rose-50/80 p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-2xs">
+              <div className="flex items-start gap-3">
+                <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-rose-100 text-rose-700 font-bold shrink-0">
+                  <AlertTriangle className="h-4 w-4" />
+                </div>
+                <div>
+                  <p className="text-xs font-bold text-rose-950">
+                    Broken Payment Commitments Detected
+                  </p>
+                  <p className="text-xs text-rose-800 mt-0.5">
+                    <strong>{formatINR(stats.promiseBroken)}</strong> in promised settlements passed their deadline without payment confirmation.
+                  </p>
+                </div>
+              </div>
+              <Link href="/dashboard/promises" className="shrink-0">
+                <Button variant="destructive" size="sm">
+                  Review &amp; Escalate →
+                </Button>
+              </Link>
+            </div>
+          )}
+
+          {/* Financial KPI Cards */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            <div className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
-              <p className="text-sm font-medium text-gray-500">Total Receivables</p>
-              <p className="mt-1 text-2xl font-bold text-gray-900">
-                {formatINR(stats.totalReceivables)}
-              </p>
-              <p className="mt-1 text-xs text-gray-500">Across all customers</p>
-            </div>
-            <div className="rounded-xl border border-red-200 bg-red-50 p-5 shadow-sm">
-              <p className="text-sm font-medium text-red-600">Overdue</p>
-              <p className="mt-1 text-2xl font-bold text-red-700">
-                {formatINR(stats.totalOverdue)}
-              </p>
-              <p className="mt-1 text-xs text-red-500">
-                {stats.customersOverdue} customers
-              </p>
-            </div>
-            <div className="rounded-xl border border-yellow-200 bg-yellow-50 p-5 shadow-sm">
-              <p className="text-sm font-medium text-yellow-600">Due Soon</p>
-              <p className="mt-1 text-2xl font-bold text-yellow-700">
-                {formatINR(stats.totalDueSoon)}
-              </p>
-              <p className="mt-1 text-xs text-yellow-500">Within 7 days</p>
-            </div>
-            <div className="rounded-xl border border-orange-200 bg-orange-50 p-5 shadow-sm">
-              <p className="text-sm font-medium text-orange-600">Broken Promises</p>
-              <p className="mt-1 text-2xl font-bold text-orange-700">
-                {formatINR(stats.promiseBroken)}
-              </p>
-              <p className="mt-1 text-xs text-orange-500">Requires escalation</p>
-            </div>
+            <StatCard
+              title="Total Outstanding"
+              value={formatINR(stats.totalReceivables)}
+              subtitle="Total active ledger dues"
+              icon={DollarSign}
+              variant="default"
+            />
+            <StatCard
+              title="Total Overdue"
+              value={formatINR(stats.totalOverdue)}
+              subtitle={`${stats.customersOverdue} debtor accounts`}
+              icon={AlertCircle}
+              variant="danger"
+            />
+            <StatCard
+              title="Due Next 7 Days"
+              value={formatINR(stats.totalDueSoon)}
+              subtitle="Early reminder window"
+              icon={Clock}
+              variant="warning"
+            />
+            <StatCard
+              title="Broken Promises"
+              value={formatINR(stats.promiseBroken)}
+              subtitle="High-risk delinquency"
+              icon={AlertTriangle}
+              variant="purple"
+            />
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            {/* Aging Report */}
-            <div className="lg:col-span-1 rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
-              <div className="flex items-center justify-between mb-4">
-                <h2 className="font-semibold text-gray-900">Aging Overview</h2>
+            {/* Aging Overview Card */}
+            <div className="lg:col-span-1 rounded-3xl border border-slate-200/90 bg-white p-5 shadow-2xs flex flex-col">
+              <div className="flex items-center justify-between pb-3 border-b border-slate-100 mb-4">
+                <div className="flex items-center gap-2">
+                  <BarChart3 className="h-4 w-4 text-blue-600" />
+                  <h2 className="text-xs font-bold uppercase tracking-wider text-slate-900">
+                    Aging Distribution
+                  </h2>
+                </div>
                 <Link
                   href="/dashboard/analytics"
-                  className="text-xs font-medium text-blue-600 hover:text-blue-500"
+                  className="text-xs font-semibold text-blue-600 hover:text-blue-700 inline-flex items-center gap-0.5"
                 >
-                  View all
+                  Full Report <ArrowUpRight className="h-3 w-3" />
                 </Link>
               </div>
+
               {aging.length === 0 ? (
-                <p className="text-sm text-gray-500">No outstanding invoices.</p>
+                <div className="flex-1 flex items-center justify-center p-6 text-center text-xs text-slate-400">
+                  No outstanding aging balances recorded.
+                </div>
               ) : (
-                <div className="space-y-3">
-                  {aging.map((bucket) => (
-                    <div key={bucket.label}>
-                      <div className="flex items-center justify-between text-sm mb-1">
-                        <span className="text-gray-600">{bucket.label}</span>
-                        <span className="font-medium text-gray-900">
-                          {formatINR(bucket.amount)}
-                        </span>
+                <div className="space-y-4 flex-1">
+                  {aging.map((bucket) => {
+                    const cfg = bucketColors[bucket.label] || {
+                      bar: "bg-emerald-500",
+                      text: "text-emerald-700",
+                      bg: "bg-emerald-50",
+                    };
+                    const percentage =
+                      stats.totalReceivables > 0
+                        ? Math.min(100, (bucket.amount / stats.totalReceivables) * 100)
+                        : 0;
+
+                    return (
+                      <div key={bucket.label} className="p-3 rounded-2xl bg-slate-50/70 border border-slate-100">
+                        <div className="flex items-center justify-between text-xs mb-1.5">
+                          <span className="font-bold text-slate-800">{bucket.label}</span>
+                          <span className="font-mono font-bold text-slate-900">
+                            {formatINR(bucket.amount)}
+                          </span>
+                        </div>
+                        <div className="h-2 rounded-full bg-slate-200/80 overflow-hidden">
+                          <div
+                            className={`h-full rounded-full transition-all duration-500 ${cfg.bar}`}
+                            style={{ width: `${percentage}%` }}
+                          />
+                        </div>
+                        <div className="flex items-center justify-between mt-1.5 text-[11px] text-slate-500">
+                          <span>{bucket.count} invoice{bucket.count === 1 ? "" : "s"}</span>
+                          <span className="font-semibold text-slate-700">{percentage.toFixed(1)}% of dues</span>
+                        </div>
                       </div>
-                      <div className="h-2 rounded-full bg-gray-100 overflow-hidden">
-                        <div
-                          className={`h-full rounded-full ${
-                            bucketColors[bucket.label] ?? "bg-green-500"
-                          }`}
-                          style={{
-                            width: `${
-                              stats.totalReceivables > 0
-                                ? (bucket.amount / stats.totalReceivables) * 100
-                                : 0
-                            }%`,
-                          }}
-                        />
-                      </div>
-                      <p className="text-xs text-gray-400 mt-0.5">
-                        {bucket.count} invoices
-                      </p>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               )}
             </div>
 
-            {/* Today's Collection Queue */}
-            <div className="lg:col-span-2 rounded-xl border border-gray-200 bg-white shadow-sm">
-              <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
+            {/* Today's Prioritized Collection Queue */}
+            <div className="lg:col-span-2 rounded-3xl border border-slate-200/90 bg-white p-5 shadow-2xs flex flex-col">
+              <div className="flex items-center justify-between pb-3 border-b border-slate-100 mb-4">
                 <div>
-                  <h2 className="font-semibold text-gray-900">
-                    Today&apos;s Collection Queue
-                  </h2>
-                  <p className="text-xs text-gray-500 mt-0.5">
-                    {formatINR(stats.totalOverdue)} overdue ·{" "}
-                    {stats.customersOverdue} customers
+                  <div className="flex items-center gap-2">
+                    <PhoneCall className="h-4 w-4 text-blue-600" />
+                    <h2 className="text-xs font-bold uppercase tracking-wider text-slate-900">
+                      Today&apos;s Collection Queue
+                    </h2>
+                  </div>
+                  <p className="text-[11px] text-slate-500 mt-0.5">
+                    {formatINR(stats.totalOverdue)} overdue across {stats.customersOverdue} accounts
                   </p>
                 </div>
                 <Link
                   href="/dashboard/queue"
-                  className="text-xs font-medium text-blue-600 hover:text-blue-500"
+                  className="text-xs font-semibold text-blue-600 hover:text-blue-700 inline-flex items-center gap-0.5"
                 >
-                  View full queue
+                  Open Queue <ArrowUpRight className="h-3 w-3" />
                 </Link>
               </div>
+
               {queue.length === 0 ? (
-                <p className="px-6 py-10 text-sm text-gray-500">
-                  You&apos;re all caught up — no overdue invoices in your queue.
-                </p>
+                <EmptyState
+                  icon={CalendarCheck}
+                  title="Queue is completely clear"
+                  description="All accounts have been contacted or are current with their commitments."
+                  className="py-10 border-0 bg-transparent"
+                />
               ) : (
-                <div className="divide-y divide-gray-100">
-                  {queue.slice(0, 5).map((item) => (
-                    <Link
-                      key={item.id}
-                      href={`/dashboard/customers/${item.customerId}`}
-                      className="px-6 py-4 flex items-center justify-between hover:bg-gray-50 transition-colors cursor-pointer"
-                    >
-                      <div className="flex items-center gap-4">
-                        <div
-                          className={`h-10 w-10 rounded-lg border flex items-center justify-center ${
-                            item.priority === "high"
-                              ? "bg-red-50 border-red-200"
-                              : item.priority === "medium"
-                              ? "bg-orange-50 border-orange-200"
-                              : "bg-green-50 border-green-200"
-                          }`}
-                        >
-                          <span
-                            className={`font-bold text-xs ${
-                              item.priority === "high"
-                                ? "text-red-700"
-                                : item.priority === "medium"
-                                ? "text-orange-700"
-                                : "text-green-700"
+                <div className="space-y-2.5 flex-1">
+                  {queue.slice(0, 5).map((item) => {
+                    const isHigh = item.priority === "high";
+                    const isMedium = item.priority === "medium";
+
+                    return (
+                      <Link
+                        key={item.id}
+                        href={`/dashboard/customers/${item.customerId}`}
+                        className="flex items-center justify-between p-3.5 rounded-2xl border border-slate-100 bg-slate-50/50 hover:bg-slate-100/80 hover:border-slate-200 transition-all group"
+                      >
+                        <div className="flex items-center gap-3 min-w-0">
+                          <div
+                            className={`flex h-9 w-9 items-center justify-center rounded-xl font-bold text-xs shrink-0 border ${
+                              isHigh
+                                ? "bg-rose-100 text-rose-800 border-rose-200"
+                                : isMedium
+                                ? "bg-amber-100 text-amber-900 border-amber-200"
+                                : "bg-emerald-100 text-emerald-800 border-emerald-200"
                             }`}
                           >
                             {item.initials}
-                          </span>
+                          </div>
+                          <div className="min-w-0">
+                            <div className="flex items-center gap-2">
+                              <p className="text-xs font-bold text-slate-900 truncate group-hover:text-blue-600 transition-colors">
+                                {item.customer}
+                              </p>
+                              <Badge
+                                variant={isHigh ? "danger" : isMedium ? "warning" : "success"}
+                                size="sm"
+                              >
+                                {item.priority.toUpperCase()}
+                              </Badge>
+                            </div>
+                            <p className="text-[11px] text-slate-500 font-mono mt-0.5">
+                              {formatINR(item.amount)} · <span className={isHigh ? "text-rose-600 font-semibold" : ""}>{item.daysOverdue}d overdue</span>
+                            </p>
+                          </div>
                         </div>
-                        <div>
-                          <p className="font-semibold text-gray-900">{item.customer}</p>
-                          <p className="text-sm text-gray-500">
-                            {formatINR(item.amount)} · {item.daysOverdue} days overdue ·{" "}
-                            {item.status}
-                          </p>
+
+                        <div className="flex items-center gap-3 shrink-0">
+                          <Badge variant="blue" size="sm" className="hidden sm:inline-flex">
+                            {item.nextAction}
+                          </Badge>
+                          <ChevronRight className="h-4 w-4 text-slate-400 group-hover:text-blue-600 group-hover:translate-x-0.5 transition-all" />
                         </div>
-                      </div>
-                      <span
-                        className={`rounded-lg border px-3 py-1.5 text-xs font-semibold ${
-                          item.priority === "high"
-                            ? "text-red-700 bg-red-50 border-red-200"
-                            : item.priority === "medium"
-                            ? "text-orange-700 bg-orange-50 border-orange-200"
-                            : "text-green-700 bg-green-50 border-green-200"
-                        }`}
-                      >
-                        {item.nextAction}
-                      </span>
-                    </Link>
-                  ))}
+                      </Link>
+                    );
+                  })}
                 </div>
               )}
             </div>
           </div>
+
+          {/* Quick Hub Navigation Cards */}
+          <div className="rounded-3xl border border-slate-200/90 bg-white p-5 shadow-2xs">
+            <h2 className="text-xs font-bold uppercase tracking-wider text-slate-900 mb-3">
+              Collections Operating Hub
+            </h2>
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3">
+              <Link
+                href="/dashboard/queue"
+                className="p-3.5 rounded-2xl border border-slate-200/80 bg-slate-50/50 hover:bg-blue-50/60 hover:border-blue-200 transition-all group"
+              >
+                <div className="flex items-center justify-between mb-2">
+                  <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-blue-100 text-blue-700">
+                    <PhoneCall className="h-4 w-4" />
+                  </div>
+                  <ChevronRight className="h-4 w-4 text-slate-400 group-hover:text-blue-600 group-hover:translate-x-0.5 transition-all" />
+                </div>
+                <p className="text-xs font-bold text-slate-900">Collection Queue</p>
+                <p className="text-[11px] text-slate-500 mt-0.5">Prioritized outreach call list</p>
+              </Link>
+
+              <Link
+                href="/dashboard/communications"
+                className="p-3.5 rounded-2xl border border-slate-200/80 bg-slate-50/50 hover:bg-blue-50/60 hover:border-blue-200 transition-all group"
+              >
+                <div className="flex items-center justify-between mb-2">
+                  <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-emerald-100 text-emerald-700">
+                    <Send className="h-4 w-4" />
+                  </div>
+                  <ChevronRight className="h-4 w-4 text-slate-400 group-hover:text-blue-600 group-hover:translate-x-0.5 transition-all" />
+                </div>
+                <p className="text-xs font-bold text-slate-900">Omnichannel Dunning</p>
+                <p className="text-[11px] text-slate-500 mt-0.5">WhatsApp, Email &amp; SMS logs</p>
+              </Link>
+
+              <Link
+                href="/dashboard/customers"
+                className="p-3.5 rounded-2xl border border-slate-200/80 bg-slate-50/50 hover:bg-blue-50/60 hover:border-blue-200 transition-all group"
+              >
+                <div className="flex items-center justify-between mb-2">
+                  <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-purple-100 text-purple-700">
+                    <Users className="h-4 w-4" />
+                  </div>
+                  <ChevronRight className="h-4 w-4 text-slate-400 group-hover:text-blue-600 group-hover:translate-x-0.5 transition-all" />
+                </div>
+                <p className="text-xs font-bold text-slate-900">Debtor Directory</p>
+                <p className="text-[11px] text-slate-500 mt-0.5">GSTIN profiles &amp; MSME claims</p>
+              </Link>
+
+              <Link
+                href="/dashboard/import"
+                className="p-3.5 rounded-2xl border border-slate-200/80 bg-slate-50/50 hover:bg-blue-50/60 hover:border-blue-200 transition-all group"
+              >
+                <div className="flex items-center justify-between mb-2">
+                  <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-amber-100 text-amber-800">
+                    <Upload className="h-4 w-4" />
+                  </div>
+                  <ChevronRight className="h-4 w-4 text-slate-400 group-hover:text-blue-600 group-hover:translate-x-0.5 transition-all" />
+                </div>
+                <p className="text-xs font-bold text-slate-900">Import Receivables</p>
+                <p className="text-[11px] text-slate-500 mt-0.5">CSV / Excel &amp; Tally integration</p>
+              </Link>
+            </div>
+          </div>
         </>
       )}
-
-      {/* Quick Actions */}
-      <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
-        <h2 className="font-semibold text-gray-900 mb-4">Quick Actions</h2>
-        <div className="flex flex-wrap gap-3">
-          <Link
-            href="/dashboard/import"
-            className="rounded-lg border border-gray-200 px-4 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors"
-          >
-            Import receivables
-          </Link>
-          <Link
-            href="/dashboard/queue"
-            className="rounded-lg bg-blue-600 px-4 py-2.5 text-sm font-medium text-white hover:bg-blue-700 transition-colors"
-          >
-            View collection queue
-          </Link>
-          <Link
-            href="/dashboard/customers"
-            className="rounded-lg border border-gray-200 px-4 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors"
-          >
-            Customer list
-          </Link>
-        </div>
-      </div>
     </div>
   );
 }
