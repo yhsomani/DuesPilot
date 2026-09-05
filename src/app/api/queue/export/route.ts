@@ -1,53 +1,57 @@
-import { withAuth, VIEW_ROLES, requireRole } from "@/lib/server-context";
+import { getSessionContext, requireRole, VIEW_ROLES } from "@/lib/server-context";
 import { getQueue } from "@/lib/repo";
 import { generateSanitizedCsv } from "@/lib/security";
 import { writeAudit } from "@/lib/audit";
+import { NextResponse, type NextRequest } from "next/server";
 
-export const GET = withAuth(async (req, ctx) => {
+export async function GET(req: NextRequest) {
+  const ctx = await getSessionContext();
+  if (!ctx) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
   const forbidden = requireRole(ctx, VIEW_ROLES);
-  if (forbidden) return forbidden;
+  if (forbidden) {
+    return NextResponse.json({ error: forbidden.error }, { status: forbidden.status });
+  }
 
   const queue = await getQueue(ctx.organizationId);
 
   const columns = [
-    { key: "customerName", label: "Customer Name" },
+    { key: "customer", label: "Customer Name" },
     { key: "priority", label: "Priority" },
-    { key: "totalOverdue", label: "Total Overdue (INR)" },
-    { key: "oldestOverdueDate", label: "Oldest Overdue Date" },
+    { key: "amount", label: "Total Overdue (INR)" },
     { key: "daysOverdue", label: "Days Overdue" },
-    { key: "openInvoiceCount", label: "Open Invoices" },
-    { key: "suggestedAction", label: "Recommended Action" },
-    { key: "primaryContactName", label: "Contact Person" },
-    { key: "primaryPhone", label: "Phone" },
-    { key: "primaryEmail", label: "Email" },
+    { key: "status", label: "Status" },
+    { key: "lastAction", label: "Last Action" },
+    { key: "nextAction", label: "Recommended Next Action" },
     { key: "why", label: "Priority Reason" },
   ];
 
   const data = queue.map((item) => ({
-    customerName: item.customerName,
+    customer: item.customer,
     priority: item.priority,
-    totalOverdue: item.totalOverdue,
-    oldestOverdueDate: item.oldestOverdueDate || "",
+    amount: item.amount,
     daysOverdue: item.daysOverdue,
-    openInvoiceCount: item.openInvoiceCount,
-    suggestedAction: item.suggestedAction,
-    primaryContactName: item.primaryContactName || "",
-    primaryPhone: item.primaryPhone || "",
-    primaryEmail: item.primaryEmail || "",
+    status: item.status,
+    lastAction: item.lastAction,
+    nextAction: item.nextAction,
     why: item.why || "",
   }));
 
   const csv = generateSanitizedCsv(columns, data);
 
   // Write audit trail
-  writeAudit({
-    organizationId: ctx.organizationId,
-    userId: ctx.user.id,
-    action: "DATA_EXPORT",
-    entityType: "queue",
-    metadata: { count: queue.length, format: "CSV" },
-    ipAddress: req.headers.get("x-forwarded-for") || req.headers.get("x-real-ip"),
-  });
+  await writeAudit(
+    {
+      organizationId: ctx.organizationId,
+      userId: ctx.userId,
+      action: "DATA_EXPORT",
+      entityType: "queue",
+      metadata: { count: queue.length, format: "CSV" },
+    },
+    req
+  );
 
   return new Response(csv, {
     status: 200,
@@ -56,4 +60,4 @@ export const GET = withAuth(async (req, ctx) => {
       "Content-Disposition": `attachment; filename="duespilot-queue-${new Date().toISOString().split("T")[0]}.csv"`,
     },
   });
-});
+}

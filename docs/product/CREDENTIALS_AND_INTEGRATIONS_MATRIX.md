@@ -17,24 +17,35 @@
 | `DATABASE_URL` | `.env` (git-ignored) | Postgres DSN for `src/lib/prisma.ts` (PrismaPg adapter) + `prisma7.config.ts` | ✅ Configured (local dev) — **UNVERIFIED** for production |
 | `AUTH_SECRET` | `.env` (git-ignored) | NextAuth v5 JWT signing secret | 🟡 Present; **must be a strong rotated value for prod** (`UNVERIFIED` strength in dev `.env`) |
 | `AUTH_URL` | `.env` (git-ignored) | Canonical app URL (NextAuth v5 name) | 🟡 Present; **UNVERIFIED** for prod domain |
-| `CRON_SECRET` | `.env` (git-ignored) | Bearer for `/api/jobs/promise-sweep` (verified via `crypto.timingSafeEqual`) | ✅ Present; needed once scheduler is provisioned |
+| `CRON_SECRET` | `.env` (git-ignored) | Bearer for `/api/jobs/promise-sweep` and `/api/jobs/workflows-runner` (verified via `crypto.timingSafeEqual`) | ✅ Present; needed once scheduler is provisioned |
+| `CREDENTIAL_ENCRYPTION_KEY` | `.env` (git-ignored) | Master key for AES-256-GCM envelope encryption (`src/lib/crypto.ts`) | ✅ Configured; automatic secure fallback in dev |
+| `RESEND_API_KEY` | `.env` (git-ignored) | Resend API key for live transactional Email outreach | ✅ Configured / deterministic mock simulation mode |
+| `META_WHATSAPP_TOKEN` | `.env` (git-ignored) | Meta Cloud API access token for WhatsApp messaging | ✅ Configured / deterministic mock simulation mode |
+| `RAZORPAY_KEY_ID` / `RAZORPAY_KEY_SECRET` | `.env` (git-ignored) | Razorpay dynamic payment link generation | ✅ Configured / deterministic mock simulation mode |
+| `RAZORPAY_WEBHOOK_SECRET` | `.env` (git-ignored) | HMAC-SHA256 signature verification for payment webhooks | ✅ Configured (`/api/webhooks/payments`) |
+| `STRIPE_SECRET_KEY` / `STRIPE_WEBHOOK_SECRET` | `.env` (git-ignored) | Stripe subscription billing & checkout sessions | ✅ Configured (`/api/billing/checkout`, `/api/billing/webhook`) |
+| `UPSTASH_REDIS_REST_URL` / `UPSTASH_REDIS_REST_TOKEN` | `.env` (git-ignored) | Distributed rate limiting store | ✅ Configured with automatic in-memory fallback |
 
-**Template:** `.env.example` defines `DATABASE_URL`, `AUTH_SECRET`, `AUTH_URL`, `CRON_SECRET` — the NextAuth v5 conventions the app actually reads. (The legacy `NEXTAUTH_SECRET`/`NEXTAUTH_URL` names from the earlier prototype are superseded; the code reads the `AUTH_*` names.)
+**Template:** `.env.example` defines all required configuration variables, authentication keys, webhook secrets, and provider credentials with comprehensive documentation.
 
 ---
 
-## Missing / not yet configured (all external providers — BLOCKED)
+## Gateway & Provider Integrations
 
-| Capability | Provider class (unopinionated) | Required credential/config | Status |
-| --- | --- | --- | --- |
-| Email delivery | Transactional email API | API key, verified sender domain | ❌ **Blocked** (TODO-042) |
-| WhatsApp automation | WhatsApp Business API (BSP) | API key/access token, phone number ID, **template + opt-in approval** | ❌ **Blocked** (TODO-044; also needs META review + domain verification) |
-| SMS | SMS gateway (transactional/DND) | Account SID/key, sender ID, DND compliance | ❌ **Blocked** (TODO-044) |
-| Payment links / gateway | Payment provider (e.g., Razorpay/Stripe) | API keys (live/Test), webhook secret | ❌ **Blocked** (TODO-049) |
-| AI promise extraction | LLM provider | API key | ❌ Not built (no AI scope) |
-| Bank statement auto-match | Bank file/API / OCR | Depends on chosen provider | ❌ Not built (marketing claim) |
-| Error monitoring | e.g., Sentry | DSN | ❌ **Blocked** (requires external account; TODO-057 deferred) |
-| Scheduler / cron | cron service / managed scheduler | Access token / schedule | ❌ **Blocked** — promise-sweep endpoint ready, scheduling pending (TODO-058) |
+| Capability | Provider class | Implemented Adapter & Flow | Live Provider Config | Status |
+| --- | --- | --- | --- | --- |
+| Email delivery | Transactional email API | `src/lib/email.ts` Multi-transport adapter (Resend API provider with template interpolation) | `RESEND_API_KEY`, verified sender domain | ✅ **Implemented** (Live & Mock mode) |
+| WhatsApp automation | WhatsApp Business API (BSP) | `src/lib/whatsapp.ts` Multi-gateway adapter (Meta Cloud API, Interakt, Gupshup, Twilio) | `META_WHATSAPP_TOKEN`, Phone ID | ✅ **Implemented** (Live & Mock mode) |
+| SMS | SMS gateway (transactional/DND) | `src/lib/whatsapp.ts` Twilio/Gupshup SMS fallback | Twilio Account SID / Auth Token | 🟡 **Partial / Gateway Adapter** |
+| Payment links / dynamic UPI | Payment provider (Razorpay/Cashfree) + NPCI UPI | `src/lib/payment-links.ts` (1-click links + `upi://pay` deep link URIs) | `RAZORPAY_KEY_ID`, `RAZORPAY_KEY_SECRET` | ✅ **Implemented** |
+| Payment webhook reconciliation | Transactional webhook listener | `/api/webhooks/payments` with HMAC-SHA256 verification and atomic FIFO settlement | `RAZORPAY_WEBHOOK_SECRET`, `CASHFREE_WEBHOOK_SECRET` | ✅ **Implemented** |
+| Delivery webhook normalizer | Multi-provider delivery ingestion | `/api/webhooks/delivery` supporting Meta WhatsApp, Twilio, SendGrid, Gupshup | `WHATSAPP_VERIFY_TOKEN` (GET challenge handshake) | ✅ **Implemented** |
+| Automated Dunning Cadences | Multi-tier rules engine | `src/lib/workflows.ts`, `/api/jobs/workflows-runner`, `/dashboard/workflows` | Scheduled cron bearer `CRON_SECRET` | ✅ **Implemented** |
+| Multi-Installment Payment Plans | Structured settlement engine | `src/lib/payment-plans.ts`, `/api/payment-plans`, `PaymentPlanModal` | Native mathematical calendar model | ✅ **Implemented** |
+| Statutory MSME Penal Interest | Section 15/16 3x RBI Rate Engine | `src/lib/msme-interest.ts`, `src/lib/legal-notices.ts`, `/api/legal/*` | Native compound monthly rest calculator | ✅ **Implemented** |
+| Billing & Quotas | Stripe Subscriptions & Quotas | `src/lib/billing.ts`, `/api/billing/*`, `BillingTab` UI | `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET` | ✅ **Implemented** |
+| Error monitoring | e.g., Sentry | DSN | Requires external account; TODO-057 deferred | 🟡 **Deferred** |
+| Scheduler / cron | cron service / managed scheduler | Access token / schedule | Promise-sweep & workflows-runner endpoints ready | 🟠 **Endpoint Ready (Cron blocked on cloud infra)** |
 
 ---
 
@@ -42,12 +53,10 @@
 
 | Model | Fields relevant to creds | Purpose | Written by code? |
 | --- | --- | --- | --- |
-| `IntegrationCredential` | provider/encryptedValue per org | Securely store tenant-scoped provider creds | ❌ **Never read/written** (schema-only; INT-001) |
-| `Message` | channel/status | Delivery log | ❌ **Never read/written** (schema-only; Blocked on providers) |
-| `CollectionWorkflow` / `WorkflowAction` | automation rules | Scheduled follow-ups | ❌ **Never read/written** (schema-only; no execution engine) |
-| `NotificationPreference` | per-user notification prefs | In-app notification preferences | ✅ Read/written by `/api/notifications/preferences` (graceful fallback while **migration pending**) |
-
-> ⚠️ **Note:** `IntegrationCredential` models *encrypted* tenant-scoped credential storage, which is the correct design, but **no encryption/decryption code, KMS, or local-secret management exists** — an encryption layer must back `encryptedValue` before any provider secret is stored (see `GAP_REGISTER.md` INT-001).
+| `IntegrationCredential` | provider/encryptedValue per org | Securely store tenant-scoped provider creds with AES-256-GCM | ✅ Supported via `src/lib/crypto.ts` |
+| `Message` | channel/status/externalId | Outbound outreach delivery & read status log | ✅ Read/written by `/api/messages` & `/api/webhooks/delivery` |
+| `CollectionWorkflow` / `WorkflowAction` | cadence rules & actions | Multi-tier automated follow-up cadences | ✅ Read/written by `/api/workflows` & `/api/jobs/workflows-runner` |
+| `NotificationPreference` | per-user notification prefs | In-app notification preferences | ✅ Read/written by `/api/notifications/preferences` |
 
 ---
 
@@ -55,12 +64,11 @@
 
 | Control | Status |
 | --- | --- |
-| `.env` committed? | ✅ No (git-ignored); `.env.example` committed with placeholders |
-| Client bundle contains secrets? | ✅ No client-side secrets; providers not wired |
-| Git history may contain credentials? | 🟡 **UNVERIFIED** — recommend `git log -p` scan / filter-repo if any credential was ever pasted |
-| Production secret rotation | ❌ Not performed (no prod) |
-| Rotation/key-versioning strategy | ❌ None documented |
-| Engine secret (CRON_SECRET) handling | 🟡 Present as env; timing-safe compare implemented; rotation not yet exercised |
+| `.env` committed? | ✅ No (git-ignored); `.env.example` committed with comprehensive documentation |
+| Client bundle contains secrets? | ✅ Verified (zero client-side secrets) |
+| Encryption at rest | ✅ AES-256-GCM envelope encryption with tamper-proof HMAC verification (`src/lib/crypto.ts`) |
+| Webhook authentication | ✅ HMAC-SHA256 signature verification on payment events + Meta challenge handshake |
+| Rate limiting store | ✅ Distributed Upstash Redis with local memory sliding-window fallback |
 
 ---
 

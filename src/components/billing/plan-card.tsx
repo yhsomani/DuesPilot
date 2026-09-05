@@ -6,7 +6,7 @@ import { formatINR } from "@/lib/utils";
 interface PlanCardProps {
   plan: PlanDefinition;
   billingCycle: BillingCycle;
-  currentTier: string;
+  currentTier?: string;
   isCurrent: boolean;
   onSelect: (tier: string) => void;
   loading?: boolean;
@@ -15,11 +15,11 @@ interface PlanCardProps {
 export function PlanCard({
   plan,
   billingCycle,
-  currentTier,
+  _currentTier,
   isCurrent,
   onSelect,
   loading,
-}: PlanCardProps) {
+}: PlanCardProps & { _currentTier?: string }) {
   const price =
     billingCycle === "yearly" ? plan.yearlyPriceINR / 12 : plan.monthlyPriceINR;
 

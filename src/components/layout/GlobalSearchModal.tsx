@@ -28,59 +28,75 @@ export function GlobalSearchModal({
 
   useEffect(() => {
     if (isOpen) {
-      setTimeout(() => inputRef.current?.focus(), 50);
-      setSelectedIndex(0);
-    } else {
-      setQuery("");
-      setResults([]);
+      const timer = setTimeout(() => {
+        inputRef.current?.focus();
+      }, 50);
+      return () => clearTimeout(timer);
     }
   }, [isOpen]);
 
   // Debounced search
   useEffect(() => {
     if (!query.trim() || query.trim().length < 2) {
-      setResults([]);
-      setLoading(false);
       return;
     }
 
-    setLoading(true);
+    let ignore = false;
     const timer = setTimeout(async () => {
+      setLoading(true);
       try {
         const res = await api<SearchResponse>(
           `/api/search?q=${encodeURIComponent(query.trim())}`
         );
-        setResults(res.results);
-        setSelectedIndex(0);
+        if (!ignore) {
+          setResults(res.results);
+          setSelectedIndex(0);
+        }
       } catch {
-        setResults([]);
+        if (!ignore) {
+          setResults([]);
+        }
       } finally {
-        setLoading(false);
+        if (!ignore) {
+          setLoading(false);
+        }
       }
     }, 200);
 
-    return () => clearTimeout(timer);
+    return () => {
+      ignore = true;
+      clearTimeout(timer);
+    };
   }, [query]);
+
+  const activeResults = query.trim().length >= 2 ? results : [];
 
   // Keyboard navigation
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === "ArrowDown") {
       e.preventDefault();
-      setSelectedIndex((prev) => (prev + 1) % (results.length || 1));
+      setSelectedIndex((prev) => (prev + 1) % (activeResults.length || 1));
     } else if (e.key === "ArrowUp") {
       e.preventDefault();
-      setSelectedIndex((prev) => (prev - 1 + results.length) % (results.length || 1));
-    } else if (e.key === "Enter" && results[selectedIndex]) {
+      setSelectedIndex((prev) => (prev - 1 + activeResults.length) % (activeResults.length || 1));
+    } else if (e.key === "Enter" && activeResults[selectedIndex]) {
       e.preventDefault();
-      handleSelect(results[selectedIndex]);
+      handleSelect(activeResults[selectedIndex]);
     } else if (e.key === "Escape") {
       e.preventDefault();
-      onClose();
+      handleClose();
     }
   };
 
-  const handleSelect = (item: SearchResultItem) => {
+  const handleClose = () => {
+    setQuery("");
+    setResults([]);
+    setSelectedIndex(0);
     onClose();
+  };
+
+  const handleSelect = (item: SearchResultItem) => {
+    handleClose();
     router.push(item.url);
   };
 
@@ -89,7 +105,7 @@ export function GlobalSearchModal({
   return (
     <div
       className="fixed inset-0 z-50 flex items-start justify-center pt-16 sm:pt-24 bg-black/50 backdrop-blur-xs p-4"
-      onClick={onClose}
+      onClick={handleClose}
       role="dialog"
       aria-modal="true"
     >
@@ -125,7 +141,7 @@ export function GlobalSearchModal({
             <div className="w-4 h-4 border-2 border-blue-600 border-t-transparent rounded-full animate-spin shrink-0" />
           )}
           <button
-            onClick={onClose}
+            onClick={handleClose}
             className="rounded-md px-1.5 py-0.5 text-xs text-gray-400 hover:text-gray-600 border border-gray-200"
           >
             ESC
@@ -134,7 +150,7 @@ export function GlobalSearchModal({
 
         {/* Results List */}
         <div className="max-h-[60vh] overflow-y-auto p-2">
-          {query.trim().length >= 2 && results.length === 0 && !loading && (
+          {query.trim().length >= 2 && activeResults.length === 0 && !loading && (
             <div className="py-12 text-center text-sm text-gray-500">
               <p className="font-medium">No results found for &ldquo;{query}&rdquo;</p>
               <p className="text-xs text-gray-400 mt-1">
@@ -155,9 +171,9 @@ export function GlobalSearchModal({
             </div>
           )}
 
-          {results.length > 0 && (
+          {activeResults.length > 0 && (
             <div className="space-y-1">
-              {results.map((item, idx) => {
+              {activeResults.map((item, idx) => {
                 const isSelected = idx === selectedIndex;
                 const typeIcon =
                   item.type === "customer"

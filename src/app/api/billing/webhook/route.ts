@@ -20,6 +20,7 @@ export async function POST(req: Request) {
 
     await writeAudit({
       organizationId: typeof organizationId === "string" ? organizationId : "system",
+      userId: null,
       action: "SETTINGS_UPDATE",
       entityType: "billing_webhook",
       metadata: {

@@ -35,32 +35,38 @@ export function AuditTab() {
   const [entityFilter, setEntityFilter] = useState<string>("");
   const [page, setPage] = useState(0);
   const [selectedLog, setSelectedLog] = useState<AuditLogRow | null>(null);
+  const [refreshKey, setRefreshKey] = useState(0);
   const limit = 25;
 
-  const loadLogs = async () => {
-    try {
-      setLoading(true);
-      setError(null);
-      const params = new URLSearchParams({
-        limit: String(limit),
-        offset: String(page * limit),
-      });
-      if (actionFilter) params.set("action", actionFilter);
-      if (entityFilter) params.set("entityType", entityFilter);
-
-      const res = await api<AuditResponse>(`/api/audit?${params.toString()}`);
-      setLogs(res.logs);
-      setTotal(res.total);
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "Failed to load audit logs");
-    } finally {
-      setLoading(false);
-    }
-  };
-
   useEffect(() => {
-    loadLogs();
-  }, [page, actionFilter, entityFilter]);
+    let active = true;
+    const params = new URLSearchParams({
+      limit: String(limit),
+      offset: String(page * limit),
+    });
+    if (actionFilter) params.set("action", actionFilter);
+    if (entityFilter) params.set("entityType", entityFilter);
+
+    api<AuditResponse>(`/api/audit?${params.toString()}`)
+      .then((res) => {
+        if (active) {
+          setLogs(res.logs);
+          setTotal(res.total);
+          setLoading(false);
+          setError(null);
+        }
+      })
+      .catch((e) => {
+        if (active) {
+          setError(e instanceof Error ? e.message : "Failed to load audit logs");
+          setLoading(false);
+        }
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [page, actionFilter, entityFilter, refreshKey]);
 
   const totalPages = Math.ceil(total / limit);
 
@@ -112,7 +118,7 @@ export function AuditTab() {
           </select>
 
           <button
-            onClick={() => loadLogs()}
+            onClick={() => setRefreshKey((k) => k + 1)}
             className="rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-xs font-semibold text-gray-700 hover:bg-gray-50 transition"
           >
             Refresh

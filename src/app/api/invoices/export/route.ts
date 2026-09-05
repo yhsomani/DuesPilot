@@ -1,11 +1,19 @@
-import { withAuth, VIEW_ROLES, requireRole } from "@/lib/server-context";
+import { getSessionContext, requireRole, VIEW_ROLES } from "@/lib/server-context";
 import { prisma } from "@/lib/prisma";
 import { generateSanitizedCsv } from "@/lib/security";
 import { writeAudit } from "@/lib/audit";
+import { NextResponse, type NextRequest } from "next/server";
 
-export const GET = withAuth(async (req, ctx) => {
+export async function GET(req: NextRequest) {
+  const ctx = await getSessionContext();
+  if (!ctx) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
   const forbidden = requireRole(ctx, VIEW_ROLES);
-  if (forbidden) return forbidden;
+  if (forbidden) {
+    return NextResponse.json({ error: forbidden.error }, { status: forbidden.status });
+  }
 
   const invoices = await prisma.invoice.findMany({
     where: { organizationId: ctx.organizationId },
@@ -28,43 +36,42 @@ export const GET = withAuth(async (req, ctx) => {
     { key: "customerGstin", label: "Customer GSTIN" },
     { key: "customerEmail", label: "Customer Email" },
     { key: "customerPhone", label: "Customer Phone" },
-    { key: "issueDate", label: "Issue Date" },
+    { key: "invoiceDate", label: "Invoice Date" },
     { key: "dueDate", label: "Due Date" },
     { key: "amount", label: "Invoice Amount (INR)" },
-    { key: "amountPaid", label: "Amount Paid (INR)" },
-    { key: "outstanding", label: "Outstanding (INR)" },
+    { key: "outstandingAmount", label: "Outstanding (INR)" },
     { key: "status", label: "Status" },
   ];
 
   const data = invoices.map((inv) => {
     const amt = Number(inv.amount);
-    const paid = Number(inv.amountPaid);
-    const outstanding = Math.max(0, amt - paid);
+    const outstanding = Number(inv.outstandingAmount);
     return {
       invoiceNumber: inv.invoiceNumber,
       customerName: inv.customer.name,
       customerGstin: inv.customer.gstin || "",
       customerEmail: inv.customer.email || "",
       customerPhone: inv.customer.phone || "",
-      issueDate: inv.issueDate ? new Date(inv.issueDate).toISOString().split("T")[0] : "",
+      invoiceDate: inv.invoiceDate ? new Date(inv.invoiceDate).toISOString().split("T")[0] : "",
       dueDate: new Date(inv.dueDate).toISOString().split("T")[0],
       amount: amt,
-      amountPaid: paid,
-      outstanding,
+      outstandingAmount: outstanding,
       status: inv.status,
     };
   });
 
   const csv = generateSanitizedCsv(columns, data);
 
-  writeAudit({
-    organizationId: ctx.organizationId,
-    userId: ctx.user.id,
-    action: "DATA_EXPORT",
-    entityType: "invoices",
-    metadata: { count: invoices.length, format: "CSV" },
-    ipAddress: req.headers.get("x-forwarded-for") || req.headers.get("x-real-ip"),
-  });
+  await writeAudit(
+    {
+      organizationId: ctx.organizationId,
+      userId: ctx.userId,
+      action: "DATA_EXPORT",
+      entityType: "invoices",
+      metadata: { count: invoices.length, format: "CSV" },
+    },
+    req
+  );
 
   return new Response(csv, {
     status: 200,
@@ -73,4 +80,4 @@ export const GET = withAuth(async (req, ctx) => {
       "Content-Disposition": `attachment; filename="duespilot-invoices-${new Date().toISOString().split("T")[0]}.csv"`,
     },
   });
-});
+}

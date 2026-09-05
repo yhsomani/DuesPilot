@@ -60,7 +60,12 @@ export default function QueuePage() {
   const totalOverdue = queue.reduce((sum, q) => sum + q.amount, 0);
 
   const handleExportCsv = () => {
-    window.location.href = "/api/queue/export";
+    const a = document.createElement("a");
+    a.href = "/api/queue/export";
+    a.download = "duespilot-queue.csv";
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
   };
 
   const toggleSelectAll = () => {
@@ -367,7 +372,7 @@ export default function QueuePage() {
         <AllActionsModal
           item={active}
           onClose={() => setActive(null)}
-          onSuccess={() => {
+          onDone={() => {
             setActive(null);
             load();
           }}
@@ -376,6 +381,7 @@ export default function QueuePage() {
 
       {reminderItem && (
         <SendReminderModal
+          isOpen={true}
           customerId={reminderItem.customerId}
           customerName={reminderItem.customer}
           amount={reminderItem.amount}

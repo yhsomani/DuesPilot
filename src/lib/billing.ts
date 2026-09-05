@@ -1,5 +1,3 @@
-import { prisma } from "@/lib/prisma";
-
 export type PlanTier = "FREE" | "STARTER" | "GROWTH" | "PRO";
 export type SubscriptionStatus = "ACTIVE" | "TRIALING" | "PAST_DUE" | "CANCELED" | "EXPIRED";
 export type BillingCycle = "monthly" | "yearly";
@@ -167,6 +165,7 @@ export interface SubscriptionInfo {
 export async function getOrganizationSubscription(
   organizationId: string
 ): Promise<SubscriptionInfo> {
+  const { prisma } = await import("@/lib/prisma");
   const [org, activeInvoicesCount, usersCount, messagesCount] = await Promise.all([
     prisma.organization.findUnique({
       where: { id: organizationId },
@@ -190,10 +189,9 @@ export async function getOrganizationSubscription(
     }),
   ]);
 
-  // Read plan config stored in organization or fallback to STARTER for existing orgs or FREE default
-  // We can look at org metadata or default to STARTER for smooth testing
-  const tier: PlanTier = "STARTER";
-  const plan = PLAN_DEFINITIONS[tier];
+  // Read plan config stored in organization or fallback to STARTER
+  const tier: PlanTier = (org as unknown as { planTier?: PlanTier })?.planTier || "STARTER";
+  const plan = PLAN_DEFINITIONS[tier] || PLAN_DEFINITIONS.STARTER;
 
   const now = new Date();
   const periodStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();

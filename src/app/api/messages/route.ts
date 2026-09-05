@@ -1,6 +1,7 @@
 import { err, ok, readJson, requireRole, withAuth, ACTION_ROLES } from "@/lib/server-context";
 import { prisma } from "@/lib/prisma";
 import { sendEmail } from "@/lib/email";
+import { sendWhatsAppMessage } from "@/lib/whatsapp";
 import { writeAudit } from "@/lib/audit";
 import { z } from "zod";
 import type { Prisma } from "@/generated/prisma/client";
@@ -137,8 +138,16 @@ export const POST = withAuth(async (req, ctx) => {
     sendSuccess = emailResult.success;
     externalId = emailResult.messageId;
     errorMessage = emailResult.error;
+  } else if (channel === "WHATSAPP") {
+    const waResult = await sendWhatsAppMessage({
+      to: recipient,
+      message: messageBody,
+    });
+    sendSuccess = waResult.success;
+    externalId = waResult.messageId;
+    errorMessage = waResult.error;
   } else {
-    // For WHATSAPP / SMS / CALL / MANUAL
+    // For SMS / CALL / MANUAL
     externalId = `sim_${channel.toLowerCase()}_${Date.now()}`;
   }
 

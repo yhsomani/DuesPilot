@@ -1,4 +1,4 @@
-import { withAuth, VIEW_ROLES, requireRole } from "@/lib/server-context";
+import { withAuth, VIEW_ROLES, requireRole, ok } from "@/lib/server-context";
 import { prisma } from "@/lib/prisma";
 
 export const GET = withAuth(async (req, ctx) => {
@@ -28,38 +28,45 @@ export const GET = withAuth(async (req, ctx) => {
       orderBy: { createdAt: "desc" },
       take: limit,
       skip: offset,
-      include: {
-        user: {
-          select: {
-            id: true,
-            name: true,
-            email: true,
-            role: true,
-          },
-        },
-      },
     }),
     prisma.auditLog.count({ where }),
   ]);
 
-  return Response.json({
-    logs: logs.map((log) => ({
-      id: log.id,
-      action: log.action,
-      entityType: log.entityType,
-      entityId: log.entityId,
-      metadata: log.metadata,
-      ipAddress: log.ipAddress,
-      createdAt: log.createdAt.toISOString(),
-      user: log.user
-        ? {
-            id: log.user.id,
-            name: log.user.name || log.user.email,
-            email: log.user.email,
-            role: log.user.role,
-          }
-        : null,
-    })),
+  const userIds = Array.from(
+    new Set(logs.map((l) => l.userId).filter((id): id is string => Boolean(id)))
+  );
+
+  const users =
+    userIds.length > 0
+      ? await prisma.user.findMany({
+          where: { id: { in: userIds } },
+          select: { id: true, name: true, email: true, role: true },
+        })
+      : [];
+
+  const userMap = new Map(users.map((u) => [u.id, u]));
+
+  return ok({
+    logs: logs.map((log) => {
+      const user = log.userId ? userMap.get(log.userId) : null;
+      return {
+        id: log.id,
+        action: log.action,
+        entityType: log.entityType,
+        entityId: log.entityId,
+        metadata: log.metadata,
+        ipAddress: log.ipAddress,
+        createdAt: log.createdAt.toISOString(),
+        user: user
+          ? {
+              id: user.id,
+              name: user.name || user.email,
+              email: user.email,
+              role: user.role,
+            }
+          : null,
+      };
+    }),
     total,
     limit,
     offset,

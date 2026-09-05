@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { DEFAULT_TEMPLATES, interpolateTemplate, type TemplateDefinition } from "@/lib/templates";
 
 interface SendReminderModalProps {
@@ -36,43 +36,67 @@ export function SendReminderModal({
   onClose,
   onSuccess,
 }: SendReminderModalProps) {
-  const [channel, setChannel] = useState<"EMAIL" | "WHATSAPP" | "SMS">("EMAIL");
-  const [recipient, setRecipient] = useState(recipientEmail || "");
-  const [selectedTemplateId, setSelectedTemplateId] = useState<string>("payment-reminder");
-  const [subject, setSubject] = useState("");
-  const [body, setBody] = useState("");
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [sentSuccess, setSentSuccess] = useState(false);
-
-  useEffect(() => {
-    if (channel === "EMAIL") {
-      setRecipient(recipientEmail || "");
-    } else {
-      setRecipient(recipientPhone || "");
-    }
-  }, [channel, recipientEmail, recipientPhone]);
-
-  useEffect(() => {
-    const template = DEFAULT_TEMPLATES.find((t) => t.id === selectedTemplateId) || DEFAULT_TEMPLATES[0];
-    const variables: Record<string, string | number | null | undefined> = {
+  const getVariables = () => {
+    const plink = `https://pay.duespilot.com/plink_${customerId.slice(-4)}_${invoiceNumber ? invoiceNumber.replace(/[^a-zA-Z0-9]/g, "") : "settle"}`;
+    const upiLink = `upi://pay?pa=duespilot@icici&pn=${encodeURIComponent(companyName)}&am=${amount || 0}&cu=INR`;
+    return {
       customerName,
       contactName: customerName,
       invoiceNumber: invoiceNumber || "INV-PENDING",
       amount: amount ? `₹${amount.toLocaleString("en-IN")}` : "₹0",
-      outstandingAmount: outstandingAmount ? `₹${outstandingAmount.toLocaleString("en-IN")}` : (amount ? `₹${amount.toLocaleString("en-IN")}` : "₹0"),
+      outstandingAmount: outstandingAmount
+        ? `₹${outstandingAmount.toLocaleString("en-IN")}`
+        : amount
+        ? `₹${amount.toLocaleString("en-IN")}`
+        : "₹0",
       dueDate: dueDate || "Due upon receipt",
       daysOverdue: daysOverdue != null ? daysOverdue : 0,
       companyName,
       promiseDate: "Upcoming commitment date",
       paymentReference: "UTR Pending",
+      paymentLink: plink,
+      upiQrString: upiLink,
+      installmentSummary: "Structured installment schedule",
     };
+  };
 
-    setSubject(interpolateTemplate(template.subject, variables));
-    setBody(interpolateTemplate(template.body, variables));
-  }, [selectedTemplateId, customerName, invoiceNumber, amount, outstandingAmount, dueDate, daysOverdue, companyName]);
+  const initialTemplate = DEFAULT_TEMPLATES[0];
+  const initialVars = getVariables();
+
+  const [channel, setChannel] = useState<"EMAIL" | "WHATSAPP" | "SMS">("EMAIL");
+  const [recipient, setRecipient] = useState(recipientEmail || "");
+  const [selectedTemplateId, setSelectedTemplateId] = useState<string>(initialTemplate.id);
+  const [subject, setSubject] = useState(interpolateTemplate(initialTemplate.subject, initialVars));
+  const [body, setBody] = useState(interpolateTemplate(initialTemplate.body, initialVars));
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [sentSuccess, setSentSuccess] = useState(false);
 
   if (!isOpen) return null;
+
+  const handleChannelChange = (ch: "EMAIL" | "WHATSAPP" | "SMS") => {
+    setChannel(ch);
+    if (ch === "EMAIL") {
+      setRecipient(recipientEmail || "");
+    } else {
+      setRecipient(recipientPhone || "");
+    }
+
+    const matchingTemplate =
+      DEFAULT_TEMPLATES.find((t) => t.channel === ch) || DEFAULT_TEMPLATES[0];
+    setSelectedTemplateId(matchingTemplate.id);
+    const vars = getVariables();
+    setSubject(interpolateTemplate(matchingTemplate.subject, vars));
+    setBody(interpolateTemplate(matchingTemplate.body, vars));
+  };
+
+  const handleTemplateChange = (tplId: string) => {
+    setSelectedTemplateId(tplId);
+    const template = DEFAULT_TEMPLATES.find((t) => t.id === tplId) || DEFAULT_TEMPLATES[0];
+    const vars = getVariables();
+    setSubject(interpolateTemplate(template.subject, vars));
+    setBody(interpolateTemplate(template.body, vars));
+  };
 
   async function handleSend(e: React.FormEvent) {
     e.preventDefault();
@@ -170,7 +194,7 @@ export function SendReminderModal({
                   <button
                     key={ch}
                     type="button"
-                    onClick={() => setChannel(ch)}
+                    onClick={() => handleChannelChange(ch)}
                     className={`py-2 px-3 text-xs font-medium rounded-lg border transition text-center ${
                       channel === ch
                         ? "border-blue-600 bg-blue-50/50 text-blue-700 font-semibold"
@@ -203,14 +227,23 @@ export function SendReminderModal({
               <label className="block text-xs font-medium text-gray-700 mb-1">Template</label>
               <select
                 value={selectedTemplateId}
-                onChange={(e) => setSelectedTemplateId(e.target.value)}
+                onChange={(e) => handleTemplateChange(e.target.value)}
                 className="w-full rounded-lg border border-gray-200 px-3 py-2 text-xs focus:border-blue-500 focus:outline-hidden bg-white"
               >
-                {DEFAULT_TEMPLATES.map((tpl: TemplateDefinition) => (
-                  <option key={tpl.id} value={tpl.id}>
-                    {tpl.name}
-                  </option>
-                ))}
+                <optgroup label={`${channel} Templates`}>
+                  {DEFAULT_TEMPLATES.filter((tpl) => tpl.channel === channel).map((tpl: TemplateDefinition) => (
+                    <option key={tpl.id} value={tpl.id}>
+                      {tpl.name}
+                    </option>
+                  ))}
+                </optgroup>
+                <optgroup label="Other Templates">
+                  {DEFAULT_TEMPLATES.filter((tpl) => tpl.channel !== channel).map((tpl: TemplateDefinition) => (
+                    <option key={tpl.id} value={tpl.id}>
+                      {tpl.name} ({tpl.channel})
+                    </option>
+                  ))}
+                </optgroup>
               </select>
             </div>
 

@@ -14,43 +14,49 @@ export function BillingTab() {
   const [billingCycle, setBillingCycle] = useState<BillingCycle>("monthly");
   const [upgradingTier, setUpgradingTier] = useState<string | null>(null);
   const [upgradeSuccess, setUpgradeSuccess] = useState<string | null>(null);
-
-  const load = async () => {
-    try {
-      setLoading(true);
-      setError(null);
-      const res = await api<{
-        subscription: SubscriptionInfo;
-        plans: PlanDefinition[];
-      }>("/api/billing/subscription");
-      setSubscription(res.subscription);
-      setPlans(res.plans);
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "Failed to load subscription info");
-    } finally {
-      setLoading(false);
-    }
-  };
+  const [refreshKey, setRefreshKey] = useState(0);
 
   useEffect(() => {
-    load();
-  }, []);
+    let active = true;
+    api<{
+      subscription: SubscriptionInfo;
+      plans: PlanDefinition[];
+    }>("/api/billing/subscription")
+      .then((res) => {
+        if (active) {
+          setSubscription(res.subscription);
+          setPlans(res.plans);
+          setLoading(false);
+          setError(null);
+        }
+      })
+      .catch((e) => {
+        if (active) {
+          setError(e instanceof Error ? e.message : "Failed to load subscription info");
+          setLoading(false);
+        }
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [refreshKey]);
 
   const handleSelectPlan = async (tier: string) => {
     setUpgradingTier(tier);
     setError(null);
     setUpgradeSuccess(null);
     try {
-      const res = await apiPost<{
-        success: boolean;
-        message: string;
-      }>("/api/billing/checkout", {
+      const res = await apiPost<
+        { planTier: string; billingCycle: BillingCycle },
+        { success: boolean; message: string }
+      >("/api/billing/checkout", {
         planTier: tier,
         billingCycle,
       });
 
       setUpgradeSuccess(res.message || `Successfully upgraded to ${tier}`);
-      await load();
+      setRefreshKey((k) => k + 1);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Failed to process plan change");
     } finally {

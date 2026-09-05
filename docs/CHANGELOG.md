@@ -55,12 +55,41 @@ All notable changes, tracked against the implementation TODO (see `docs/MASTER_T
 - Marketing-claims reconciliation (gate unbuilt features) — see TODO-062.
 - Phase-1 specs (previously missing): `docs/PRODUCT_SPEC.md`, `docs/DOMAIN_MODEL.md`, `docs/AUTHORIZATION.md`, `docs/METRICS.md` (TODO-003..006).
 
-### Added — Integration test suite (TODO-051)
-- RBAC extracted to `src/lib/rbac.ts` (pure: `ROLES`/`ACTION_ROLES`/`MANAGE_ROLES`/`requireRole`); `server-context.ts` re-exports it. Enables DB-free policy unit tests — now **55/55** under `npm test` (`rbac.test.ts` adds 4).
-- `vitest.config.ts` excludes `*.integration.test.ts` from the unit run; `vitest.integration.config.ts` sets `fileParallelism: false`.
-- Specs authored (CI-ready, run under `npm run test:integration` with postgres:17): `import-receivables`, `payments-receivables`, `queue-tenancy` (tenant isolation). Verification pending a reachable DB (blocked).
+### Added — Phase 16: Messaging Hub, Templates & Multi-Transport Delivery (TODO-079/080)
+- Multi-transport transactional Email adapter (`src/lib/email.ts`) with Resend API integration and deterministic mock simulation mode.
+- Multi-channel communications hub UI (`/dashboard/communications`) displaying outbound history, delivery statuses, channel health, and live template preview.
+- Outreach dispatch endpoint (`POST /api/messages`) supporting variable template interpolation (`{{customerName}}`, `{{amountDue}}`, `{{invoiceNumber}}`, `{{daysOverdue}}`), quota checks, and timeline collection events.
+
+### Added — Phase 17: Billing, Quotas & Productivity Enhancements (TODO-081..087)
+- Subscription and tier quota engine (`src/lib/billing.ts`) with `FREE`, `STARTER`, `GROWTH`, and `PRO` tiers, feature gate guards, and Stripe Checkout integration (`/api/billing/*`).
+- Global Command Palette (`Ctrl+K` modal + `/api/search`) indexing customers, invoices, promises, and disputes with instant search.
+- Guided 4-step Onboarding Import Wizard (`/dashboard/import`) with automated column auto-mapping, sample CSV download (`/api/import/sample`), and per-row error diagnostics.
+- Bulk Queue Actions (multi-select reminders, CSV export) and secure invoice CSV export (`/api/invoices/export`) with CWE-1236 spreadsheet injection mitigation.
+- Organization Audit Trail Viewer (`/dashboard/settings` Audit tab + `/api/audit`) with action filtering and JSON metadata inspector.
+
+### Added — Phase 18: Strategic Recovery Engines & Security Hardening (TODO-088..094)
+- Multi-Installment Payment Plan Engine (`src/lib/payment-plans.ts`, `/api/payment-plans`, `PaymentPlanModal`) with calendar-aware schedule generation, whole-INR rounding preservation, progressive FIFO allocation, and delinquency evaluation.
+- Multi-Gateway WhatsApp Business API Adapter (`src/lib/whatsapp.ts`) supporting Meta Cloud API, Interakt, Gupshup, and Twilio with simulation mode.
+- 1-Click Dynamic Payment Link Generator (`src/lib/payment-links.ts`, `/api/payment-links`) with Razorpay, Cashfree, and NPCI-compliant `upi://pay` deep link URIs.
+- Statutory Section 15 & 16 MSMED Act 2006 Compound Penal Interest Calculator (`src/lib/msme-interest.ts`, `/api/legal/msme-interest`) at 3x RBI Bank Rate (20.25% p.a.).
+- Formal Statutory Demand Notice Generator (`src/lib/legal-notices.ts`, `/api/legal/notice`, `LegalNoticeModal`) for MSMED Act and Section 138 Negotiable Instruments Act claims.
+- AES-256-GCM Envelope Encryption (`src/lib/crypto.ts`) for third-party integration credentials with unique IVs and HMAC verification.
+- Distributed Upstash Redis Rate Limiting (`src/lib/rate-limit.ts`) with local sliding-window memory fallback.
+
+### Added — Phase 19: Automated Dunning Cadence Engine & Webhook Reconciliation (TODO-095..100)
+- Automated Dunning Cadence Execution Engine (`src/lib/workflows.ts`) with multi-tier milestone rule evaluation (`T-3`, `T+1`, `T+7`, `T+15`, `T+30`, `T+45`), dry-run simulations, dispute/promise guards, and batch execution.
+- Scheduled Cadence Batch Runner (`/api/jobs/workflows-runner`) with `CRON_SECRET` bearer authorization and dynamic UPI payment link injection.
+- Multi-Gateway Delivery Webhook Normalizer (`/api/webhooks/delivery`) standardizing status receipts from Meta WhatsApp, Twilio, SendGrid, and Gupshup with GET challenge handshake verification.
+- Transactional Payment Webhook Listener (`/api/webhooks/payments`) with HMAC-SHA256 signature verification for Razorpay and Cashfree, executing atomic database settlements, FIFO balance updates, and auto-settling active promises.
+- Automated Dunning Cadence Management UI (`/dashboard/workflows`) with cadence toggling, custom escalation rule creation, instant dry-run preview table, and live batch dispatch execution.
+- Master Quality Gate: 145/145 unit tests passing across 22 test suites (`npm test`), 0 ESLint warnings, 0 TypeScript errors (`npx tsc --noEmit`), and 59 Next.js production routes compiled cleanly (`npm run build`).
+
+### Added — Phase 20: Responsive Mobile Ergonomics & Navigation Polish (TODO-101)
+- Responsive mobile top navigation header (`Sidebar.tsx`) with hamburger menu trigger, branded logo, quick global search button, and notification bell for tablet/mobile viewports (`<1024px`).
+- Slide-over mobile navigation drawer with touch-friendly backdrop, quick search trigger (`Ctrl+K`), complete categorized navigation links, active route highlight, user profile card, and sign-out handler.
+- Viewport layout container adaptation (`src/app/(dashboard)/layout.tsx`) switching to `flex-col lg:flex-row` for seamless scrollable dashboard views across mobile, tablet, and desktop devices.
+
 
 ### Blocked / deferred
-- Email/WhatsApp/SMS providers (042/044), billing (049), managed-prod infra + DB RLS + backups (058), Sentry (057), E2E tests (052), integration-suite *execution* (051).
+- Managed production PostgreSQL database connectivity (`TODO-077`) and live provider production credentials (`TODO-078`).
 - Pending migrations: `NotificationPreference`, org schedule columns, `IdempotencyKey`.
-- Known: `npm audit` 4 high via Prisma (`@prisma/config`); local Postgres down (blocks migrations + integration test runs).

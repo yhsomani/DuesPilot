@@ -1,4 +1,4 @@
-import { withAuth, MANAGE_ROLES, requireRole } from "@/lib/server-context";
+import { withAuth, MANAGE_ROLES, requireRole, ok, err, readJson } from "@/lib/server-context";
 import { PLAN_DEFINITIONS, PlanTier, BillingCycle } from "@/lib/billing";
 import { writeAudit } from "@/lib/audit";
 
@@ -6,15 +6,12 @@ export const POST = withAuth(async (req, ctx) => {
   const forbidden = requireRole(ctx, MANAGE_ROLES);
   if (forbidden) return forbidden;
 
-  const body = await req.json().catch(() => ({}));
+  const body = ((await readJson(req)) || {}) as Record<string, unknown>;
   const planTier = body.planTier as PlanTier;
-  const billingCycle = (body.billingCycle || "monthly") as BillingCycle;
+  const billingCycle = ((body.billingCycle as string) || "monthly") as BillingCycle;
 
   if (!planTier || !PLAN_DEFINITIONS[planTier]) {
-    return Response.json(
-      { error: "Invalid planTier selected. Choose FREE, STARTER, GROWTH, or PRO." },
-      { status: 400 }
-    );
+    return err("Invalid planTier selected. Choose FREE, STARTER, GROWTH, or PRO.", 400);
   }
 
   const selectedPlan = PLAN_DEFINITIONS[planTier];
@@ -43,7 +40,7 @@ export const POST = withAuth(async (req, ctx) => {
     req
   );
 
-  return Response.json({
+  return ok({
     success: true,
     orderId,
     amountINR,

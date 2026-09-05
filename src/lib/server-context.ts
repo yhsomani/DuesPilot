@@ -26,6 +26,7 @@ export {
   ROLES,
   ACTION_ROLES,
   MANAGE_ROLES,
+  VIEW_ROLES,
   requireRole,
 } from "@/lib/rbac";
 export type { Role, SessionContext } from "@/lib/rbac";
@@ -121,9 +122,9 @@ export function withAuth(handler: Handler) {
       if (!result.ok) {
         return respond(result.status, { error: result.error });
       }
-      if (result.status === 204 || result.status === 201) {
+      if (result.status === 204) {
         const res = new NextResponse(null, {
-          status: result.status,
+          status: 204,
           headers: { "x-request-id": rid, ...result.headers },
         });
         const durationMs = Math.round(performance.now() - start);

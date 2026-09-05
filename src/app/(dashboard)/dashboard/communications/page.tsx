@@ -28,6 +28,17 @@ interface CustomerOption {
   outstanding?: number;
 }
 
+interface CustomerApiItem {
+  id: string;
+  name: string;
+  email?: string;
+  contactEmail?: string;
+  phone?: string;
+  contactPhone?: string;
+  outstandingAmount?: number;
+  totalOutstanding?: number;
+}
+
 export default function CommunicationsPage() {
   const [messages, setMessages] = useState<MessageItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -51,13 +62,13 @@ export default function CommunicationsPage() {
   const [composeTemplateId, setComposeTemplateId] = useState<string>("payment-reminder");
   const [composeSubject, setComposeSubject] = useState("");
   const [composeBody, setComposeBody] = useState("");
+  const [includePaymentLink, setIncludePaymentLink] = useState(true);
   const [composeLoading, setComposeLoading] = useState(false);
   const [composeError, setComposeError] = useState<string | null>(null);
   const [composeSuccess, setComposeSuccess] = useState(false);
 
   const fetchMessages = useCallback(async () => {
     try {
-      setLoading(true);
       const params = new URLSearchParams();
       if (channelFilter !== "ALL") params.set("channel", channelFilter);
       if (statusFilter !== "ALL") params.set("status", statusFilter);
@@ -75,49 +86,74 @@ export default function CommunicationsPage() {
   }, [channelFilter, statusFilter, searchTerm]);
 
   useEffect(() => {
-    fetchMessages();
-  }, [fetchMessages]);
+    let active = true;
+    async function run() {
+      try {
+        const params = new URLSearchParams();
+        if (channelFilter !== "ALL") params.set("channel", channelFilter);
+        if (statusFilter !== "ALL") params.set("status", statusFilter);
+        if (searchTerm.trim()) params.set("search", searchTerm.trim());
+
+        const res = await fetch(`/api/messages?${params.toString()}`);
+        if (!res.ok) throw new Error("Failed to load communications");
+        const data = await res.json();
+        if (active) {
+          setMessages(data.messages || []);
+          setLoading(false);
+        }
+      } catch (err: unknown) {
+        if (active) {
+          setError(err instanceof Error ? err.message : "Error fetching messages");
+          setLoading(false);
+        }
+      }
+    }
+    run();
+    return () => {
+      active = false;
+    };
+  }, [channelFilter, statusFilter, searchTerm]);
 
   // Load customers for compose dropdown
   useEffect(() => {
+    let active = true;
     async function loadCustomers() {
       try {
         const res = await fetch("/api/customers?limit=100");
         if (res.ok) {
           const data = await res.json();
-          setCustomers(
-            (data.customers || []).map((c: any) => ({
-              id: c.id,
-              name: c.name,
-              email: c.email || c.contactEmail,
-              phone: c.phone || c.contactPhone,
-              outstanding: c.outstandingAmount || c.totalOutstanding || 0,
-            }))
-          );
+          if (active) {
+            setCustomers(
+              (data.customers || []).map((c: CustomerApiItem) => ({
+                id: c.id,
+                name: c.name,
+                email: c.email || c.contactEmail || null,
+                phone: c.phone || c.contactPhone || null,
+                outstanding: c.outstandingAmount || c.totalOutstanding || 0,
+              }))
+            );
+          }
         }
       } catch {
         // Non-fatal
       }
     }
     loadCustomers();
+    return () => {
+      active = false;
+    };
   }, []);
 
-  // Update recipient when customer or channel changes
-  useEffect(() => {
-    if (selectedCustomer) {
-      if (composeChannel === "EMAIL") {
-        setComposeRecipient(selectedCustomer.email || "");
-      } else {
-        setComposeRecipient(selectedCustomer.phone || "");
-      }
-    }
-  }, [selectedCustomer, composeChannel]);
-
-  // Update subject and body when template or customer changes
-  useEffect(() => {
-    const template = DEFAULT_TEMPLATES.find((t) => t.id === composeTemplateId) || DEFAULT_TEMPLATES[0];
-    const customerName = selectedCustomer ? selectedCustomer.name : "Valued Customer";
-    const amountStr = selectedCustomer?.outstanding ? `₹${selectedCustomer.outstanding.toLocaleString("en-IN")}` : "₹0";
+  const updateInterpolatedTemplate = (
+    templateId: string,
+    customer: CustomerOption | null
+  ) => {
+    const template =
+      DEFAULT_TEMPLATES.find((t) => t.id === templateId) || DEFAULT_TEMPLATES[0];
+    const customerName = customer ? customer.name : "Valued Customer";
+    const amountStr = customer?.outstanding
+      ? `₹${customer.outstanding.toLocaleString("en-IN")}`
+      : "₹0";
 
     const vars: Record<string, string | number | null | undefined> = {
       customerName,
@@ -134,7 +170,36 @@ export default function CommunicationsPage() {
 
     setComposeSubject(interpolateTemplate(template.subject, vars));
     setComposeBody(interpolateTemplate(template.body, vars));
-  }, [composeTemplateId, selectedCustomer]);
+  };
+
+  const handleSelectCustomer = (customerId: string) => {
+    const cust = customers.find((c) => c.id === customerId) || null;
+    setSelectedCustomer(cust);
+    if (cust) {
+      if (composeChannel === "EMAIL") {
+        setComposeRecipient(cust.email || "");
+      } else {
+        setComposeRecipient(cust.phone || "");
+      }
+    }
+    updateInterpolatedTemplate(composeTemplateId, cust);
+  };
+
+  const handleSelectChannel = (ch: "EMAIL" | "WHATSAPP" | "SMS") => {
+    setComposeChannel(ch);
+    if (selectedCustomer) {
+      if (ch === "EMAIL") {
+        setComposeRecipient(selectedCustomer.email || "");
+      } else {
+        setComposeRecipient(selectedCustomer.phone || "");
+      }
+    }
+  };
+
+  const handleSelectTemplate = (templateId: string) => {
+    setComposeTemplateId(templateId);
+    updateInterpolatedTemplate(templateId, selectedCustomer);
+  };
 
   async function handleRetry(messageId: string) {
     try {
@@ -178,6 +243,7 @@ export default function CommunicationsPage() {
           subject: composeChannel === "EMAIL" ? composeSubject.trim() : null,
           body: composeBody.trim(),
           templateId: composeTemplateId,
+          includePaymentLink,
         }),
       });
 
@@ -204,7 +270,9 @@ export default function CommunicationsPage() {
   const emailCount = messages.filter((m) => m.channel === "EMAIL").length;
   const whatsappCount = messages.filter((m) => m.channel === "WHATSAPP").length;
   const smsCount = messages.filter((m) => m.channel === "SMS").length;
-  const sentCount = messages.filter((m) => m.status === "SENT" || m.status === "DELIVERED" || m.status === "READ").length;
+  const sentCount = messages.filter(
+    (m) => m.status === "SENT" || m.status === "DELIVERED" || m.status === "READ"
+  ).length;
   const successRate = totalCount > 0 ? Math.round((sentCount / totalCount) * 100) : 100;
 
   return (
@@ -212,7 +280,9 @@ export default function CommunicationsPage() {
       {/* Top Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900 tracking-tight">Communications & Outbox</h1>
+          <h1 className="text-2xl font-bold text-gray-900 tracking-tight">
+            Communications & Outbox
+          </h1>
           <p className="mt-1 text-sm text-gray-500">
             Multi-channel collection reminders, automated dunning logs, and direct customer outreach.
           </p>
@@ -221,9 +291,10 @@ export default function CommunicationsPage() {
           onClick={() => {
             setComposeError(null);
             setComposeSuccess(false);
+            updateInterpolatedTemplate(composeTemplateId, selectedCustomer);
             setIsComposeOpen(true);
           }}
-          className="inline-flex items-center justify-center gap-2 rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-blue-700 transition focus:outline-hidden"
+          className="inline-flex items-center justify-center gap-2 rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white shadow-xs hover:bg-blue-700 transition focus:outline-hidden"
         >
           <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
@@ -266,10 +337,18 @@ export default function CommunicationsPage() {
                 key={ch}
                 onClick={() => setChannelFilter(ch)}
                 className={`px-3 py-1.5 rounded-md transition ${
-                  channelFilter === ch ? "bg-white text-gray-900 shadow-xs font-semibold" : "text-gray-600 hover:text-gray-900"
+                  channelFilter === ch
+                    ? "bg-white text-gray-900 shadow-xs font-semibold"
+                    : "text-gray-600 hover:text-gray-900"
                 }`}
               >
-                {ch === "ALL" ? "All Channels" : ch === "EMAIL" ? "📧 Email" : ch === "WHATSAPP" ? "💬 WhatsApp" : "📱 SMS"}
+                {ch === "ALL"
+                  ? "All Channels"
+                  : ch === "EMAIL"
+                  ? "📧 Email"
+                  : ch === "WHATSAPP"
+                  ? "💬 WhatsApp"
+                  : "📱 SMS"}
               </button>
             ))}
           </div>
@@ -297,8 +376,18 @@ export default function CommunicationsPage() {
             onChange={(e) => setSearchTerm(e.target.value)}
             className="w-full rounded-lg border border-gray-200 pl-8 pr-3 py-1.5 text-xs focus:border-blue-500 focus:outline-hidden"
           />
-          <svg className="w-4 h-4 text-gray-400 absolute left-2.5 top-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+          <svg
+            className="w-4 h-4 text-gray-400 absolute left-2.5 top-2"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+            />
           </svg>
         </div>
       </div>
@@ -316,7 +405,12 @@ export default function CommunicationsPage() {
           <div className="p-12 text-center">
             <div className="w-12 h-12 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center mx-auto mb-3">
               <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={1.5}
+                  d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"
+                />
               </svg>
             </div>
             <h3 className="text-sm font-semibold text-gray-900">No communications found</h3>
@@ -349,7 +443,9 @@ export default function CommunicationsPage() {
                           {m.customerName || "Customer Record"}
                         </Link>
                       ) : (
-                        <span className="font-medium text-gray-900 block">{m.customerName || "External Contact"}</span>
+                        <span className="font-medium text-gray-900 block">
+                          {m.customerName || "External Contact"}
+                        </span>
                       )}
                       <span className="text-[11px] text-gray-500 font-mono">{m.recipient}</span>
                     </td>
@@ -363,7 +459,11 @@ export default function CommunicationsPage() {
                             : "bg-amber-50 text-amber-700 border border-amber-100"
                         }`}
                       >
-                        {m.channel === "EMAIL" ? "📧 Email" : m.channel === "WHATSAPP" ? "💬 WhatsApp" : "📱 SMS"}
+                        {m.channel === "EMAIL"
+                          ? "📧 Email"
+                          : m.channel === "WHATSAPP"
+                          ? "💬 WhatsApp"
+                          : "📱 SMS"}
                       </span>
                     </td>
                     <td className="py-3 px-4 max-w-md">
@@ -386,7 +486,15 @@ export default function CommunicationsPage() {
                       </span>
                     </td>
                     <td className="py-3 px-4 text-gray-500 whitespace-nowrap">
-                      {m.sentAt ? new Date(m.sentAt).toLocaleString("en-IN", { dateStyle: "short", timeStyle: "short" }) : new Date(m.createdAt).toLocaleString("en-IN", { dateStyle: "short", timeStyle: "short" })}
+                      {m.sentAt
+                        ? new Date(m.sentAt).toLocaleString("en-IN", {
+                            dateStyle: "short",
+                            timeStyle: "short",
+                          })
+                        : new Date(m.createdAt).toLocaleString("en-IN", {
+                            dateStyle: "short",
+                            timeStyle: "short",
+                          })}
                     </td>
                     <td className="py-3 px-4 text-right whitespace-nowrap space-x-2">
                       <button
@@ -438,12 +546,20 @@ export default function CommunicationsPage() {
                   <span className="text-gray-900 font-medium">{selectedMessage.recipient}</span>
                 </div>
                 <div>
-                  <span className="text-gray-400 block text-[10px] uppercase font-semibold">Channel / Status</span>
-                  <span className="text-gray-900 font-medium">{selectedMessage.channel} · {selectedMessage.status}</span>
+                  <span className="text-gray-400 block text-[10px] uppercase font-semibold">
+                    Channel / Status
+                  </span>
+                  <span className="text-gray-900 font-medium">
+                    {selectedMessage.channel} · {selectedMessage.status}
+                  </span>
                 </div>
                 <div>
-                  <span className="text-gray-400 block text-[10px] uppercase font-semibold">External Dispatch ID</span>
-                  <span className="text-gray-900 font-mono text-[11px] truncate block">{selectedMessage.externalId || "N/A"}</span>
+                  <span className="text-gray-400 block text-[10px] uppercase font-semibold">
+                    External Dispatch ID
+                  </span>
+                  <span className="text-gray-900 font-mono text-[11px] truncate block">
+                    {selectedMessage.externalId || "N/A"}
+                  </span>
                 </div>
                 <div>
                   <span className="text-gray-400 block text-[10px] uppercase font-semibold">Dispatched At</span>
@@ -456,7 +572,9 @@ export default function CommunicationsPage() {
               {selectedMessage.subject && (
                 <div>
                   <span className="text-gray-400 block text-[10px] uppercase font-semibold mb-1">Subject</span>
-                  <p className="font-semibold text-gray-900 bg-gray-50 p-2.5 rounded-lg border border-gray-100">{selectedMessage.subject}</p>
+                  <p className="font-semibold text-gray-900 bg-gray-50 p-2.5 rounded-lg border border-gray-100">
+                    {selectedMessage.subject}
+                  </p>
                 </div>
               )}
 
@@ -486,7 +604,9 @@ export default function CommunicationsPage() {
             <div className="flex items-center justify-between border-b border-gray-100 px-6 py-4 bg-gray-50/50">
               <div>
                 <h3 className="text-base font-semibold text-gray-900">Compose & Dispatch Reminder</h3>
-                <p className="text-xs text-gray-500">Send tailored collection communications with dynamic variables</p>
+                <p className="text-xs text-gray-500">
+                  Send tailored collection communications with dynamic variables
+                </p>
               </div>
               <button
                 onClick={() => setIsComposeOpen(false)}
@@ -523,10 +643,7 @@ export default function CommunicationsPage() {
                   <label className="block text-xs font-medium text-gray-700 mb-1">Target Customer</label>
                   <select
                     value={selectedCustomer?.id || ""}
-                    onChange={(e) => {
-                      const c = customers.find((cust) => cust.id === e.target.value) || null;
-                      setSelectedCustomer(c);
-                    }}
+                    onChange={(e) => handleSelectCustomer(e.target.value)}
                     className="w-full rounded-lg border border-gray-200 px-3 py-2 text-xs focus:border-blue-500 focus:outline-hidden bg-white"
                     required
                   >
@@ -541,13 +658,13 @@ export default function CommunicationsPage() {
 
                 {/* Channel Selector */}
                 <div>
-                  <label className="block text-xs font-medium text-gray-700 mb-1">Communication Channel</label>
+                  <label className="block text-xs font-medium text-gray-700 mb-1.5">Channel</label>
                   <div className="grid grid-cols-3 gap-2">
                     {(["EMAIL", "WHATSAPP", "SMS"] as const).map((ch) => (
                       <button
                         key={ch}
                         type="button"
-                        onClick={() => setComposeChannel(ch)}
+                        onClick={() => handleSelectChannel(ch)}
                         className={`py-2 px-3 text-xs font-medium rounded-lg border transition text-center ${
                           composeChannel === ch
                             ? "border-blue-600 bg-blue-50/50 text-blue-700 font-semibold"
@@ -560,7 +677,7 @@ export default function CommunicationsPage() {
                   </div>
                 </div>
 
-                {/* Recipient Contact */}
+                {/* Recipient Field */}
                 <div>
                   <label className="block text-xs font-medium text-gray-700 mb-1">
                     Recipient {composeChannel === "EMAIL" ? "Email Address" : "Phone Number"}
@@ -569,7 +686,7 @@ export default function CommunicationsPage() {
                     type={composeChannel === "EMAIL" ? "email" : "tel"}
                     value={composeRecipient}
                     onChange={(e) => setComposeRecipient(e.target.value)}
-                    placeholder={composeChannel === "EMAIL" ? "accounts@company.com" : "+91 98765 43210"}
+                    placeholder={composeChannel === "EMAIL" ? "finance@customer.com" : "+91 98765 43210"}
                     className="w-full rounded-lg border border-gray-200 px-3 py-2 text-xs focus:border-blue-500 focus:outline-hidden"
                     required
                   />
@@ -577,10 +694,10 @@ export default function CommunicationsPage() {
 
                 {/* Template Selector */}
                 <div>
-                  <label className="block text-xs font-medium text-gray-700 mb-1">Message Template</label>
+                  <label className="block text-xs font-medium text-gray-700 mb-1">Template Preset</label>
                   <select
                     value={composeTemplateId}
-                    onChange={(e) => setComposeTemplateId(e.target.value)}
+                    onChange={(e) => handleSelectTemplate(e.target.value)}
                     className="w-full rounded-lg border border-gray-200 px-3 py-2 text-xs focus:border-blue-500 focus:outline-hidden bg-white"
                   >
                     {DEFAULT_TEMPLATES.map((tpl: TemplateDefinition) => (
@@ -591,10 +708,10 @@ export default function CommunicationsPage() {
                   </select>
                 </div>
 
-                {/* Subject (Email only) */}
+                {/* Email Subject */}
                 {composeChannel === "EMAIL" && (
                   <div>
-                    <label className="block text-xs font-medium text-gray-700 mb-1">Subject</label>
+                    <label className="block text-xs font-medium text-gray-700 mb-1">Email Subject</label>
                     <input
                       type="text"
                       value={composeSubject}
@@ -609,16 +726,30 @@ export default function CommunicationsPage() {
                 <div>
                   <label className="block text-xs font-medium text-gray-700 mb-1">Message Body</label>
                   <textarea
-                    rows={5}
+                    rows={6}
                     value={composeBody}
                     onChange={(e) => setComposeBody(e.target.value)}
-                    className="w-full rounded-lg border border-gray-200 p-3 text-xs font-mono text-gray-800 focus:border-blue-500 focus:outline-hidden leading-relaxed resize-none"
+                    className="w-full rounded-lg border border-gray-200 p-3 text-xs font-mono text-gray-800 focus:border-blue-500 focus:outline-hidden resize-none leading-relaxed"
                     required
                   />
                 </div>
 
+                {/* Payment Link Option */}
+                <div className="flex items-center gap-2 bg-emerald-50/50 p-2.5 rounded-lg border border-emerald-100">
+                  <input
+                    type="checkbox"
+                    id="includePaymentLinkCompose"
+                    checked={includePaymentLink}
+                    onChange={(e) => setIncludePaymentLink(e.target.checked)}
+                    className="h-4 w-4 rounded border-gray-300 text-emerald-600 focus:ring-emerald-500"
+                  />
+                  <label htmlFor="includePaymentLinkCompose" className="text-xs text-gray-700 font-medium cursor-pointer">
+                    Include dynamic UPI / Razorpay payment link & QR data in message
+                  </label>
+                </div>
+
                 {/* Actions */}
-                <div className="flex items-center justify-end gap-2 pt-3 border-t border-gray-100">
+                <div className="flex items-center justify-end gap-2 pt-2 border-t border-gray-100">
                   <button
                     type="button"
                     onClick={() => setIsComposeOpen(false)}
@@ -630,9 +761,9 @@ export default function CommunicationsPage() {
                   <button
                     type="submit"
                     disabled={composeLoading}
-                    className="rounded-lg bg-blue-600 px-4 py-2 text-xs font-medium text-white hover:bg-blue-700 transition flex items-center gap-1.5 disabled:opacity-50 shadow-xs"
+                    className="rounded-lg bg-blue-600 px-4 py-2 text-xs font-medium text-white hover:bg-blue-700 transition flex items-center gap-1.5 disabled:opacity-50"
                   >
-                    {composeLoading ? "Dispatching..." : "Dispatch Message"}
+                    {composeLoading ? "Dispatching..." : "Send Reminder"}
                   </button>
                 </div>
               </form>

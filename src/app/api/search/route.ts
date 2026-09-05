@@ -1,4 +1,4 @@
-import { withAuth, VIEW_ROLES, requireRole } from "@/lib/server-context";
+import { withAuth, VIEW_ROLES, requireRole, ok } from "@/lib/server-context";
 import { prisma } from "@/lib/prisma";
 
 export interface SearchResultItem {
@@ -19,7 +19,7 @@ export const GET = withAuth(async (req, ctx) => {
   const q = (url.searchParams.get("q") || "").trim();
 
   if (!q || q.length < 2) {
-    return Response.json({
+    return ok({
       results: [],
       total: 0,
       query: q,
@@ -27,7 +27,6 @@ export const GET = withAuth(async (req, ctx) => {
   }
 
   const organizationId = ctx.organizationId;
-  const lowerQ = q.toLowerCase();
 
   const [customers, invoices, promises, disputes] = await Promise.all([
     // Customers search
@@ -48,7 +47,7 @@ export const GET = withAuth(async (req, ctx) => {
         email: true,
         phone: true,
         gstin: true,
-        currentBucket: true,
+        status: true,
         totalOutstanding: true,
       },
     }),
@@ -67,7 +66,7 @@ export const GET = withAuth(async (req, ctx) => {
         id: true,
         invoiceNumber: true,
         amount: true,
-        amountPaid: true,
+        outstandingAmount: true,
         status: true,
         dueDate: true,
         customer: {
@@ -84,7 +83,7 @@ export const GET = withAuth(async (req, ctx) => {
       where: {
         organizationId,
         OR: [
-          { notes: { contains: q, mode: "insensitive" } },
+          { note: { contains: q, mode: "insensitive" } },
           { customer: { name: { contains: q, mode: "insensitive" } } },
         ],
       },
@@ -106,10 +105,13 @@ export const GET = withAuth(async (req, ctx) => {
     // Disputes search
     prisma.dispute.findMany({
       where: {
-        organizationId,
+        invoice: {
+          organizationId,
+        },
         OR: [
           { reason: { contains: q, mode: "insensitive" } },
-          { customer: { name: { contains: q, mode: "insensitive" } } },
+          { notes: { contains: q, mode: "insensitive" } },
+          { invoice: { customer: { name: { contains: q, mode: "insensitive" } } } },
         ],
       },
       take: 5,
@@ -117,11 +119,17 @@ export const GET = withAuth(async (req, ctx) => {
         id: true,
         reason: true,
         status: true,
-        amount: true,
-        customer: {
+        invoice: {
           select: {
             id: true,
-            name: true,
+            invoiceNumber: true,
+            amount: true,
+            customer: {
+              select: {
+                id: true,
+                name: true,
+              },
+            },
           },
         },
       },
@@ -139,7 +147,7 @@ export const GET = withAuth(async (req, ctx) => {
       subtitle: [c.email, c.phone, c.gstin ? `GST: ${c.gstin}` : null]
         .filter(Boolean)
         .join(" • ") || "Customer account",
-      badge: c.currentBucket?.replace("_", " ") || "CURRENT",
+      badge: c.status?.toUpperCase() || "ACTIVE",
       amount: Number(c.totalOutstanding || 0),
       url: `/dashboard/customers/${c.id}`,
     });
@@ -147,14 +155,13 @@ export const GET = withAuth(async (req, ctx) => {
 
   // Map invoices
   for (const inv of invoices) {
-    const outstanding = Number(inv.amount) - Number(inv.amountPaid);
     results.push({
       id: inv.id,
       type: "invoice",
       title: `Invoice #${inv.invoiceNumber}`,
       subtitle: `${inv.customer.name} • Due ${new Date(inv.dueDate).toLocaleDateString("en-IN")}`,
       badge: inv.status,
-      amount: outstanding,
+      amount: Number(inv.outstandingAmount),
       url: `/dashboard/invoices/${inv.id}`,
     });
   }
@@ -178,14 +185,14 @@ export const GET = withAuth(async (req, ctx) => {
       id: d.id,
       type: "dispute",
       title: `Dispute: ${d.reason}`,
-      subtitle: `Customer: ${d.customer.name}`,
+      subtitle: `Customer: ${d.invoice.customer.name} (Inv #${d.invoice.invoiceNumber})`,
       badge: d.status,
-      amount: d.amount ? Number(d.amount) : undefined,
+      amount: Number(d.invoice.amount),
       url: `/dashboard/disputes`,
     });
   }
 
-  return Response.json({
+  return ok({
     results,
     total: results.length,
     query: q,

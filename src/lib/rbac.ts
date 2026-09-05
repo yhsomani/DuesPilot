@@ -24,6 +24,9 @@ export const ACTION_ROLES: Role[] = [
 // Roles allowed to manage organization settings/imports/integrations.
 export const MANAGE_ROLES: Role[] = [ROLES.OWNER, ROLES.ADMIN];
 
+// All authenticated roles allowed to view data.
+export const VIEW_ROLES: Role[] = Object.values(ROLES);
+
 export interface SessionContext {
   userId: string;
   organizationId: string;

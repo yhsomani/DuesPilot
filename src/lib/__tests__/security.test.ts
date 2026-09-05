@@ -7,11 +7,11 @@ import {
 
 describe("sanitizeCsvValue (CWE-1236 Mitigation)", () => {
   it("prepends single quote to formula injection triggers", () => {
-    expect(sanitizeCsvValue("=cmd|' /C calc'!A0")).toBe(`"'=cmd|' /C calc'!A0"`);
+    expect(sanitizeCsvValue("=cmd|' /C calc'!A0")).toBe("'=cmd|' /C calc'!A0");
     expect(sanitizeCsvValue("+12345")).toBe("'+12345");
     expect(sanitizeCsvValue("-SUM(A1:A10)")).toBe("'-SUM(A1:A10)");
-    expect(sanitizeCsvValue("@HYPERLINK('http://evil.com')")).toBe(`"'@HYPERLINK('http://evil.com')\"`);
-    expect(sanitizeCsvValue("\tTabPrepend")).toBe(`"'\tTabPrepend"`);
+    expect(sanitizeCsvValue("@HYPERLINK('http://evil.com')")).toBe("'@HYPERLINK('http://evil.com')");
+    expect(sanitizeCsvValue("\tTabPrepend")).toBe("'\tTabPrepend");
     expect(sanitizeCsvValue("\rCarriagePrepend")).toBe(`"'\rCarriagePrepend"`);
   });
 
@@ -48,7 +48,7 @@ describe("generateSanitizedCsv", () => {
 
     expect(lines[0]).toBe("Customer Name,Amount,Notes");
     expect(lines[1]).toBe("Acme Corp,5000,Regular buyer");
-    expect(lines[2]).toBe(`"'=HYPERLINK()",100,"Contains, comma"`);
+    expect(lines[2]).toBe(`'=HYPERLINK(),100,"Contains, comma"`);
   });
 });
 

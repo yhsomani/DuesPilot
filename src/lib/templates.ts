@@ -28,6 +28,9 @@ export const TEMPLATE_VARIABLES: TemplateVariable[] = [
   { key: "companyName", label: "Your Company", description: "Your organization name", example: "DuesPilot Logistics" },
   { key: "promiseDate", label: "Promise Date", description: "Agreed payment commitment date", example: "20 Sep 2026" },
   { key: "paymentReference", label: "Payment Reference", description: "Payment transaction reference", example: "UPI/UTR12345678" },
+  { key: "paymentLink", label: "Instant Payment Link", description: "Dynamic Razorpay/UPI settlement link", example: "https://pay.duespilot.com/plink_123" },
+  { key: "upiQrString", label: "UPI Deep Link", description: "Direct app-to-app UPI payment URI", example: "upi://pay?pa=dues@icici&am=45000" },
+  { key: "installmentSummary", label: "Installment Summary", description: "Scheduled installment milestones breakdown", example: "3 monthly installments of ₹15,000" },
 ];
 
 export const DEFAULT_TEMPLATES: TemplateDefinition[] = [
@@ -143,6 +146,57 @@ Sincerely,
 Customer Relations
 {{companyName}}`,
     description: "Sent when an invoice dispute is recorded",
+  },
+  {
+    id: "whatsapp-payment-reminder",
+    name: "WhatsApp: Friendly Payment Reminder",
+    category: "reminder",
+    channel: "WHATSAPP",
+    subject: "Payment Reminder for Invoice {{invoiceNumber}}",
+    body: `Hi {{contactName}}, gentle reminder from *{{companyName}}* that invoice *{{invoiceNumber}}* for *{{amount}}* is due on *{{dueDate}}*.
+
+👉 Pay instantly via UPI / Card: {{paymentLink}}
+
+Thank you for your timely partnership!`,
+    description: "Short friendly WhatsApp reminder with dynamic payment link",
+  },
+  {
+    id: "whatsapp-overdue-alert",
+    name: "WhatsApp: Urgent Overdue Notice",
+    category: "overdue",
+    channel: "WHATSAPP",
+    subject: "Overdue Notice: {{invoiceNumber}}",
+    body: `*URGENT NOTICE* from *{{companyName}}*:
+
+Invoice *{{invoiceNumber}}* for *{{outstandingAmount}}* is now *{{daysOverdue}} days overdue* (Due: {{dueDate}}).
+
+Please clear the balance today to avoid disruption of credit terms.
+
+📲 Settle Now: {{paymentLink}}
+UPI ID: duespilot@icici
+
+Please reply with the UTR / transaction screenshot once paid.`,
+    description: "High-priority overdue notification with 1-click settlement link",
+  },
+  {
+    id: "whatsapp-installment-schedule",
+    name: "WhatsApp: Payment Plan Confirmation",
+    category: "promise",
+    channel: "WHATSAPP",
+    subject: "Settlement Plan: {{companyName}}",
+    body: `Dear {{contactName}},
+
+As agreed, your structured installment payment plan with *{{companyName}}* is confirmed:
+
+Total Amount: *{{amount}}*
+Schedule: {{installmentSummary}}
+
+First milestone due: *{{dueDate}}*
+Pay Milestone: {{paymentLink}}
+
+Thank you,
+Accounts Team`,
+    description: "Formal schedule breakdown for multi-installment settlements",
   },
 ];
 

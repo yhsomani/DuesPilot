@@ -4,6 +4,8 @@ import { use, useEffect, useState } from "react";
 import { formatINR } from "@/lib/utils";
 import { api, apiPost, apiPatch, apiDel, ApiError } from "@/lib/api";
 import { SendReminderModal } from "@/components/queue/send-reminder-modal";
+import { LegalNoticeModal } from "@/components/legal/legal-notice-modal";
+import { PaymentPlanModal } from "@/components/promises/payment-plan-modal";
 import type {
   CustomerContact,
   CustomerDetailData,
@@ -58,6 +60,8 @@ export default function CustomerDetailPage({
   const [showActions, setShowActions] = useState(false);
   const [isReminderOpen, setIsReminderOpen] = useState(false);
   const [invoiceForReminder, setInvoiceForReminder] = useState<CustomerInvoice | null>(null);
+  const [isLegalNoticeOpen, setIsLegalNoticeOpen] = useState(false);
+  const [isPaymentPlanOpen, setIsPaymentPlanOpen] = useState(false);
 
   const load = async () => {
     const data = await api<CustomerDetailData>(`/api/customers/${id}`);
@@ -137,7 +141,7 @@ export default function CustomerDetailPage({
             </p>
           </div>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <button
             onClick={() => {
               setInvoiceForReminder(null);
@@ -147,6 +151,20 @@ export default function CustomerDetailPage({
           >
             <span>📧</span>
             <span>Send Reminder</span>
+          </button>
+          <button
+            onClick={() => setIsPaymentPlanOpen(true)}
+            className="inline-flex items-center gap-1.5 rounded-lg border border-purple-200 bg-purple-50 px-3 py-2 text-sm font-medium text-purple-700 shadow-xs hover:bg-purple-100 transition"
+          >
+            <span>📅</span>
+            <span>Payment Plan</span>
+          </button>
+          <button
+            onClick={() => setIsLegalNoticeOpen(true)}
+            className="inline-flex items-center gap-1.5 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm font-medium text-amber-800 shadow-xs hover:bg-amber-100 transition"
+          >
+            <span>⚖️</span>
+            <span>Legal Notice</span>
           </button>
           <EditCustomerModal
             customerId={customer.id}
@@ -336,8 +354,8 @@ export default function CustomerDetailPage({
         <SendReminderModal
           customerId={customer.id}
           customerName={customer.name}
-          amount={invoiceForReminder ? invoiceForReminder.amount : customer.totalDue}
-          outstandingAmount={invoiceForReminder ? invoiceForReminder.outstanding : customer.totalDue}
+          amount={invoiceForReminder ? invoiceForReminder.amount : customer.totalOutstanding}
+          outstandingAmount={invoiceForReminder ? invoiceForReminder.outstanding : customer.totalOutstanding}
           invoiceNumber={invoiceForReminder?.number}
           invoiceId={invoiceForReminder?.id}
           dueDate={invoiceForReminder?.dueDate}
@@ -350,6 +368,36 @@ export default function CustomerDetailPage({
           onSuccess={async () => {
             setIsReminderOpen(false);
             setInvoiceForReminder(null);
+            await load();
+          }}
+        />
+      )}
+
+      {isPaymentPlanOpen && customer && (
+        <PaymentPlanModal
+          customerId={customer.id}
+          customerName={customer.name}
+          defaultAmount={customer.totalOutstanding > 0 ? customer.totalOutstanding : 50000}
+          onClose={() => setIsPaymentPlanOpen(false)}
+          onSuccess={async () => {
+            setIsPaymentPlanOpen(false);
+            await load();
+          }}
+        />
+      )}
+
+      {isLegalNoticeOpen && customer && (
+        <LegalNoticeModal
+          customerId={customer.id}
+          customerName={customer.name}
+          customerGstin={customer.gstin}
+          customerEmail={customer.email}
+          customerPhone={customer.phone}
+          defaultPrincipal={customer.totalOutstanding}
+          isOpen={true}
+          onClose={() => setIsLegalNoticeOpen(false)}
+          onSuccess={async () => {
+            setIsLegalNoticeOpen(false);
             await load();
           }}
         />

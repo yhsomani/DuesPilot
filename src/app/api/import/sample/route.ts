@@ -1,9 +1,12 @@
-import { withAuth, VIEW_ROLES, requireRole } from "@/lib/server-context";
+import { getSessionContext } from "@/lib/server-context";
 import { generateSanitizedCsv } from "@/lib/security";
+import { NextResponse } from "next/server";
 
-export const GET = withAuth(async (req, ctx) => {
-  const forbidden = requireRole(ctx, VIEW_ROLES);
-  if (forbidden) return forbidden;
+export async function GET() {
+  const ctx = await getSessionContext();
+  if (!ctx) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
 
   const columns = [
     { key: "customerName", label: "Customer Name" },
@@ -20,8 +23,8 @@ export const GET = withAuth(async (req, ctx) => {
   const today = new Date();
   const formatIso = (d: Date) => d.toISOString().split("T")[0];
 
-  const pastDate30 = new Date(today.getTime() - 30 * 86400000);
   const pastDate60 = new Date(today.getTime() - 60 * 86400000);
+  const pastDate30 = new Date(today.getTime() - 30 * 86400000);
   const pastDate15 = new Date(today.getTime() - 15 * 86400000);
   const futureDate15 = new Date(today.getTime() + 15 * 86400000);
 
@@ -81,4 +84,4 @@ export const GET = withAuth(async (req, ctx) => {
       "Content-Disposition": 'attachment; filename="duespilot-sample-import.csv"',
     },
   });
-});
+}

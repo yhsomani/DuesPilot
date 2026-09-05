@@ -21,6 +21,9 @@ import {
   Settings,
   LogOut,
   Search,
+  Workflow,
+  Menu,
+  X,
   type LucideIcon,
 } from "lucide-react";
 
@@ -47,6 +50,7 @@ const navigation = [
     items: [
       { name: "Import", href: "/dashboard/import", icon: Upload },
       { name: "Communications", href: "/dashboard/communications", icon: Send },
+      { name: "Workflows", href: "/dashboard/workflows", icon: Workflow },
       { name: "Analytics", href: "/dashboard/analytics", icon: BarChart3 },
     ],
   },
@@ -62,6 +66,7 @@ export function Sidebar() {
   const pathname = usePathname();
   const { data: session } = useSession();
   const [searchOpen, setSearchOpen] = useState(false);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   const user = session?.user;
   const displayName = user?.name || "User";
@@ -87,6 +92,146 @@ export function Sidebar() {
 
   return (
     <>
+      {/* Mobile Top Navigation Header */}
+      <header className="lg:hidden sticky top-0 z-40 flex items-center justify-between border-b border-gray-200 bg-white px-4 py-3 shadow-xs">
+        <div className="flex items-center gap-3">
+          <button
+            type="button"
+            onClick={() => setMobileMenuOpen(true)}
+            className="flex h-9 w-9 items-center justify-center rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-100 hover:text-gray-900 transition"
+            aria-label="Open navigation menu"
+          >
+            <Menu className="h-5 w-5" />
+          </button>
+          <div className="flex items-center gap-2">
+            <div className="h-7 w-7 rounded-lg bg-blue-600 flex items-center justify-center shadow-xs">
+              <span className="text-white font-bold text-[11px]">DP</span>
+            </div>
+            <span className="text-base font-bold text-gray-900">DuesPilot</span>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={() => setSearchOpen(true)}
+            className="flex h-9 w-9 items-center justify-center rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-100 hover:text-gray-900 transition"
+            aria-label="Search"
+          >
+            <Search className="h-4 w-4" />
+          </button>
+          <NotificationBell />
+        </div>
+      </header>
+
+      {/* Mobile Slide-Over Drawer */}
+      {mobileMenuOpen && (
+        <div className="lg:hidden fixed inset-0 z-50 flex">
+          {/* Backdrop */}
+          <div
+            className="fixed inset-0 bg-black/40 backdrop-blur-xs transition-opacity"
+            onClick={() => setMobileMenuOpen(false)}
+            aria-hidden="true"
+          />
+
+          {/* Drawer Content */}
+          <div className="relative flex w-full max-w-xs flex-1 flex-col bg-white shadow-2xl">
+            <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
+              <div className="flex items-center gap-2">
+                <div className="h-7 w-7 rounded-lg bg-blue-600 flex items-center justify-center shadow-xs">
+                  <span className="text-white font-bold text-[11px]">DP</span>
+                </div>
+                <span className="text-lg font-bold text-gray-900">DuesPilot</span>
+              </div>
+              <button
+                type="button"
+                onClick={() => setMobileMenuOpen(false)}
+                className="flex h-8 w-8 items-center justify-center rounded-lg text-gray-500 hover:bg-gray-100 hover:text-gray-900 transition"
+                aria-label="Close menu"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            {/* Quick search button */}
+            <div className="px-3 pt-3">
+              <button
+                type="button"
+                onClick={() => {
+                  setMobileMenuOpen(false);
+                  setSearchOpen(true);
+                }}
+                className="w-full flex items-center justify-between px-3 py-2 text-xs text-gray-400 bg-gray-50 hover:bg-gray-100 hover:text-gray-600 rounded-xl border border-gray-200 transition"
+              >
+                <div className="flex items-center gap-2">
+                  <Search className="h-3.5 w-3.5 text-gray-400" />
+                  <span>Search…</span>
+                </div>
+                <kbd className="font-mono text-[10px] bg-white px-1.5 py-0.5 rounded border border-gray-200 text-gray-400">
+                  ⌘K
+                </kbd>
+              </button>
+            </div>
+
+            {/* Navigation links */}
+            <nav className="flex-1 overflow-y-auto px-3 py-4 space-y-6">
+              {navigation.map((group) => (
+                <div key={group.label}>
+                  <p className="px-3 mb-2 text-[11px] font-semibold uppercase tracking-wider text-gray-400">
+                    {group.label}
+                  </p>
+                  <div className="space-y-0.5">
+                    {group.items.map((item) => {
+                      const isActive = pathname === item.href;
+                      const Icon: LucideIcon = item.icon;
+                      return (
+                        <Link
+                          key={item.href}
+                          href={item.href}
+                          onClick={() => setMobileMenuOpen(false)}
+                          className={cn(
+                            "flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-medium transition-colors",
+                            isActive
+                              ? "bg-blue-50 text-blue-700 font-semibold"
+                              : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
+                          )}
+                        >
+                          <Icon className="h-4 w-4" />
+                          {item.name}
+                        </Link>
+                      );
+                    })}
+                  </div>
+                </div>
+              ))}
+            </nav>
+
+            {/* User Account & Logout */}
+            <div className="border-t border-gray-100 px-3 py-3">
+              <div className="flex items-center gap-3 rounded-lg px-3 py-2 hover:bg-gray-50 transition-colors">
+                <div className="h-8 w-8 rounded-full bg-blue-100 flex items-center justify-center">
+                  <span className="text-blue-700 font-semibold text-xs">{initials}</span>
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium text-gray-900 truncate">
+                    {displayName}
+                  </p>
+                  <p className="text-xs text-gray-500 truncate">{email}</p>
+                </div>
+              </div>
+              <button
+                onClick={() => signOut({ callbackUrl: "/login" })}
+                className="mt-1 w-full flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium text-gray-500 hover:bg-red-50 hover:text-red-600 transition-colors"
+              >
+                <LogOut className="h-4 w-4" />
+                Sign out
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Desktop Sidebar */}
       <aside className="hidden lg:flex lg:flex-col lg:w-60 border-r border-gray-100 bg-white">
         <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
           <div className="flex items-center gap-2">

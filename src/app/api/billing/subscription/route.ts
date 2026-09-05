@@ -1,4 +1,4 @@
-import { withAuth, VIEW_ROLES, requireRole } from "@/lib/server-context";
+import { withAuth, VIEW_ROLES, requireRole, ok } from "@/lib/server-context";
 import { getOrganizationSubscription, PLAN_DEFINITIONS } from "@/lib/billing";
 
 export const GET = withAuth(async (_req, ctx) => {
@@ -7,7 +7,7 @@ export const GET = withAuth(async (_req, ctx) => {
 
   const subscription = await getOrganizationSubscription(ctx.organizationId);
 
-  return Response.json({
+  return ok({
     subscription,
     plans: Object.values(PLAN_DEFINITIONS),
   });

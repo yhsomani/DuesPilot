@@ -27,7 +27,7 @@ const TEAM_ROLES = [
 
 export default function SettingsPage() {
   const [activeTab, setActiveTab] = useState<"general" | "team" | "billing" | "audit">("general");
-  const [settings, setSettings] = useState<OrganizationSettings | null>(null);
+  const [_settings, setSettings] = useState<OrganizationSettings | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);

@@ -72,6 +72,7 @@
 | PROM-003 | Record promise | ✅ | `POST /api/promises`; `PATCH [id]` manage |
 | PROM-004 | AI promise extraction | ❌ | marketing claim only |
 | PROM-005 | Auto-mark broken | ✅ (endpoint) / 🚫 (scheduler) | `/api/jobs/promise-sweep` idempotent; **cron not provisioned** (TODO-058) |
+| PROM-006 | Multi-installment payment plans | ✅ | `src/lib/payment-plans.ts`, `/api/payment-plans`, `PaymentPlanModal` (`GAP-M01`) |
 
 ## Payments
 
@@ -82,6 +83,8 @@
 | PAY-003 | Allocation/matching + transitions | ✅ | `payment-allocation.ts` + `nextInvoiceStatus`; auto-KEPT promises |
 | PAY-004 | Bank import / auto-match | ❌ | marketing claim only |
 | PAY-005 | Reversal + duplicate guard | ✅ | payments API |
+| PAY-006 | Dynamic UPI & Payment Links | ✅ | `src/lib/payment-links.ts`, `POST /api/payment-links`, Razorpay & direct UPI URIs (`GAP-M04`) |
+| PAY-007 | Payment Webhook Reconciliation | ✅ | `POST /api/webhooks/payments` with HMAC-SHA256 signature verification & transactional settlement |
 
 ## Disputes
 
@@ -91,15 +94,24 @@
 | DIP-002 | Log dispute | ✅ | `POST /api/disputes` (categories) |
 | DIP-003 | Categories / resolution | ✅ | `PATCH /api/disputes/[id]`; queue exclusion |
 
-## Communications
+## Communications & Dunning Workflows
 
 | Feature ID | Feature | Status | Where |
 | --- | --- | --- | --- |
-| COMM-001 | Comms hub | 🔶 route only | `/dashboard/communications`; **email send NOT built (Blocked)** |
-| COMM-002 | Send message | 🚫 | no provider (TODO-042); `Message` schema-only |
-| COMM-003 | Email delivery | 🚫 | no provider |
-| COMM-004 | WhatsApp delivery | 🚫 | no provider (TODO-044) |
-| COMM-005 | Delivery/read status | 🗄 | `MessageStatus` enum |
+| COMM-001 | Comms hub | ✅ | `/dashboard/communications` message history, channel status, template preview & dispatch |
+| COMM-002 | Send message | ✅ | `POST /api/messages`, pure template interpolation (`src/lib/templates.ts`), audit log & collection events |
+| COMM-003 | Email delivery | ✅ | `src/lib/email.ts` multi-transport adapter (Resend API provider with deterministic mock simulation mode) |
+| COMM-004 | WhatsApp/SMS delivery | ✅ | `src/lib/whatsapp.ts` multi-gateway adapter (Meta Cloud API, Interakt, Gupshup, Twilio with simulation mode) |
+| COMM-005 | Delivery/read status & webhook normalizer | ✅ | `MessageStatus` tracking + `POST /api/webhooks/delivery` multi-provider receipt ingestion |
+| COMM-006 | Direct outreach modals | ✅ | `SendReminderModal` integrated into Queue, Invoices, and Customer views |
+| WF-001 | Automated Dunning Cadence Engine | ✅ | `src/lib/workflows.ts`, scheduled batch runner (`/api/jobs/workflows-runner`), management UI (`/dashboard/workflows`) (`GAP-M03`) |
+
+## Statutory & Legal Recovery
+
+| Feature ID | Feature | Status | Where |
+| --- | --- | --- | --- |
+| LEGAL-001 | MSME Statutory Penal Interest Calculator | ✅ | `src/lib/msme-interest.ts`, `GET /api/legal/msme-interest`, Section 15/16 3x RBI Bank Rate compounding (`GAP-M06`) |
+| LEGAL-002 | Statutory Legal Notice & Samadhaan Generator | ✅ | `src/lib/legal-notices.ts`, `POST /api/legal/notice`, `LegalNoticeModal` UI for MSMED & Section 138 NI Act demands |
 
 ## Analytics
 
@@ -116,16 +128,27 @@
 | NTF-001 | In-app derived feed | ✅ | `GET /api/notifications` (broken promises/disputes/due) + bell + banner |
 | NTF-002 | Preferences | ✅ (fallback) | `GET/PATCH /api/notifications/preferences`; migration pending |
 
-## Settings & Team
+## Settings, Team & Billing
 
 | Feature ID | Feature | Status | Where |
 | --- | --- | --- | --- |
 | SET-001 | Org settings (business hours/holidays/working days/pause) | ✅ (migration pending) | settings GET/PATCH; org columns |
 | SET-002 | Notification toggles (UI) | ✅ (migration pending) | settings UI (backed by `NTF-002` API) |
-| SET-003 | Export data | ✅ | `GET /api/export?format=csv\|json` |
+| SET-003 | Export data | ✅ | `GET /api/export?format=csv\|json` (sanitized against formula injection) |
 | SET-004 | Delete account | ✅ | `DELETE /api/account` OWNER-only purge + cascade |
 | SET-005 | Save changes | ✅ | settings PATCH |
 | SET-006 | Team management (UI) | ✅ | settings UI (backed by `AUTH-012` `/api/team`) |
+| SET-007 | Billing & Subscriptions | ✅ | `src/lib/billing.ts`, `/api/billing/subscription`, `/api/billing/checkout`, `/api/billing/webhook`, `BillingTab` UI |
+| SET-008 | Audit & Compliance Log | ✅ | `/api/audit`, `AuditTab` UI with event filtering and JSON metadata inspector |
+
+## Discovery & Batch Productivity
+
+| Feature ID | Feature | Status | Where |
+| --- | --- | --- | --- |
+| PROD-001 | Global Command Palette / Search | ✅ | `Ctrl+K` modal (`GlobalSearchModal.tsx`) + `/api/search` querying customers, invoices, promises, disputes |
+| PROD-002 | Bulk Queue Actions | ✅ | Queue multi-select checkboxes, Select All, Bulk Reminder dispatch, Bulk Queue CSV export |
+| PROD-003 | Invoice CSV Export | ✅ | `GET /api/invoices/export` with CWE-1236 formula sanitization |
+| PROD-004 | Guided Onboarding Wizard | ✅ | 4-step interactive import with header auto-mapping, row validation flags, sample CSV download (`/api/import/sample`) |
 
 ## Schema-Only / External Domain
 
@@ -133,8 +156,7 @@
 | --- | --- | --- | --- |
 | WF-001 | Workflow engine | 🗄 | CollectionWorkflow, WorkflowAction |
 | INT-001 | Integration credentials | 🗄 | IntegrationCredential (no encryption layer yet) |
-| — | Message lifecycle | 🗄 | Message, MessageStatus (Blocked on providers) |
-| — | Billing/plans/entitlements | 🚫 | none (TODO-049) |
+| — | Managed Postgres / Prod DB | 🚫 | (TODO-077 live connectivity) |
 
 ---
 

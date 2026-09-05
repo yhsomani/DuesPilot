@@ -4,7 +4,11 @@
 > **Rule:** Work sequentially. Verify each TODO before marking complete. No skipping.
 > **Docs:** Product-first analysis + cross-document gap analysis + codebase audit (pre+post-83e6ebd)
 > **Phase 15 Status:** TODO-060..063 all Completed.
-> **Phase 16 Status (systematic gap review & closure):** Completed TODO-064 (fixed migration syntax bug), TODO-065 (customer-merge endpoint routing), TODO-066 (customer manual creation), TODO-067 (invoice manual creation), TODO-068 (state guards for promise/dispute), TODO-069 (payments server-side pagination), TODO-070 (synced 21 models + 65 unit tests across 9 files), TODO-071 (API documentation accuracy), TODO-072 (deployment docs), TODO-073 (rate-limit unit tests + Redis multi-instance caveat in architecture), TODO-075 (feature ID deduplication), and TODO-076 (public /privacy and /terms routes + landing footer links). Blocked items remain: TODO-077 (live Postgres integration execution) and TODO-078 (external ecosystem: email, WhatsApp/SMS, billing, managed DB/cron).
+> **Phase 16 Status (systematic gap review & closure):** Completed TODO-064 through TODO-076.
+> **Phase 17 Status (Comprehensive Production Feature Buildout):** Completed TODO-079 through TODO-087: Outbound Multi-Channel Communications Engine, Monetization & Billing, Global Search, Bulk Actions & CSV Export, Guided Import Wizard, Audit Log Viewer, CWE-1236 Security, Observability layer, and Comprehensive Test Suite (92 tests).
+> **Phase 18 Status (Enterprise Recovery & Statutory Engines):** Completed TODO-088 through TODO-094: Multi-Installment Payment Plan Engine (`GAP-M01`), WhatsApp Business API Adapter (`GAP-M02`), Dynamic UPI / Payment Links (`GAP-M04`), MSME Statutory Penal Interest Calculator (`GAP-M06`), Legal Notice Generator (MSMED Act & Sec 138 NI Act), Distributed Redis Rate Limiter & AES-256-GCM Envelope Encryption (`GAP-M05`, `GAP-M10`), and Comprehensive Test Suite Expansion.
+> **Phase 19 Status (Automated Dunning Cadence Engine & Webhook Reconciliation):** Completed TODO-095 through TODO-100: Cadence Rules Engine (`src/lib/workflows.ts`), Scheduled Batch Runner (`src/app/api/jobs/workflows-runner/route.ts`), Multi-Gateway Delivery Webhook Normalizer (`src/app/api/webhooks/delivery/route.ts`), Transactional Payment Webhook Handler (`src/app/api/webhooks/payments/route.ts`), Workflow Cadence Dashboard Management UI (`src/app/(dashboard)/dashboard/workflows/page.tsx`), and Master Quality Gate (145/145 unit tests passing across 22 test suites, 0 ESLint warnings, 0 TypeScript errors, 59 Next.js production routes built cleanly).
+> **Phase 20 Status (Responsive Design & Mobile Ergonomics Polish):** Completed TODO-101: Responsive mobile header, slide-over drawer navigation (`Sidebar.tsx`), layout viewport container adaptation (`(dashboard)/layout.tsx`), and clean ESLint/React 19 compliance. Blocked items remain: live external PostgreSQL network connectivity (TODO-077) and live third-party accounts (TODO-078).
 
 ## Status Key
 - `Pending` — not started
@@ -176,7 +180,50 @@
 | TODO-075 | docs/product/* dedupe: harmonize duplicate feature IDs (AUTH-012/SET-006, SET-002/NTF-002) + FEATURE_STATUS rollup counts | Medium | 071 | Completed | Verified: FEATURE_STATUS_MATRIX.md cross-referenced and clarified |
 | TODO-076 | Deploy public /privacy and /terms routes + connect landing page footer links | High | 001 | Completed | Verified: src/app/privacy/page.tsx and terms/page.tsx created; landing footer links connected; `npm run build` succeeds (43 static pages) |
 | TODO-077 | Apply migrations to a real Postgres, run integration suite + E2E (multi-step continuation of TODO-051/052) | Critical | 064 | Blocked | Harness & specs authored; blocked on live PostgreSQL instance |
-| TODO-078 | External ecosystem items (email 042, WhatsApp/SMS 044, billing 049, prod infra 058, Sentry 057, cron provisioning 058) | Low | — | Blocked | Blocked on third-party provider accounts and API credentials |
+| TODO-078 | External ecosystem live keys provisioning (live Resend/Twilio/Razorpay keys, prod infra 058, Sentry 057) | Low | — | Blocked | Blocked on third-party provider accounts and live API credentials |
+
+## Phase 17 — Production Feature Buildout & Automation
+
+| ID | Task | Priority | Deps | Status | Verification |
+|---|---|---|---|---|---|
+| TODO-079 | Multi-transport Email Provider Adapter (`src/lib/email.ts`) + Template Interpolation Engine (`src/lib/templates.ts`) + Message Endpoints (`/api/messages`, `/api/messages/[id]`, `/api/messages/templates`) | High | 001 | Completed | Verified (unit tests 92/92, tsc clean, live Resend/mock transport, audit logging & collection event generation) |
+| TODO-080 | Communications Hub UI (`/dashboard/communications`) + Send Reminder Modal (`SendReminderModal`) on Queue, Invoices, and Customers pages | High | 079 | Completed | Verified (React 19 lint clean, message history table, template picker & live preview, direct outreach modals) |
+| TODO-081 | Monetization, Plan Tiers & Quota Engine (`src/lib/billing.ts`) + Billing Endpoints (`/api/billing/subscription`, `/api/billing/checkout`, `/api/billing/webhook`) + Settings Billing Tab (`BillingTab`, `PlanCard`) | High | 001 | Completed | Verified (unit tests, FREE/STARTER/GROWTH/PRO entitlements, monthly/annual toggle, usage progress bars) |
+| TODO-082 | Global Search API (`/api/search`) + Command Palette Modal (`GlobalSearchModal`) + `Ctrl+K` trigger in navigation | High | 001 | Completed | Verified (multi-entity search across customers, invoices, promises, disputes; keyboard navigation & instant navigation) |
+| TODO-083 | Bulk Queue Actions (Multi-select, Bulk reminders, Bulk CSV export) + Invoices CSV Export (`/api/invoices/export`, `/api/queue/export`) | High | 001 | Completed | Verified (safe CSV downloads, multi-selection state, batch reminder dispatch with error handling) |
+| TODO-084 | Guided CSV Onboarding Wizard (`/dashboard/import`) + Sample CSV Download (`/api/import/sample`) | High | 001 | Completed | Verified (interactive 4-step wizard, automatic column mapping detection, data preview with row validation flags) |
+| TODO-085 | Audit Log Query API (`/api/audit`) + Settings Audit & Compliance Log Tab (`AuditTab`) with JSON metadata inspector | High | 007 | Completed | Verified (React 19 lint clean, action/entity filters, pagination, JSON modal viewer) |
+| TODO-086 | CWE-1236 CSV Formula Injection Protection (`sanitizeCsvValue` in `src/lib/security.ts`) + Centralized Observability Wrapper (`src/lib/observability.ts`) | High | 001 | Completed | Verified (unit tests covering formula escapes, Sentry adapter & structured JSON log fallback) |
+| TODO-087 | Comprehensive Test Suite & Quality Gate: 92 unit tests across 14 suites, 0 ESLint warnings, 0 TypeScript errors, 53 Next.js routes built | Critical | 079-086 | Completed | Verified (`npm test` 14 passed, `npx tsc --noEmit` clean, `npm run lint` clean, `npm run build` green) |
+
+## Phase 18 — Enterprise Recovery & Statutory Engines
+
+| ID | Task | Priority | Deps | Status | Verification |
+|---|---|---|---|---|---|
+| TODO-088 | Multi-Installment Payment Plan Engine (`src/lib/payment-plans.ts`, `src/app/api/payment-plans/route.ts`, `PaymentPlanModal` in `src/components/promises/payment-plan-modal.tsx`) (`GAP-M01`) | High | 001,015 | Completed | Verified (14 unit tests, remainder-preserving rounding, delinquency evaluation, milestone promise creation, collection event logging) |
+| TODO-089 | WhatsApp Multi-Gateway Adapter & Dispatcher (`src/lib/whatsapp.ts`, `src/app/api/messages/route.ts`) (`GAP-M02`) | High | 079 | Completed | Verified (6 unit tests, E.164 normalization, Meta Cloud API + Interakt + Gupshup + Twilio gateways, deterministic test mock) |
+| TODO-090 | Dynamic UPI & Payment Link Engine (`src/lib/payment-links.ts`, `src/app/api/payment-links/route.ts`) (`GAP-M04`) | High | 001 | Completed | Verified (3 unit tests, NPCI-compliant `upi://pay` URIs, Razorpay integration, hosted payment link fallback) |
+| TODO-091 | MSME Statutory Penal Interest Calculator (`src/lib/msme-interest.ts`, `src/app/api/legal/msme-interest/route.ts`) (`GAP-M06`) | High | 001 | Completed | Verified (4 unit tests, Section 15/16 3x RBI Bank Rate compound monthly rest calculation, multi-invoice claim aggregation) |
+| TODO-092 | Statutory Legal Notice & Samadhaan Generator (`src/lib/legal-notices.ts`, `src/app/api/legal/notice/route.ts`, `LegalNoticeModal` in `src/components/legal/legal-notice-modal.tsx`) | High | 091 | Completed | Verified (3 unit tests, MSMED Section 15/16 demand notice, Section 138 NI Act Cheque Dishonour notice, pre-litigation demand) |
+| TODO-093 | Distributed Upstash Redis Rate Limiting & AES-256-GCM Envelope Encryption (`src/lib/rate-limit.ts`, `src/lib/crypto.ts`) (`GAP-M05`, `GAP-M10`) | High | 009 | Completed | Verified (13 unit tests, authenticated encryption with IV/tag/tamper detection, sliding window token bucket) |
+| TODO-094 | Master Quality Gate & Test Suite Expansion: 131 unit tests across 20 suites, 0 ESLint warnings, 0 TypeScript errors, 57 Next.js production routes built cleanly | Critical | 088-093 | Completed | Verified (`npm test` 20/20 suites passed, 131/131 tests green, `npx tsc --noEmit` 0 errors, `npm run lint` 0 warnings, `npm run build` compiled 57 routes) |
+
+## Phase 19 — Automated Dunning Cadences & Webhook Reconciliation
+
+| ID | Task | Priority | Deps | Status | Verification |
+|---|---|---|---|---|---|
+| TODO-095 | Multi-Tier Dunning Cadence Evaluation Engine (`src/lib/workflows.ts`, `DEFAULT_CADENCE_RULES`) (`GAP-M03`) | High | 001 | Completed | Verified (9 unit tests, rule matching, relative day triggers, dispute/promise guards, risk filtering, throttling cooldowns) |
+| TODO-096 | Automated Scheduled Cadence Batch Runner (`src/app/api/jobs/workflows-runner/route.ts`, `executeCadenceRunner`) | Critical | 095,089,090 | Completed | Verified (dry-run simulation mode, multi-channel automated dispatch, 1-click dynamic UPI links, timeline event logging, audit trails) |
+| TODO-097 | Multi-Gateway Delivery Receipt Normalizer (`src/app/api/webhooks/delivery/route.ts`) | High | 079,089 | Completed | Verified (Meta WhatsApp Cloud API challenge verification + status normalization for Twilio, SendGrid, Gupshup, Interakt) |
+| TODO-098 | Secure Transactional Payment Webhook Reconciliation (`src/app/api/webhooks/payments/route.ts`) | Critical | 020,021 | Completed | Verified (5 unit tests, HMAC-SHA256 signature verification, transactional payment recording, FIFO allocation, promise auto-resolution) |
+| TODO-099 | Workflow Cadences Management & Test Run UI (`src/app/(dashboard)/dashboard/workflows/page.tsx`, `src/app/api/workflows/route.ts`, `src/app/api/workflows/[id]/route.ts`) | High | 095,096 | Completed | Verified (rule toggling, custom escalation rule creation, instant dry-run simulation table, live batch dispatch confirmation) |
+| TODO-100 | Quality Gate & Full Test Suite: 145 unit tests across 22 test suites, 0 ESLint warnings, 0 TypeScript errors, 59 Next.js production routes | Critical | 095-099 | Completed | Verified (`npm test` 22/22 suites passed, 145/145 tests green, `npx tsc --noEmit` 0 errors, `npm run lint` clean, `npm run build` compiled 59 routes) |
+
+## Phase 20 — Responsive Navigation & Accessibility Polish
+
+| ID | Task | Priority | Deps | Status | Verification |
+|---|---|---|---|---|---|
+| TODO-101 | Mobile Navigation Header & Slide-over Drawer (`Sidebar.tsx`, `(dashboard)/layout.tsx`) | High | 001 | Completed | Verified (responsive `<1024px` header with hamburger toggle, quick search trigger, notification bell, slide-in navigation drawer with backdrop, user profile card, sign out, 0 ESLint warnings, 0 TypeScript errors, clean Next.js build) |
 
 ---
 

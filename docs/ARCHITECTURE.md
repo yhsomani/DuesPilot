@@ -46,7 +46,9 @@ Browser ─► Next.js (App Router, Turbopack)
 - `PromiseToPay` — `PromiseStatus` (`ACTIVE/KEPT/BROKEN/RENEGOTIATED`).
 - `Dispute` — dispute with `category` and `status`.
 - `CollectionEvent` — timeline/audit-style activity on a customer (+ optional invoice).
-- `Message` / `CollectionWorkflow` / `WorkflowAction` / `IntegrationCredential` — **schema-only** (email/provider workflows blocked, TODOs 042/044/049).
+- `Message` — outbound multi-channel outreach records (`QUEUED/SENT/DELIVERED/READ/FAILED`).
+- `CollectionWorkflow` / `WorkflowAction` — automated dunning cadence rules and scheduled actions.
+- `IntegrationCredential` — AES-256-GCM encrypted gateway secrets with tamper-proof HMAC verification.
 - `AuditLog` — audit trail for import/settings/register and other sensitive actions.
 - NextAuth support: `Account`, `Session`, `VerificationToken` (unused at runtime — JWT strategy).
 
@@ -61,11 +63,21 @@ Browser ─► Next.js (App Router, Turbopack)
 | `src/lib/risk-score.ts` | Debt-profile risk scoring (integrated into totals refresh). |
 | `src/lib/invoice-status.ts` | Derived status metadata/labels. |
 | `src/lib/metrics.ts` | DSO, CEI, promise adherence, overdue ratio, collections series. |
+| `src/lib/workflows.ts` | Automated dunning cadence engine: rule evaluation (`T-3`, `T+1`, `T+7`, `T+15`, `T+30`, `T+45`), dry-run simulations, dispute/promise exclusions, and batch execution. |
+| `src/lib/payment-plans.ts` | Multi-installment schedule generation, calendar math, whole-INR rounding preservation, progressive FIFO payment allocation, and delinquency evaluation. |
+| `src/lib/payment-links.ts` | Dynamic 1-click payment link generator (Razorpay/Cashfree + NPCI-compliant `upi://pay` deep link URIs). |
+| `src/lib/msme-interest.ts` | Statutory Section 15 & 16 MSMED Act 2006 compound monthly interest calculator at 3x the RBI Bank Rate (default 20.25% p.a.). |
+| `src/lib/legal-notices.ts` | Statutory legal notice generator for MSMED Act 2006 and Section 138 Negotiable Instruments Act formal demands. |
+| `src/lib/email.ts` | Multi-transport Email adapter (Resend API provider with deterministic mock simulation). |
+| `src/lib/whatsapp.ts` | Multi-gateway WhatsApp adapter (Meta Cloud API, Interakt, Gupshup, Twilio with deterministic mock simulation). |
+| `src/lib/templates.ts` | Template interpolation engine (`{{customerName}}`, `{{amountDue}}`, `{{paymentLink}}`, `{{upiQrString}}`, `{{installmentSummary}}`). |
+| `src/lib/billing.ts` | Subscription tier quotas (`FREE`, `STARTER`, `GROWTH`, `PRO`), monthly usage tracking, Stripe Checkout integration, and entitlement enforcement. |
+| `src/lib/crypto.ts` | AES-256-GCM envelope encryption with unique IV and authentication tags for third-party API credential storage. |
+| `src/lib/rate-limit.ts` | Token-bucket rate limiting with distributed Upstash Redis REST support and in-memory fallback. |
 | `src/lib/team.ts` | Invite + role assignment + `syncUsersCount`. |
 | `src/lib/transactions.ts` | `withTx()` wrapper for multi-model mutations. |
 | `src/lib/idempotency.ts` | `consumeIdempotencyKey(tx, …)` — records an `IdempotencyKey` inside the mutation's transaction (unique `[organizationId, key]`; P2002 → 409; rollback on failure allows retry). Wired into payment/promise/import creation. |
-| `src/lib/audit.ts` | Audit-log helper. |
-| `src/lib/rate-limit.ts` | Token-bucket rate limiting. |
+| `src/lib/audit.ts` | Audit-log helper with structured action categorization and metadata logging. |
 | `src/lib/errors.ts` | Typed domain errors (`DomainError` + subclasses, zod adapter). |
 | `src/lib/dates.ts` / `utils.ts` | Date helpers (relative days, overdue calc) / `cn` + formatting. |
 | `src/lib/server-context.ts` | `withAuth`, roles, `getSessionContext`, `ok/err/noContent`, `readJson`, structured logger. |
@@ -73,20 +85,28 @@ Browser ─► Next.js (App Router, Turbopack)
 
 ## 6. Frontend
 
-- **Layouts:** `src/app/(dashboard)/dashboard/layout.tsx` — authenticated layout with `Sidebar` + `NotificationBell`.
-- **Server pages (static at build):** landing `/`, auth screens (`/login`, `/register`, `/forgot-password`, `/reset-password`).
-- **Client data pages:** each dashboard page is a client component using the `api()/apiPost/apiPatch` helpers (`src/lib/api.ts`) with loading / error (`role="alert"` + retry) / empty states.
+- **Layouts:** `src/app/(dashboard)/dashboard/layout.tsx` — authenticated layout with `Sidebar` + `NotificationBell` + `GlobalSearchModal` (`Ctrl+K`).
+- **Server pages (static at build):** landing `/`, auth screens (`/login`, `/register`, `/forgot-password`, `/reset-password`), legal compliance screens (`/privacy`, `/terms`).
+- **Client data pages:** each dashboard page is a client component using the `api()/apiPost/apiPatch` helpers (`src/lib/api.ts`) with loading / error (`role="alert"` + retry) / empty states. Includes specialized hubs:
+  - `/dashboard/workflows` — Automated Dunning Cadences with dry-run and live batch runners.
+  - `/dashboard/communications` — Multi-channel messaging hub with delivery receipt logs.
+  - `/dashboard/promises` — Promise tracking and Multi-Installment Payment Plan modal.
+  - `/dashboard/settings` — Team management, audit compliance log, and billing subscription portal.
 - **Accessibility:** dialogs use `role=dialog`/`aria-modal`/`aria-labelledby` + Escape-to-close + initial focus; status pills are color+text dual.
 
 ## 7. Observability & security
 
 - Structured JSONL logs with `x-request-id` correlation (see §2); `/api/health` does a live `SELECT 1` (200/503).
 - CSP + security headers in `next.config.ts`; `frame-ancestors 'none'`; no cross-origin endpoints (CSRF mitigated by SameSite cookies).
-- `CRON_SECRET` bearer compared via `crypto.timingSafeEqual` on `/api/jobs/promise-sweep`.
+- `CRON_SECRET` bearer compared via `crypto.timingSafeEqual` on `/api/jobs/promise-sweep` and `/api/jobs/workflows-runner`.
+- HMAC-SHA256 signature verification on transactional payment webhooks (`/api/webhooks/payments`).
+- AES-256-GCM credential envelope encryption with SHA-256 tamper-proof verification.
+- Distributed Upstash Redis rate limiting with graceful local memory fallback.
+- CWE-1236 CSV spreadsheet formula injection defense sanitizing leading `=`, `+`, `-`, `@`, `\t`, `\r`.
 
 ## 8. Testing & CI
 
-- Unit: `npm test` — 65 tests across 9 files in `src/lib/__tests__` + `rbac.test.ts` (Vitest; pure modules).
+- Unit: `npm test` — 145 tests across 22 suites in `src/lib/__tests__` + `rbac.test.ts` (Vitest; pure modules, calculation engines, and adapters).
 - Integration: `npm run test:integration` — harness + config ready (`vitest.integration.config.ts`), specs authored (`src/**/*.integration.test.ts`), Postgres-17-backed in CI; execution against local DB is pending live Postgres (TODO-051).
 - CI: `.github/workflows/ci.yml` — quality → integration → build.
 
