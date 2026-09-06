@@ -94,6 +94,14 @@ Roles: `ALL` = any signed-in member; `ACTION` = OWNER/ADMIN/FINANCE_MANAGER/COLL
 ### Idempotency
 Mutating creates `POST /api/import`, `POST /api/payments`, and `POST /api/promises` accept an `Idempotency-Key` header. The key is recorded atomically inside the same DB transaction as the mutation: a replay of a previously committed request returns `409`, while a failed attempt rolls the key back so a retry is allowed. The UI sends a ref-stable per-form key (regenerated per new import file).
 
+### Bank Statement Reconciliation
+- `POST /api/reconciliation` — `ACTION`. Ingest and process bank statement CSVs (HDFC, ICICI, SBI, Axis, generic). Executes 4-tier reconciliation waterfall (Tier 1: Invoice number pattern in narration, Tier 2: Exact single-invoice balance match, Tier 3: Fuzzy tokenized customer name match with FIFO allocation, Tier 4: Unmatched credits flagged for review). Extracts 12-to-22 char UTR/IMPS/NEFT/RTGS reference numbers or 6-digit cheque numbers. Body `{ csvData, bankFormat?, autoAllocate? }`.
+- `GET /api/reconciliation` — `ALL`. Retrieve parsed transactions, match status breakdowns, tier distribution stats, and pending manual allocations.
+
+### AI Promise Extraction & Dunning Copilot
+- `POST /api/copilot/extract` — `ACTION`. Body `{ text, customerId? }`. AI and heuristic extraction of payment promises from collector notes, call transcripts, or email chains. Returns `{ promiseDate, amount, confidence, extractedEntities }`.
+- `POST /api/copilot/draft` — `ACTION`. Body `{ customerId, invoiceId?, tone: "GENTLE" | "FIRM" | "URGENT" | "LEGAL", context? }`. Generates contextual, tone-calibrated collections messaging drafts adhering to customer history and statutory provisions.
+
 ### Promises
 - `POST /api/promises` — `ACTION`. Body `{ customerId, invoiceId?, amount, promiseDate, confidence?, note? }`. Sets invoice status → PROMISED.
 - `GET /api/promises` — `ALL`. List with filter tabs.

@@ -24,15 +24,15 @@ test.describe("Invoice Disputes Ledger & Resolution Management", () => {
     await expect(page.getByText("Quality / Defect Issue")).toBeVisible();
 
     // Filter by Open
-    await page.getByRole("button", { name: /Open \(/i }).click();
+    await page.getByRole("button", { name: /Open Cases/i }).click();
     await expect(page.getByText("INV-2026-089")).toBeVisible();
 
     // Filter by Resolved (should show empty state since mock dispute is open)
-    await page.getByRole("button", { name: /Resolved \(/i }).click();
+    await page.getByRole("button", { name: /Resolved/i }).click();
     await expect(page.getByText("No disputes found")).toBeVisible();
 
     // Reset to All
-    await page.getByRole("button", { name: /All \(/i }).click();
+    await page.getByRole("button", { name: /All Disputes/i }).click();
     await expect(page.getByText("INV-2026-089")).toBeVisible();
   });
 

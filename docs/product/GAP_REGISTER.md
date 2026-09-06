@@ -28,14 +28,14 @@
 | GAP-010 | No logout UI | ✅ Sidebar logout |
 | GAP-011 | No password reset | ✅ forgot/reset hashed tokens (TODO-040) |
 | GAP-013 | No RBAC | ✅ ACTION_ROLES / MANAGE_ROLES (TODO-010) |
-| GAP-014 | No tenant scoping | ✅ app-layer `organizationId` scoping in `repo.ts` (DB RLS still pending — see GAP-NEW-2) |
+| GAP-014 | No tenant scoping | ✅ app-layer `organizationId` scoping in `repo.ts` (DB RLS still pending — see GAP-B2) |
 | GAP-015 | No team management | ✅ `/api/team` invites/roles/last-owner (TODO-047) |
 | GAP-016 | No rate limiting | ✅ register 5/10min per IP + global 300/min mutations (TODO-009) |
 | GAP-025 | Domain tables never written | ✅ all core domain APIs implemented |
 | GAP-026 | No audit writes | ✅ `src/lib/audit.ts` (TODO-007) |
 | GAP-027 | No data export | ✅ `/api/export` CSV/JSON (TODO-038) |
 | GAP-028 | No account deletion | ✅ `DELETE /api/account` OWNER purge + cascade (TODO-039) |
-| GAP-030 | No tests/framework | ✅ Vitest 51/51 + scripts (TODO-050). *Integration/E2E remain blocked — see new gaps* |
+| GAP-030 | No tests/framework | ✅ Vitest 209/209 across 27 suites + scripts (TODO-050, 105). *Integration/E2E specs authored; live DB execution pending (TODO-051/077)* |
 | GAP-032 | No CI | ✅ `.github/workflows/ci.yml` (TODO-053) |
 | GAP-033 | No loading/error/empty states | ✅ across screens (TODO-055) |
 | GAP-034 | No observability | ✅ JSONL logs + `x-request-id` + `/api/health` (TODO-057; Sentry deferred) |
@@ -91,7 +91,7 @@
 | --- | --- | --- | --- | --- |
 | GAP-D1 | Integration tests: 0 of harness running (RBAC, import tx, payment alloc, tenant isolation) | 🔴 | Harness + `test:integration` + CI postgres service ready; TODO-051 Blocked (local DB down) | Bring up a Postgres; fill `src/**/*.integration.test.ts` |
 | GAP-D2 | E2E happy path | 🟠 | TODO-052 Blocked; Playwright not added | Add Playwright flows (auth → import → queue → payment) |
-| GAP-D3 | Coverage threshold not enforced in CI | 🟡 | Unit coverage exists (131 tests across 20 suites) | Add coverage gate |
+| GAP-D3 | Coverage threshold not enforced in CI | 🟡 | Unit coverage exists (209 tests across 27 suites) | Add coverage gate |
 | GAP-D4 | Load/performance budgets unmeasured | 🟡 | Real queries now exist | Define + measure budgets (NFR) |
 | GAP-D5 | Mobile/device testing evidence | ⚪ | — | Build a device test matrix |
 

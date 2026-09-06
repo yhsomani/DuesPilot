@@ -10,7 +10,7 @@
 | **Source of truth** | Repository; statuses per `docs/MASTER_TODO.md` |
 | **Related artifacts** | `PRD.md`, `REQUIREMENT_TRACEABILITY_MATRIX.md`, `FEATURE_STATUS_MATRIX.md`, `PAGE_COMPONENT_INVENTORY.md`, `PRODUCTION_READINESS_CHECKLIST.md`, `CREDENTIALS_AND_INTEGRATIONS_MATRIX.md`, `GAP_REGISTER.md` |
 
-> Quality gate (verified 2026-09-05): `tsc --noEmit`, `npm run lint`, `npm test` (65/65, 9 files), `npm run build` all green.
+> Quality gate (verified 2026-09-05): `tsc --noEmit`, `npm run lint`, `npm test` (209/209, 27 files), `npm run build` all green.
 
 ---
 
@@ -204,7 +204,7 @@ From landing page (`page.tsx` pricing section):
 | Risk | Severity | Current Mitigation | Gap |
 | --- | --- | --- | --- |
 | Core value unproven (no real data flow) | **Resolved** | Real DB-backed features | — |
-| Regressions | Medium | 65/65 unit tests + CI pipeline | integration + E2E blocked (TODO-051/052) |
+| Regressions | Medium | 209/209 unit tests across 27 files + CI pipeline | integration + E2E blocked (TODO-051/052) |
 | External integrations absent | High | — | Blocks automation value prop (email/WA/SMS) |
 | Open registration abuse | Medium | Rate limiting (5/10min per IP) | — |
 | Tenant data leak across orgs | Low-Medium | App-layer org scoping | DB RLS pending |

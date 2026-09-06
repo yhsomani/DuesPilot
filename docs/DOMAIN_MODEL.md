@@ -20,7 +20,9 @@
 | `IdempotencyKey` | Duplicate-write guard | org + key unique, action — migration pending |
 | `AuditLog` | Audit trail | org, action, entity, metadata, ip |
 | `Account/Session/VerificationToken` | NextAuth schema | unused at runtime (JWT session) |
-| `Message`/`CollectionWorkflow`/`WorkflowAction`/`IntegrationCredential` | Future comms/automation | **schema-only** (blocked) |
+| `Message` | Multi-channel outreach | orgId, customerId, invoiceId, channel (`EMAIL/WHATSAPP/CALL/SMS/MANUAL`), recipient, status (`PENDING/SENT/DELIVERED/READ/FAILED`), externalId, sentAt |
+| `CollectionWorkflow` / `WorkflowAction` | Automated dunning cadence | orgId, name, rules, enabled, actions (`trigger`, `action`, `orderIndex`) |
+| `IntegrationCredential` | Gateway secrets | orgId, provider, credentials (AES-256-GCM envelope encrypted), enabled |
 
 ## 2. State machines
 
@@ -44,7 +46,14 @@ with orthogonal `DISPUTED`, `PROMISED`, `PROMISE_BROKEN`, `CANCELLED`.
 - **BROKEN** (auto or manual): sweep flips ACTIVE promises whose promiseDate passed with no qualifying payment since createdAt; can also be set manually.
 - **RENEGOTIATED**: manual edit changes date/amount (record preserved); only from ACTIVE/BROKEN.
 
-### 2.3 Payment — status (+ process)
+### 2.3 Payment Plans & Structured Commitments
+`ACTIVE → COMPLETED (or DELINQUENT / DEFAULTED)`
+
+- **Installment Milestones**: Weekly, bi-weekly, or monthly intervals with remainder-preserving integer INR rounding.
+- **Allocation**: Progressive FIFO settling of earliest milestone dates as payments land.
+- **Status Evaluation**: Evaluated against current milestone due dates vs. cumulative paid amount.
+
+### 2.4 Payment — status (+ process)
 `creating → { unmatched | partially_allocated | fully_allocated } → reversed`
 
 - On `recordPayment`: FIFO pays oldest due-date invoices until exhausted; over-remaining stays **unmatched**; partially covered → **partially_allocated**; fully covered → **fully_allocated**.
@@ -52,13 +61,18 @@ with orthogonal `DISPUTED`, `PROMISED`, `PROMISE_BROKEN`, `CANCELLED`.
 - **Reversal** (`reversePayment`): allocations deleted, invoice outstanding restored, status recomputed, payment → `reversed`. Reversal of an already-reversed payment rejected.
 - Duplicate guard: same org+customer+amount+date+reference → 409. Optional `Idempotency-Key` adds an atomic duplicate-write guard (409 on replay).
 
-### 2.4 Dispute
+### 2.5 Dispute
 `OPEN → RESOLVED`
 
-- Created against an invoice (reason + category). While `OPEN`, the invoice's outstanding balance is **excluded from the collection queue**. Resolution notes recorded; invoic status returns to the normal derived flow.
+- Created against an invoice (reason + category). While `OPEN`, the invoice's outstanding balance is **excluded from the collection queue**. Resolution notes recorded; invoice status returns to the normal derived flow.
 
-### 2.5 Message — future (schema only; no state machine active yet)
-`Pending → Sent → Delivered → Read | Failed` via `MessageStatus`; TODO-042.
+### 2.6 Message — `MessageStatus`
+`PENDING → SENT → DELIVERED → READ (or FAILED)`
+
+- `PENDING` on creation/queue.
+- `SENT` when accepted by the downstream provider adapter (Resend, Meta Cloud API, Gupshup, Interakt, Twilio, Fast2SMS, MSG91, or Mock).
+- `DELIVERED` & `READ` updated asynchronously via webhook ingestion (`POST /api/webhooks/delivery`).
+- `FAILED` recorded on terminal gateway rejection or invalid recipient / template parameters.
 
 ## 3. Derived computation
 

@@ -89,7 +89,24 @@ All notable changes, tracked against the implementation TODO (see `docs/MASTER_T
 - Slide-over mobile navigation drawer with touch-friendly backdrop, quick search trigger (`Ctrl+K`), complete categorized navigation links, active route highlight, user profile card, and sign-out handler.
 - Viewport layout container adaptation (`src/app/(dashboard)/layout.tsx`) switching to `flex-col lg:flex-row` for seamless scrollable dashboard views across mobile, tablet, and desktop devices.
 
+### Added — Phase 21: AI Smart Promise Extraction & Tone-Calibrated Dunning Copilot (TODO-102)
+- Heuristic and Claude AI powered promise extraction engine (`src/lib/copilot.ts`, `POST /api/copilot/extract`) parsing dates, committed amounts, and confidence ratings from call notes and email transcripts.
+- AI Tone-Calibrated Dunning Drafter (`POST /api/copilot/draft`, `AICopilotModal.tsx`) supporting multiple escalation tones (`GENTLE`, `FIRM`, `URGENT`, `LEGAL_MSME`) and plan-based monthly draft quotas.
+
+### Added — Phase 22: 4-Tier Automated Bank Statement Reconciliation Engine (TODO-103)
+- Multi-format bank statement parsing engine (`src/lib/bank-reconciliation.ts`, `POST /api/reconciliation`, `/dashboard/reconciliation`) supporting HDFC, ICICI, SBI, Axis, and generic CSV statements.
+- 4-Tier Automated Matching: Tier 1 (Invoice # regex), Tier 2 (Exact balance match), Tier 3 (Fuzzy customer name matching with FIFO allocation), and Tier 4 (Unmatched credits flagged for human review).
+- 12-to-22 character UTR / IMPS / NEFT / RTGS and 6-digit cheque number extraction.
+
+### Added — Phase 23: Indian TRAI DLT Compliant SMS Gateway Adapter (TODO-104)
+- Enterprise SMS dispatch adapter (`src/lib/sms.ts`) enforcing TRAI DLT requirements: 19-digit principal entity and template IDs, 6-character registered alpha headers (`DUESPL`), and GSM-7 vs. Unicode segment calculation.
+- Support for Fast2SMS, MSG91, and Twilio providers with deterministic simulation fallback.
+
+### Added — Phase 24: Comprehensive Quality Verification, Tenant Scoping & Security Hardening (TODO-105)
+- Added dedicated tenant isolation unit tests (`src/lib/__tests__/tenant-isolation.test.ts`) covering cross-tenant session scoping, role boundaries, and CSV export formula sanitization.
+- Master Quality Gate: 209/209 unit tests passing across 27 test suites (`npm test`), 0 ESLint warnings, 0 TypeScript compiler errors (`npx tsc --noEmit`), and 63 Next.js App Router production routes compiled cleanly (`npm run build`).
 
 ### Blocked / deferred
 - Managed production PostgreSQL database connectivity (`TODO-077`) and live provider production credentials (`TODO-078`).
+- DB-backed integration tests (`queue-tenancy.integration.test.ts`) running against a live PostgreSQL instance.
 - Pending migrations: `NotificationPreference`, org schedule columns, `IdempotencyKey`.

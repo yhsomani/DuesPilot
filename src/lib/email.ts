@@ -74,7 +74,20 @@ export async function sendEmail(options: SendEmailOptions): Promise<SendEmailRes
   // Used in local dev, test environments, or when credentials are not yet provisioned.
   const mockId = `mock_msg_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
 
-  if (process.env.NODE_ENV !== "test") {
+  if (process.env.NODE_ENV === "production") {
+    console.warn(
+      JSON.stringify({
+        level: "warn",
+        alert: "PRODUCTION_SIMULATION_WARNING",
+        message: "Email dispatch running in simulation mode because RESEND_API_KEY is not configured.",
+        event: "email_sent_mock",
+        messageId: mockId,
+        to,
+        from,
+        subject: options.subject,
+      })
+    );
+  } else if (process.env.NODE_ENV !== "test") {
     // Only log in non-test environments
     console.info(
       JSON.stringify({

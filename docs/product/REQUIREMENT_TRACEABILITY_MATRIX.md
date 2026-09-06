@@ -22,8 +22,8 @@
 | BR-F4 | Import receivables (CSV/Excel/Tally) | IMP-001..004 | **Implemented (CSV)** | `POST /api/import` transactional batch; Excel/Tally **Not Built** (marketing claim) |
 | BR-F5 | Automatic daily prioritization | QUEUE-001, QUEUE-003 | **Implemented** | `src/lib/queue-item.ts` `computeQueueItem`/`statusView`; "why here?" per row |
 | BR-F6 | Automated email/WhatsApp/SMS & Payment Links | COMM-002..005, LINK-001 | **Implemented** | `src/lib/email.ts`, `src/lib/whatsapp.ts`, `src/lib/payment-links.ts`, `/api/messages`, `SendReminderModal` |
-| BR-F7 | Track promise-to-pay / flag broken | PROM-001..005, PLAN-001 | **Implemented** | `src/lib/payment-plans.ts`, lifecycle + `promise-sweep` idempotent; cron scheduling `Blocked` (TODO-058) |
-| BR-F8 | Record & reconcile payments | PAY-001..005, PAY-006 | **Implemented** | `src/lib/payment-allocation.ts`, webhook reconciliation `/api/webhooks/payments`; reversals; dup-guard |
+| BR-F7 | Track promise-to-pay / flag broken & AI extraction | PROM-001..005, PLAN-001, COPILOT-001 | **Implemented** | `src/lib/payment-plans.ts`, `src/lib/copilot.ts` (`POST /api/copilot/extract`), lifecycle + `promise-sweep` idempotent; cron scheduling `Blocked` (TODO-058) |
+| BR-F8 | Record & reconcile payments | PAY-001..005, PAY-006, RECON-001..004 | **Implemented** | `src/lib/payment-allocation.ts`, 4-tier bank reconciliation (`src/lib/bank-reconciliation.ts`), webhook reconciliation `/api/webhooks/payments`; reversals; dup-guard |
 | BR-F9 | Handle disputes with workflows | DIP-001..003 | **Implemented** | categories + resolve; queue exclusion |
 | BR-F10 | Analytics & reporting | ANL-001..003 | **Implemented** | `src/lib/metrics.ts` + `/api/analytics` |
 | BR-F11 | Audit trail | AUDIT-001 | **Implemented** | `src/lib/audit.ts` `writeAudit()`, `/api/audit`, `AuditTab` UI |
@@ -90,7 +90,7 @@
 | PROM-001 | Promise list w/ filter | `GET /api/promises` + page | PromiseToPay | **Implemented** |
 | PROM-002 | Promise stats | promises page | — | **Implemented** |
 | PROM-003 | Record promise | `POST /api/promises` | PromiseToPay | **Implemented** |
-| PROM-004 | AI promise extraction | — | PromiseToPay.source | **Not Built** (marketing claim) |
+| PROM-004 | AI promise extraction | `src/lib/copilot.ts`, `POST /api/copilot/extract`, `AICopilotModal` | PromiseToPay.source | **Implemented** |
 | PROM-005 | Auto-mark broken | `/api/jobs/promise-sweep` (idempotent, CRON_SECRET) | PromiseToPay | **Implemented (endpoint)**; cron **Blocked** |
 | PLAN-001 | Multi-Installment Payment Plans | `src/lib/payment-plans.ts`, `/api/payment-plans`, `PaymentPlanModal` | PromiseToPay | **Implemented** |
 | PAY-001 | Payment list + allocation detail | payments page | Payment/PaymentAllocation | **Implemented** |
@@ -119,6 +119,15 @@
 | AUDIT-001 | Audit Log Viewer | `src/lib/audit.ts`, `/api/audit`, `AuditTab` | AuditLog | **Implemented** |
 | CRYPTO-001 | AES-256-GCM Credential Encryption | `src/lib/crypto.ts` | IntegrationCredential | **Implemented** |
 | RATE-001 | Distributed Redis Rate Limiting | `src/lib/rate-limit.ts` (Upstash Redis REST + memory fallback) | — | **Implemented** |
+| RECON-001 | Bank Statement Ingestion & Parser | `src/lib/bank-reconciliation.ts`, `POST /api/reconciliation` | Payment | **Implemented** |
+| RECON-002 | UTR / IMPS / NEFT Regex Extractor | `src/lib/bank-reconciliation.ts` (12-22 char UTR + 6-digit cheque) | Payment | **Implemented** |
+| RECON-003 | 4-Tier Waterfall Matching & Allocation | `src/lib/bank-reconciliation.ts` (Invoice, Exact, Fuzzy, Unmatched) | Payment, PaymentAllocation | **Implemented** |
+| RECON-004 | Bank Reconciliation Dashboard Hub | `src/app/(dashboard)/dashboard/reconciliation/page.tsx` | — | **Implemented** |
+| COPILOT-001 | AI Smart Promise Extraction | `src/lib/copilot.ts`, `POST /api/copilot/extract`, `AICopilotModal` | PromiseToPay | **Implemented** |
+| COPILOT-002 | Tone-Calibrated Dunning Generator | `src/lib/copilot.ts`, `POST /api/copilot/draft`, `AICopilotModal` | Message | **Implemented** |
+| SMS-001 | TRAI DLT Indian SMS Gateway Adapter | `src/lib/sms.ts` (19-digit entity/template ID + DUESPL header) | Message | **Implemented** |
+| SEC-001 | Spreadsheet Formula Injection Sanitization | `src/lib/security.ts` (CWE-1236 leading `=, +, -, @, \t, \r` defense) | — | **Implemented** |
+| DB-001 | Dual-Pooler Supabase ORM Architecture | `src/lib/prisma.ts`, `prisma7.config.ts` (PgBouncer 6543 / Session 5432) | — | **Implemented** |
 | ANL-001 | KPI cards (DSO/CEI/adherence/overdue) | `src/lib/metrics.ts` + `GET /api/analytics` | Invoice/Payment | **Implemented** |
 | ANL-002 | 6-month trend chart | analytics page (6-month series) | Payment/Invoice | **Implemented** |
 | ANL-003 | Top overdue + pipeline health | analytics page | Invoice | **Implemented** |
@@ -151,6 +160,10 @@
 | US-LEGAL-01 statutory claims | LEGAL-001, LEGAL-002 | **Implemented** |
 | US-BILL-01 plan upgrade | BILL-001, BILL-002 | **Implemented** |
 | US-SEARCH-01 quick search | SEARCH-001 | **Implemented** |
+| US-RECON-01 bank reconciliation | RECON-001..004 | **Implemented** |
+| US-COPILOT-01 AI extraction & drafting | COPILOT-001..002 | **Implemented** |
+| US-SMS-01 TRAI DLT SMS dispatch | SMS-001 | **Implemented** |
+| US-SEC-01 CSV injection defense | SEC-001 | **Implemented** |
 
 ## Requirement ↔ Test Traceability
 
@@ -168,10 +181,17 @@
 | Dynamic UPI & payment links | Yes | ✅ `src/lib/__tests__/payment-links.test.ts` |
 | Multi-gateway WhatsApp delivery & mock | Yes | ✅ `src/lib/__tests__/whatsapp.test.ts` |
 | MSMED 3x RBI penal interest calculator | Yes | ✅ `src/lib/__tests__/msme-interest.test.ts` |
+| Statutory legal notices (MSMED / NI Act 138) | Yes | ✅ `src/lib/__tests__/legal-notices.test.ts` |
 | AES-256-GCM envelope encryption | Yes | ✅ `src/lib/__tests__/crypto.test.ts` |
 | Automated Dunning Cadence engine | Yes | ✅ `src/lib/__tests__/workflows.test.ts` |
 | Rate limiting (Redis & Memory) | Yes | ✅ `src/lib/__tests__/rate-limit.test.ts` |
+| 4-Tier Bank Statement Reconciliation | Yes | ✅ `src/lib/__tests__/bank-reconciliation.test.ts` |
+| AI Smart Promise Extraction & Dunning Copilot | Yes | ✅ `src/lib/__tests__/copilot.test.ts` |
+| TRAI DLT Indian SMS Gateway Adapter | Yes | ✅ `src/lib/__tests__/sms.test.ts` |
+| Timing-Safe Payment Webhook Verification | Yes | ✅ `src/lib/__tests__/payment-webhooks.test.ts` |
+| CSV Spreadsheet Formula Injection Defense | Yes | ✅ `src/lib/__tests__/security.test.ts` |
+| Multi-tenant boundary isolation & CSV export safety | Yes | ✅ `src/lib/__tests__/tenant-isolation.test.ts` |
 | Import tx / payment persistence / tenant isolation | Yes | Specs authored (`src/**/*.integration.test.ts`), verified in CI with `postgres:17` |
 | E2E happy path | Yes | **Blocked** (TODO-052) |
 
-**Test traceability verdict:** 145/145 unit tests pass (Vitest 3.2.7) across 22 test suites covering all domain calculation engines, adapters, and business modules (`payment-plans`, `payment-links`, `whatsapp`, `msme-interest`, `crypto`, `workflows`, `dates`, `risk-score`, `invoice-status`, `utils`, `payment-allocation`, `queue-item`, `rbac`, `promise-state`, `rate-limit`, `billing`, `templates`). DB-coupled behavior (import transaction, payment persistence, tenant isolation) has **specs authored and CI-ready** (`src/**/*.integration.test.ts`) running against a `postgres:17` container in CI. CI (`.github/workflows/ci.yml`) runs lint → tsc → unit → integration → build.
+**Test traceability verdict:** 209/209 unit tests pass (Vitest 3.2.7) across 27 test suites covering all domain calculation engines, adapters, security layers, and business modules (`bank-reconciliation`, `payment-webhooks`, `copilot`, `sms`, `security`, `legal-notices`, `payment-plans`, `payment-links`, `whatsapp`, `msme-interest`, `crypto`, `workflows`, `dates`, `risk-score`, `invoice-status`, `utils`, `payment-allocation`, `queue-item`, `rbac`, `promise-state`, `rate-limit`, `billing`, `templates`, `tenant-isolation`, `observability`, `email`, `webhooks`). DB-coupled behavior (import transaction, payment persistence, tenant isolation) has **specs authored and CI-ready** (`src/**/*.integration.test.ts`) running against a `postgres:17` container in CI. CI (`.github/workflows/ci.yml`) runs lint → tsc → unit → integration → build.

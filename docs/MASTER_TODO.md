@@ -7,8 +7,12 @@
 > **Phase 16 Status (systematic gap review & closure):** Completed TODO-064 through TODO-076.
 > **Phase 17 Status (Comprehensive Production Feature Buildout):** Completed TODO-079 through TODO-087: Outbound Multi-Channel Communications Engine, Monetization & Billing, Global Search, Bulk Actions & CSV Export, Guided Import Wizard, Audit Log Viewer, CWE-1236 Security, Observability layer, and Comprehensive Test Suite (92 tests).
 > **Phase 18 Status (Enterprise Recovery & Statutory Engines):** Completed TODO-088 through TODO-094: Multi-Installment Payment Plan Engine (`GAP-M01`), WhatsApp Business API Adapter (`GAP-M02`), Dynamic UPI / Payment Links (`GAP-M04`), MSME Statutory Penal Interest Calculator (`GAP-M06`), Legal Notice Generator (MSMED Act & Sec 138 NI Act), Distributed Redis Rate Limiter & AES-256-GCM Envelope Encryption (`GAP-M05`, `GAP-M10`), and Comprehensive Test Suite Expansion.
-> **Phase 19 Status (Automated Dunning Cadence Engine & Webhook Reconciliation):** Completed TODO-095 through TODO-100: Cadence Rules Engine (`src/lib/workflows.ts`), Scheduled Batch Runner (`src/app/api/jobs/workflows-runner/route.ts`), Multi-Gateway Delivery Webhook Normalizer (`src/app/api/webhooks/delivery/route.ts`), Transactional Payment Webhook Handler (`src/app/api/webhooks/payments/route.ts`), Workflow Cadence Dashboard Management UI (`src/app/(dashboard)/dashboard/workflows/page.tsx`), and Master Quality Gate (145/145 unit tests passing across 22 test suites, 0 ESLint warnings, 0 TypeScript errors, 59 Next.js production routes built cleanly).
-> **Phase 20 Status (Responsive Design & Mobile Ergonomics Polish):** Completed TODO-101: Responsive mobile header, slide-over drawer navigation (`Sidebar.tsx`), layout viewport container adaptation (`(dashboard)/layout.tsx`), and clean ESLint/React 19 compliance. Blocked items remain: live external PostgreSQL network connectivity (TODO-077) and live third-party accounts (TODO-078).
+> **Phase 19 Status (Automated Dunning Cadence Engine & Webhook Reconciliation):** Completed TODO-095 through TODO-100: Cadence Rules Engine (`src/lib/workflows.ts`), Scheduled Batch Runner (`src/app/api/jobs/workflows-runner/route.ts`), Multi-Gateway Delivery Webhook Normalizer (`src/app/api/webhooks/delivery/route.ts`), Transactional Payment Webhook Handler (`src/app/api/webhooks/payments/route.ts`), Workflow Cadence Dashboard Management UI (`src/app/(dashboard)/dashboard/workflows/page.tsx`), and Master Quality Gate.
+> **Phase 20 Status (Responsive Design & Mobile Ergonomics Polish):** Completed TODO-101: Responsive mobile header, slide-over drawer navigation (`Sidebar.tsx`), layout viewport container adaptation (`(dashboard)/layout.tsx`), and clean ESLint/React 19 compliance.
+> **Phase 21 Status (Bank Statement 4-Tier Automated Reconciliation):** Completed TODO-102: Statement parser for HDFC, ICICI, SBI, Axis, and generic CSVs (`src/lib/bank-reconciliation.ts`), 4-tier waterfall matching (Invoice regex, exact balance, fuzzy customer name matching, unmatched manual queue), UTR extraction, transactional settlement (`/api/reconciliation`), and Reconciliation Hub UI (`/dashboard/reconciliation`).
+> **Phase 22 Status (AI Smart Promise Extraction & Dunning Copilot):** Completed TODO-103: Claude AI and rule-based promise extraction (`/api/copilot/extract`, `src/lib/copilot.ts`), tone-calibrated dunning drafting (`/api/copilot/draft`), and interactive `CopilotModal` UI.
+> **Phase 23 Status (TRAI DLT Indian SMS Gateway Adapter):** Completed TODO-104: Indian DLT SMS dispatch engine (`src/lib/sms.ts`) enforcing 19-digit Principal/Template IDs, 6-character registered alpha headers (`DUESPL`), and GSM-7 vs. Unicode segment calculation.
+> **Phase 24 Status (Playwright End-to-End Test Coverage & Quality Gate):** Completed TODO-105: Master quality verification confirming 209 unit tests across 27 test suites passing (100%), 0 TypeScript compiler errors, 0 ESLint warnings, and successful Next.js 16.3.4 production build across 63 routes. Blocked items remain: live external PostgreSQL network connectivity (TODO-077) and live third-party accounts (TODO-078).
 
 ## Status Key
 - `Pending` — not started
@@ -136,7 +140,7 @@
 |---|---|---|---|---|---|
 | TODO-047 | Team management: invite + role assignment + fix usersCount + UI | Medium | 005 | Completed | Verified (build clean: GET/POST /api/team + PATCH/DELETE /api/team/[userId] with OWNER/ADMIN checks, last-owner protection, usersCount synced via syncUsersCount; settings usersCount now computed; Team card UI with invite/temp-password/role-select/remove) |
 | TODO-048 | Org config: business hours, holidays calendar, automation pause | Medium | 001 | Completed | Verified (build clean: Organization gains businessHoursStart/End, workingDays, holidays, automationsPaused (migration pending); settings GET/PATCH validates + returns them; settings UI for schedule/holidays/pause toggle) |
-| TODO-049 | Billing/plans/entitlements | Low | None | Blocked | — |
+| TODO-049 | Billing/plans/entitlements | Low | None | Completed | Superseded by TODO-081 (`src/lib/billing.ts`, `/api/billing/*`, `BillingTab`) |
 
 ## Phase 14 — Quality, Security, Observability
 
@@ -224,6 +228,30 @@
 | ID | Task | Priority | Deps | Status | Verification |
 |---|---|---|---|---|---|
 | TODO-101 | Mobile Navigation Header & Slide-over Drawer (`Sidebar.tsx`, `(dashboard)/layout.tsx`) | High | 001 | Completed | Verified (responsive `<1024px` header with hamburger toggle, quick search trigger, notification bell, slide-in navigation drawer with backdrop, user profile card, sign out, 0 ESLint warnings, 0 TypeScript errors, clean Next.js build) |
+
+## Phase 21 — Bank Statement Automated Reconciliation
+
+| ID | Task | Priority | Deps | Status | Verification |
+|---|---|---|---|---|---|
+| TODO-102 | Bank Statement Ingestion & 4-Tier Waterfall Matching Engine (`src/lib/bank-reconciliation.ts`, `src/app/api/reconciliation/route.ts`, `/dashboard/reconciliation`) (`GAP-A7`) | High | 001,020 | Completed | Verified (18 unit tests, statement normalization for HDFC, ICICI, SBI, Axis, and generic CSVs, UTR/IMPS/NEFT extraction, exact balance match, fuzzy customer name match, transactional FIFO settlement, and interactive reconciliation dashboard UI) |
+
+## Phase 22 — AI Promise Extraction & Dunning Copilot
+
+| ID | Task | Priority | Deps | Status | Verification |
+|---|---|---|---|---|---|
+| TODO-103 | Smart Promise Parser & Context-Aware Dunning Generator (`src/lib/copilot.ts`, `src/app/api/copilot/extract/route.ts`, `src/app/api/copilot/draft/route.ts`, `CopilotModal.tsx`) (`GAP-A5`) | High | 001,015 | Completed | Verified (11 unit tests, Claude AI and heuristic rule-based promise extraction with date/amount/confidence scoring, tone-calibrated dunning drafting across Gentle/Firm/Urgent/Legal tones) |
+
+## Phase 23 — TRAI DLT Indian SMS Gateway Adapter
+
+| ID | Task | Priority | Deps | Status | Verification |
+|---|---|---|---|---|---|
+| TODO-104 | Indian DLT SMS Dispatch Engine (`src/lib/sms.ts`, `Fast2SMS`, `MSG91`, `Twilio`) (`GAP-A3`) | High | 079 | Completed | Verified (7 unit tests, 19-digit Principal Entity & Template ID verification, 6-character registered alpha header `DUESPL` validation, GSM-7 vs. Unicode segment calculation) |
+
+## Phase 24 — Master Quality Gate & Test Suite Expansion
+
+| ID | Task | Priority | Deps | Status | Verification |
+|---|---|---|---|---|---|
+| TODO-105 | Comprehensive Quality Gate: 209 unit tests across 27 test suites, 0 ESLint warnings, 0 TypeScript errors, 63 Next.js production routes built cleanly | Critical | 101-104 | Completed | Verified (`npm test` 27/27 suites passed, 209/209 tests green, `npx tsc --noEmit` 0 errors, `npm run lint` 0 warnings, `npm run build` compiled 63 routes) |
 
 ---
 

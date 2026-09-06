@@ -162,45 +162,45 @@ export default function QueuePage() {
       {/* Page Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <div className="flex items-center gap-2">
-            <h1 className="text-xl font-bold text-slate-900 tracking-tight">Collection Queue</h1>
+          <div className="flex items-center gap-2.5">
+            <h1 className="text-2xl font-bold text-gray-900 tracking-tight">Collection Queue</h1>
             <Badge variant="danger" size="sm">
               {queue.length} Accounts Pending
             </Badge>
           </div>
-          <p className="mt-0.5 text-xs text-slate-500">
+          <p className="mt-1 text-sm text-gray-600">
             Intelligent daily call and dunning queue ranked by risk severity, aging buckets, and broken promises.
           </p>
         </div>
 
         <div className="flex items-center gap-2.5">
           <Button
-            variant="outline"
+            variant="secondary"
             size="sm"
             onClick={() => setCopilotGeneralOpen(true)}
-            className="gap-1.5 shadow-2xs border-indigo-200 bg-indigo-50/50 text-indigo-700 hover:bg-indigo-100 hover:text-indigo-800"
+            className="gap-1.5 border-indigo-200 bg-indigo-50/60 text-indigo-700 hover:bg-indigo-100 hover:text-indigo-800"
           >
-            <Sparkles className="h-3.5 w-3.5 text-indigo-600" />
+            <Sparkles className="h-4 w-4 text-indigo-600" strokeWidth={1.5} />
             <span>AI Copilot</span>
           </Button>
 
           <Button
-            variant="outline"
+            variant="secondary"
             size="sm"
             onClick={() => setRetryKey((k) => k + 1)}
-            className="gap-1.5 shadow-2xs"
+            className="gap-1.5"
           >
-            <RefreshCw className="h-3.5 w-3.5 text-slate-500" />
+            <RefreshCw className="h-4 w-4 text-gray-500" strokeWidth={1.5} />
             <span>Refresh</span>
           </Button>
 
           <Button
-            variant="outline"
+            variant="secondary"
             size="sm"
             onClick={handleExportCsv}
-            className="gap-1.5 shadow-2xs"
+            className="gap-1.5"
           >
-            <Download className="h-3.5 w-3.5 text-slate-500" />
+            <Download className="h-4 w-4 text-gray-500" strokeWidth={1.5} />
             <span>Export CSV</span>
           </Button>
         </div>
@@ -249,16 +249,16 @@ export default function QueuePage() {
 
       {/* Bulk Result Banner */}
       {bulkResult && (
-        <div className="rounded-2xl border border-emerald-200 bg-emerald-50/90 p-4 text-xs font-semibold text-emerald-900 flex items-center justify-between shadow-2xs">
+        <div className="rounded-xl border border-green-200 bg-green-50 p-4 text-sm font-semibold text-green-900 flex items-center justify-between shadow-xs">
           <div className="flex items-center gap-2.5">
-            <CheckCircle2 className="h-4 w-4 text-emerald-600 shrink-0" />
+            <CheckCircle2 className="h-5 w-5 text-green-600 shrink-0" strokeWidth={1.5} />
             <span>{bulkResult}</span>
           </div>
           <button
             onClick={() => setBulkResult(null)}
-            className="rounded-lg p-1 text-emerald-700 hover:bg-emerald-100 hover:text-emerald-950 transition-colors"
+            className="rounded-lg p-1 text-green-700 hover:bg-green-100 hover:text-green-950 transition-colors"
           >
-            <X className="h-4 w-4" />
+            <X className="h-4 w-4" strokeWidth={1.5} />
           </button>
         </div>
       )}
@@ -267,15 +267,15 @@ export default function QueuePage() {
       {error && (
         <div
           role="alert"
-          className="rounded-2xl border border-rose-200 bg-rose-50 p-4 text-xs text-rose-800 flex items-start gap-3 shadow-2xs"
+          className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-800 flex items-start gap-3 shadow-xs"
         >
-          <AlertCircle className="h-4 w-4 text-rose-600 shrink-0 mt-0.5" />
+          <AlertCircle className="h-5 w-5 text-red-600 shrink-0 mt-0.5" strokeWidth={1.5} />
           <div className="flex-1">
             <p className="font-bold">Failed to load collection queue</p>
-            <p className="mt-0.5 text-rose-700">{error}</p>
+            <p className="mt-0.5 text-red-700">{error}</p>
             <button
               onClick={() => setRetryKey((n) => n + 1)}
-              className="mt-2 text-xs font-semibold text-rose-900 underline hover:text-rose-950"
+              className="mt-2 text-xs font-semibold text-red-900 underline hover:text-red-950"
             >
               Try reloading
             </button>
@@ -286,9 +286,9 @@ export default function QueuePage() {
       {!loading && !error && (
         <>
           {/* Controls Bar: Priority Filters & Search */}
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white p-3.5 rounded-2xl border border-slate-200/90 shadow-2xs">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white p-4 rounded-xl border border-gray-200 shadow-sm">
             {/* Filter buttons */}
-            <div className="flex flex-wrap items-center gap-1.5">
+            <div className="flex flex-wrap items-center gap-2">
               {(
                 [
                   { id: "all", label: "All Items", count: queue.length },
@@ -302,18 +302,18 @@ export default function QueuePage() {
                   <button
                     key={tab.id}
                     onClick={() => setFilter(tab.id)}
-                    className={`flex items-center gap-1.5 rounded-xl px-3 py-1.5 text-xs font-semibold transition-all ${
+                    className={`flex items-center gap-2 rounded-lg px-3.5 py-2 text-sm font-semibold transition-all ${
                       isActive
-                        ? "bg-blue-600 text-white shadow-2xs"
-                        : "bg-slate-50 border border-slate-200/80 text-slate-600 hover:bg-slate-100 hover:text-slate-900"
+                        ? "bg-blue-600 text-white shadow-xs"
+                        : "bg-gray-50 border border-gray-200 text-gray-600 hover:bg-gray-100 hover:text-gray-900"
                     }`}
                   >
                     <span>{tab.label}</span>
                     <span
-                      className={`text-[11px] px-1.5 py-0.2 rounded-full font-mono ${
+                      className={`text-xs px-1.5 py-0.5 rounded-full font-mono font-medium ${
                         isActive
                           ? "bg-blue-700 text-white"
-                          : "bg-slate-200/80 text-slate-700"
+                          : "bg-gray-200 text-gray-700"
                       }`}
                     >
                       {tab.count}
@@ -324,22 +324,22 @@ export default function QueuePage() {
             </div>
 
             {/* Search Input */}
-            <div className="relative w-full sm:w-72">
-              <Search className="h-3.5 w-3.5 text-slate-400 absolute left-3 top-3 pointer-events-none" />
+            <div className="relative w-full sm:w-80">
+              <Search className="h-4 w-4 text-gray-400 absolute left-3.5 top-3 pointer-events-none" strokeWidth={1.5} />
               <input
                 type="text"
                 placeholder="Search debtor name, action, or risk reason…"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                className="w-full rounded-xl border border-slate-200 bg-slate-50/60 pl-8 pr-8 py-2 text-xs font-medium text-slate-900 placeholder-slate-400 focus:bg-white focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 transition-all"
+                className="w-full h-10 rounded-lg border border-gray-300 bg-white pl-9 pr-8 py-2 text-sm font-medium text-gray-900 placeholder-gray-400 focus:border-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-600/30 transition-all shadow-xs"
               />
               {search && (
                 <button
                   type="button"
                   onClick={() => setSearch("")}
-                  className="absolute right-2.5 top-2.5 text-slate-400 hover:text-slate-600"
+                  className="absolute right-2.5 top-2.5 text-gray-400 hover:text-gray-600 p-1"
                 >
-                  <X className="h-3.5 w-3.5" />
+                  <X className="h-4 w-4" strokeWidth={1.5} />
                 </button>
               )}
             </div>
@@ -347,7 +347,7 @@ export default function QueuePage() {
 
           {/* Bulk Action Header Toolbar */}
           {selectedIds.size > 0 && (
-            <div className="flex items-center justify-between bg-blue-50/90 border border-blue-200/90 px-4 py-3 rounded-2xl text-xs shadow-2xs animate-in fade-in duration-150">
+            <div className="flex items-center justify-between bg-blue-50 border border-blue-200 px-4 py-3 rounded-xl text-sm shadow-xs animate-in fade-in duration-150">
               <div className="flex items-center gap-3">
                 <span className="font-bold text-blue-950">
                   {selectedIds.size} debtor account{selectedIds.size > 1 ? "s" : ""} selected
@@ -365,9 +365,9 @@ export default function QueuePage() {
                   size="sm"
                   onClick={handleBulkRemind}
                   loading={bulkSending}
-                  className="gap-1.5 shadow-xs"
+                  className="gap-1.5"
                 >
-                  <Send className="h-3.5 w-3.5" />
+                  <Send className="h-4 w-4" strokeWidth={1.5} />
                   <span>Bulk Send Reminders</span>
                 </Button>
               </div>
@@ -375,9 +375,9 @@ export default function QueuePage() {
           )}
 
           {/* Main Queue List Card */}
-          <div className="rounded-3xl border border-slate-200/90 bg-white shadow-2xs overflow-hidden">
+          <div className="rounded-xl border border-gray-200 bg-white shadow-sm overflow-hidden">
             {/* Table Header with Select All */}
-            <div className="px-5 py-3 bg-slate-50/70 border-b border-slate-100 flex items-center justify-between text-xs text-slate-500">
+            <div className="px-6 py-3.5 bg-gray-50 border-b border-gray-200 flex items-center justify-between text-xs text-gray-500">
               <div className="flex items-center gap-3">
                 <input
                   type="checkbox"
@@ -385,11 +385,11 @@ export default function QueuePage() {
                     filtered.length > 0 && selectedIds.size === filtered.length
                   }
                   onChange={toggleSelectAll}
-                  className="h-4 w-4 rounded-md border-slate-300 text-blue-600 focus:ring-blue-500 cursor-pointer"
+                  className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500 cursor-pointer"
                 />
-                <span className="font-bold text-slate-700">Select All in View</span>
+                <span className="font-bold text-gray-700 uppercase tracking-wider text-[11px]">Select All in View</span>
               </div>
-              <span className="font-medium text-slate-500">
+              <span className="font-medium text-gray-500">
                 Showing {filtered.length} of {queue.length} accounts
               </span>
             </div>
@@ -406,7 +406,7 @@ export default function QueuePage() {
                 className="py-12 border-0"
               />
             ) : (
-              <div className="divide-y divide-slate-100">
+              <div className="divide-y divide-gray-100">
                 {filtered.map((item) => {
                   const isHigh = item.priority === "high";
                   const isMedium = item.priority === "medium";
@@ -415,8 +415,8 @@ export default function QueuePage() {
                   return (
                     <div
                       key={item.id}
-                      className={`p-4 sm:p-5 hover:bg-slate-50/80 transition-colors flex flex-col sm:flex-row sm:items-center justify-between gap-4 ${
-                        isSelected ? "bg-blue-50/40" : ""
+                      className={`p-5 hover:bg-gray-50/80 transition-colors flex flex-col sm:flex-row sm:items-center justify-between gap-4 ${
+                        isSelected ? "bg-blue-50/30" : ""
                       }`}
                     >
                       <div className="flex items-start gap-3.5 flex-1 min-w-0">
@@ -427,18 +427,18 @@ export default function QueuePage() {
                             checked={isSelected}
                             onClick={(e) => toggleSelectOne(item.id, e)}
                             onChange={() => {}}
-                            className="h-4 w-4 rounded-md border-slate-300 text-blue-600 focus:ring-blue-500 cursor-pointer"
+                            className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500 cursor-pointer"
                           />
                         </div>
 
                         {/* Avatar */}
                         <div
-                          className={`flex h-10 w-10 items-center justify-center rounded-2xl font-bold text-xs shrink-0 border ${
+                          className={`flex h-10 w-10 items-center justify-center rounded-xl font-bold text-xs shrink-0 border ${
                             isHigh
-                              ? "bg-rose-100 text-rose-800 border-rose-200"
+                              ? "bg-red-100 text-red-700 border-red-200"
                               : isMedium
-                              ? "bg-amber-100 text-amber-900 border-amber-200"
-                              : "bg-emerald-100 text-emerald-800 border-emerald-200"
+                              ? "bg-amber-100 text-amber-800 border-amber-200"
+                              : "bg-green-100 text-green-700 border-green-200"
                           }`}
                         >
                           {item.initials}
@@ -449,7 +449,7 @@ export default function QueuePage() {
                           <div className="flex flex-wrap items-center gap-2">
                             <Link
                               href={`/dashboard/customers/${item.customerId}`}
-                              className="text-sm font-bold text-slate-900 hover:text-blue-600 transition-colors truncate"
+                              className="text-sm font-bold text-gray-900 hover:text-blue-600 transition-colors truncate"
                             >
                               {item.customer}
                             </Link>
@@ -466,12 +466,12 @@ export default function QueuePage() {
                             )}
                           </div>
 
-                          <div className="flex flex-wrap items-center gap-2 text-xs text-slate-500">
-                            <span className="font-mono font-bold text-slate-900">
+                          <div className="flex flex-wrap items-center gap-2 text-xs text-gray-500">
+                            <span className="font-mono font-bold text-gray-900">
                               {formatINR(item.amount)}
                             </span>
                             <span>•</span>
-                            <span className={isHigh ? "text-rose-600 font-semibold" : "text-slate-600"}>
+                            <span className={isHigh ? "text-red-600 font-semibold" : "text-gray-600"}>
                               {item.daysOverdue} days overdue
                             </span>
                             <span>•</span>
@@ -479,15 +479,15 @@ export default function QueuePage() {
                           </div>
 
                           {item.why && (
-                            <p className="text-[11px] text-slate-500 line-clamp-1 bg-slate-50 rounded-lg px-2 py-0.5 border border-slate-100 inline-block">
-                              <span className="font-semibold text-slate-700">Trigger:</span> {item.why}
+                            <p className="text-xs text-gray-600 line-clamp-1 bg-gray-50 rounded-md px-2 py-0.5 border border-gray-200 inline-block">
+                              <span className="font-semibold text-gray-700">Trigger:</span> {item.why}
                             </p>
                           )}
 
-                          <div className="flex flex-wrap items-center gap-3 pt-0.5 text-[11px] text-slate-400">
+                          <div className="flex flex-wrap items-center gap-3 pt-0.5 text-xs text-gray-400">
                             <span>Last: {item.lastAction}</span>
                             <span>•</span>
-                            <span className="text-slate-600 font-medium">Recommended: {item.nextAction}</span>
+                            <span className="text-gray-600 font-medium">Recommended: {item.nextAction}</span>
                           </div>
                         </div>
                       </div>
@@ -495,31 +495,31 @@ export default function QueuePage() {
                       {/* Action Buttons */}
                       <div className="flex items-center gap-2 shrink-0 self-end sm:self-center pl-7 sm:pl-0">
                         <Button
-                          variant="outline"
+                          variant="secondary"
                           size="sm"
                           onClick={() => setCopilotItem(item)}
-                          className="gap-1.5 shadow-2xs border-indigo-200 text-indigo-700 hover:bg-indigo-50"
+                          className="gap-1.5 border-indigo-200 bg-indigo-50/40 text-indigo-700 hover:bg-indigo-100"
                         >
-                          <Sparkles className="h-3.5 w-3.5 text-indigo-600" />
+                          <Sparkles className="h-4 w-4 text-indigo-600" strokeWidth={1.5} />
                           <span>AI Copilot</span>
                         </Button>
 
                         <Button
-                          variant="outline"
+                          variant="secondary"
                           size="sm"
                           onClick={() => setReminderItem(item)}
-                          className="gap-1.5 shadow-2xs border-slate-200 hover:border-blue-300 hover:bg-blue-50/50 hover:text-blue-700"
+                          className="gap-1.5 hover:border-blue-300 hover:bg-blue-50/50 hover:text-blue-700"
                         >
-                          <Send className="h-3.5 w-3.5 text-blue-600" />
+                          <Send className="h-4 w-4 text-blue-600" strokeWidth={1.5} />
                           <span>Send Reminder</span>
                         </Button>
 
                         <Button
                           size="sm"
                           onClick={() => setActive(item)}
-                          className="gap-1.5 shadow-xs"
+                          className="gap-1.5"
                         >
-                          <PhoneCall className="h-3.5 w-3.5" />
+                          <PhoneCall className="h-4 w-4" strokeWidth={1.5} />
                           <span>Take Action</span>
                         </Button>
                       </div>

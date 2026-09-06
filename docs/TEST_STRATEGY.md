@@ -9,9 +9,9 @@
 - **Integration tests via a real Postgres** cover DB-coupled behavior: tenant isolation, transactional import, RBAC enforcement, payment allocation persistence, promise sweep.
 - **E2E** (TODOs 052, 051) covers the full user journey once a runnable stack + scaffold exist.
 
-## 2. Current coverage (green on 2026-09-04)
+## 2. Current coverage (verified on 2026-09-05)
 
-`npm test` → **65/65 passing** (Vitest 3.2.7) across 9 test files in `src/lib/__tests__/` + `src/lib/rbac.test.ts`:
+`npm test` → **209/209 passing** (Vitest 3.2.7) across 27 test files in `src/lib/__tests__/` + `src/lib/rbac.test.ts`:
 
 | File | Tests | Covers |
 | --- | --- | --- |
@@ -21,9 +21,27 @@
 | `utils.test.ts` | 10 | `cn`, INR formatting, misc utils. |
 | `payment-allocation.test.ts` | 10 | FIFO/explicit allocation edge cases + status derivation. |
 | `queue-item.test.ts` | 7 | Priority/next-action computation + status views. |
-| `rbac.test.ts` | 4 | Role matrix (ACTION_ROLES/MANAGE_ROLES/OWNER-only) via `@/lib/rbac` — policy unit-testable without Next.js. |
+| `rbac.test.ts` | 4 | Role matrix (ACTION_ROLES/MANAGE_ROLES/OWNER-only) via `@/lib/rbac`. |
 | `promise-state.test.ts` | 6 | Promise lifecycle transitions, terminal KEPT status, renegotiation guards. |
 | `rate-limit.test.ts` | 4 | Token-bucket rate limiting, quota exhaustion, retry-after calculations, client key resolution. |
+| `security.test.ts` | 9 | CSV formula injection defense (CWE-1236), input sanitization, timing-safe hashes. |
+| `crypto.test.ts` | 9 | AES-256-GCM envelope encryption, IV generation, authentication tag verification, key rotation. |
+| `billing.test.ts` | 5 | Tier limits, channel gating, monotonic quota progression, AI copilot monthly quotas. |
+| `copilot.test.ts` | 15 | Promise-to-pay extraction, tone-calibrated dunning generation, amount parsing. |
+| `sms.test.ts` | 11 | TRAI DLT validation, 19-digit entity/template ID verification, 6-char alpha headers, GSM-7/UCS-2 segmentation. |
+| `whatsapp.test.ts` | 6 | Phone number normalization (+91 E.164), gateway routing (Meta/Interakt/Gupshup/Twilio), mock mode. |
+| `payment-links.test.ts` | 3 | Dynamic UPI deep links, gateway fallback links, QR payload formatting. |
+| `payment-plans.test.ts` | 14 | Staggered milestone calculation, integer INR rounding, progressive allocation, default detection. |
+| `msme-interest.test.ts` | 4 | MSMED Act 2006 Sections 15 & 16 compound monthly rest interest (3x RBI rate), 45-day threshold. |
+| `legal-notices.test.ts` | 3 | Formal MSME statutory demands, Section 138 NI Act cheque dishonour notices. |
+| `bank-reconciliation.test.ts` | 16 | 4-tier bank statement reconciliation, UTR/IMPS/NEFT/RTGS/Cheque regex extraction, CSV parsers. |
+| `payment-webhooks.test.ts` | 16 | HMAC-SHA256 signature verification (Razorpay/Cashfree/Stripe), idempotency, atomic settlement. |
+| `tenant-isolation.test.ts` | 5 | Cross-tenant scoping enforcement, session boundary isolation, CSV export safety. |
+| `workflows.test.ts` | 9 | Dynamic dunning workflow execution, condition evaluator, step transitions. |
+| `templates.test.ts` | 9 | Template variable replacement, syntax validation, channel formatting. |
+| `observability.test.ts` | 3 | Structured audit logging, error telemetry, simulation warning triggers. |
+| `email.test.ts` | 2 | Resend email dispatch formatting, header compliance. |
+| `webhooks.test.ts` | 5 | Outbound webhook dispatch, retry backoff, payload hashing. |
 
 Run modes: `npm test` (once) · `npm run test:watch` (dev loop).
 

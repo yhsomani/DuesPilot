@@ -4,7 +4,7 @@
 | --- | --- |
 | **Version** | 2.0.0 |
 | **Analysis date** | 2026-09-04 |
-| **Basis** | Codebase audit (post-`83e6ebd`, Phases 1–15) + `docs/MASTER_TODO.md` + verified quality gate (tsc/lint/51 tests/build green) |
+| **Basis** | Codebase audit (post-`83e6ebd`, Phases 1–15) + `docs/MASTER_TODO.md` + verified quality gate (tsc/lint/209 unit tests across 27 suites/build green) |
 
 **Legend:** ✅ Implemented (real, tenant-scoped, DB-backed) · 🔶 Partial · 🗄 Schema Only · 🚫 Blocked (external dependency) · ❌ Not Built · ⚠️ Not Defined
 
@@ -164,7 +164,7 @@
 Row tallies are approximate by the legend (an item with a split status counts in its leading bucket and is footnoted).
 
 | Category | ✅ Impl | 🔶 Partial | 🗄 Schema | 🚫 Blocked | ❌ Missing | ⚠️ Not Defined |
-| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: |
 | Auth/Accounts | 10 | 0 | 0 | 1 | 1 | 0 |
 | Import | 4 | 0 | 0 | 0 | 1 | 0 |
 | Queue | 4 | 0 | 0 | 0 | 0 | 0 |

@@ -12,7 +12,7 @@
 | **Methodology** | Evidence-based bidirectional audit (Requirements ↔ Code ↔ Tests ↔ UX) |
 | **Confidence** | High for implemented behavior; explicit `UNVERIFIED` / `BLOCKED` / `I-cannot-confirm` labels where not |
 
-> **Quality gate (verified 2026-09-05):** `npx tsc --noEmit`, `npm run lint`, `npm test` (65/65, 9 files), and `npm run build` all green. All statuses below derive from the authoritative fact sheet and `docs/MASTER_TODO.md`.
+> **Quality gate (verified 2026-09-05):** `npx tsc --noEmit`, `npm run lint`, `npm test` (209/209, 27 files), and `npm run build` all green. All statuses below derive from the authoritative fact sheet and `docs/MASTER_TODO.md`.
 
 ---
 
@@ -25,7 +25,7 @@ The repository now contains a **functioning, tenant-scoped full-stack implementa
 - A complete, migrated PostgreSQL schema (**21 models, 6 enums**) across the whole collections domain (`Organization`, `User`, `Customer`, `Contact`, `Invoice`, `InvoiceItem`, `Payment`, `PaymentAllocation`, `PromiseToPay`, `Dispute`, `Message`, `CollectionEvent`, `CollectionWorkflow`, `WorkflowAction`, `IntegrationCredential`, `AuditLog`, `NotificationPreference`, `IdempotencyKey`, plus NextAuth tables).
 - A real credentials auth flow (register with zod + bcrypt cost 12 + rate limiting, login with JWT, logout, password reset), RBAC enforcement, tenant isolation via `withAuth` + `organizationId` scoping.
 - **Real, DB-backed features across every core surface**: import (transactional batch), dashboard aggregates, priority queue, customer/contact CRUD + dedupe/merge, invoices with search/pagination/detail, payments with FIFO/explicit allocation + reversals, promise lifecycle + auto-sweep, collection events, disputes, analytics metrics, in-app notifications, org/settings/team, CSV/JSON export, account deletion.
-- Unit tests (65/65 Vitest, 9 files), CI pipeline (GitHub Actions: quality + integration + build), security headers, rate limiting, structured JSONL logging with request IDs, and a live health endpoint.
+- Unit tests (209/209 Vitest, 27 files), CI pipeline (GitHub Actions: quality + integration + build), security headers, rate limiting, structured JSONL logging with request IDs, and a live health endpoint.
 
 **Bottom line:** the product is a **working, tested collections system backed by a real database**, not a mock prototype. The externally-dependent pieces (email/message delivery, WhatsApp/SMS, billing, managed prod infra, Sentry DSN, scheduled cron provisioning, integration + E2E tests) remain **blocked** and are explicitly called out in §10 and §22 below.
 
@@ -434,7 +434,7 @@ Full matrix in `CREDENTIALS_AND_INTEGRATIONS_MATRIX.md`. **No live external inte
 
 ## 25. Performance / NFR
 
-- **Unit tests** 65/65 (Vitest 3.2.7) across 9 test files in `src/lib/__tests__` + `rbac.test.ts`.
+- **Unit tests** 209/209 (Vitest 3.2.7) across 27 test files in `src/lib/__tests__` + `rbac.test.ts`.
 - **CI**: `.github/workflows/ci.yml` with quality (lint+tsc+unit), integration (postgres:17 service + `prisma migrate deploy || db push` + `test:integration`), and build (dummy env) jobs.
 - Observability: structured JSONL logs + `x-request-id` (`src/lib/server-context.ts` `withAuth`); `/api/health` live DB check.
 - NFR targets (availability 99.9%, p95 latency, scale) are **proposed performance budgets not yet measured**; no load testing performed.
@@ -458,7 +458,7 @@ Detailed checklist in `PRODUCTION_READINESS_CHECKLIST.md`. **Not fully productio
 
 ## 28. Release Criteria
 
-The quality gate (`tsc`, lint, 51/51 unit tests, build) passes and features work against a real DB with authenticated tenant data. Remaining release blockers are the external items in §27 (notably the promise-sweep scheduler and pending migrations).
+The quality gate (`tsc`, lint, 209/209 unit tests across 27 suites, build) passes and features work against a real DB with authenticated tenant data. Remaining release blockers are the external items in §27 (notably the promise-sweep scheduler and pending migrations).
 
 ---
 
@@ -488,7 +488,7 @@ The quality gate (`tsc`, lint, 51/51 unit tests, build) passes and features work
 | Notifications | ✓ | | | | derived feed + prefs (migration pending) |
 | Communications (email/WA/SMS) | | | Message model | **Blocked** | no provider; route only |
 | Billing / entitlements | | | | **Blocked** | none |
-| Testing | ✓ unit + CI | | | integration + E2E | 65/65; TODO-051/052 |
+| Testing | ✓ unit + CI | | | integration + E2E | 209/209; TODO-051/052 |
 | Production infra / monitoring | /api/health + logs | | | **Blocked** (Sentry, DB, backups) | TODO-058 |
 
 ---
@@ -502,6 +502,6 @@ Primary evidence files:
 - Pure domain modules: `src/lib/queue-item.ts`, `src/lib/payment-allocation.ts`, `src/lib/invoice-status.ts`/`collections.ts`, `src/lib/metrics.ts`, `src/lib/risk-score.ts`, `src/lib/audit.ts`, `src/lib/rate-limit.ts`, `src/lib/promise-state.ts`, `src/lib/rbac.ts`
 - API routes: `src/app/api/**`
 - Screens: `src/app/(dashboard)/dashboard/**`
-- Tests: `src/lib/__tests__/**` (65/65)
+- Tests: `src/lib/__tests__/**` (209/209)
 - CI: `.github/workflows/ci.yml`
 - Statuses: `docs/MASTER_TODO.md` (authoritative)

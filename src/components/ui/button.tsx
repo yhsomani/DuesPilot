@@ -12,25 +12,26 @@ export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
   ({ className, variant = "primary", size = "md", loading, children, disabled, ...props }, ref) => {
     const variantStyles = {
       primary:
-        "bg-blue-600 text-white hover:bg-blue-700 shadow-xs active:scale-[0.98] border border-transparent focus-visible:ring-blue-500",
+        "bg-blue-600 text-white hover:bg-blue-700 active:bg-blue-800 shadow-sm border border-transparent focus-visible:ring-blue-600",
       secondary:
-        "bg-slate-100 text-slate-800 hover:bg-slate-200 border border-slate-200/80 active:scale-[0.98] focus-visible:ring-slate-400",
+        "bg-white text-gray-900 border border-gray-300 hover:bg-gray-50 hover:border-gray-400 active:bg-gray-100 shadow-sm focus-visible:ring-blue-600",
       outline:
-        "bg-white text-slate-700 hover:bg-slate-50 border border-slate-300 hover:border-slate-400 shadow-2xs active:scale-[0.98] focus-visible:ring-slate-400",
+        "bg-transparent text-blue-600 border border-blue-600 hover:bg-blue-50 active:bg-blue-100 focus-visible:ring-blue-600",
       destructive:
-        "bg-rose-600 text-white hover:bg-rose-700 shadow-xs active:scale-[0.98] border border-transparent focus-visible:ring-rose-500",
+        "bg-red-500 text-white hover:bg-red-600 active:bg-red-700 shadow-sm border border-transparent focus-visible:ring-red-500",
       danger:
-        "bg-rose-600 text-white hover:bg-rose-700 shadow-xs active:scale-[0.98] border border-transparent focus-visible:ring-rose-500",
+        "bg-red-500 text-white hover:bg-red-600 active:bg-red-700 shadow-sm border border-transparent focus-visible:ring-red-500",
       ghost:
-        "text-slate-600 hover:text-slate-900 hover:bg-slate-100 active:scale-[0.98] focus-visible:ring-slate-400",
-      link: "text-blue-600 underline-offset-4 hover:underline focus-visible:ring-blue-500 p-0 h-auto",
+        "bg-transparent text-gray-600 hover:text-gray-900 hover:bg-gray-100 active:bg-gray-200 focus-visible:ring-blue-600",
+      link:
+        "bg-transparent text-blue-600 p-0 h-auto font-medium underline-offset-4 hover:underline focus-visible:ring-blue-600",
     };
 
     const sizeStyles = {
-      sm: "h-8 px-3 text-xs rounded-lg gap-1.5",
-      md: "h-9.5 px-4 text-xs font-semibold rounded-xl gap-2",
-      lg: "h-11 px-5 text-sm font-semibold rounded-xl gap-2.5",
-      icon: "h-9 w-9 p-0 rounded-xl",
+      sm: "h-8 px-3 py-1.5 text-sm font-medium rounded-md gap-1.5",
+      md: "h-10 px-4 py-2.5 text-sm font-semibold rounded-lg gap-2",
+      lg: "h-12 px-6 py-3 text-base font-semibold rounded-xl gap-2.5",
+      icon: "h-10 w-10 p-0 rounded-lg justify-center",
     };
 
     return (
@@ -38,7 +39,7 @@ export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
         ref={ref}
         disabled={disabled || loading}
         className={cn(
-          "inline-flex items-center justify-center font-medium transition-all duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 select-none cursor-pointer",
+          "inline-flex items-center justify-center font-medium transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-40 select-none cursor-pointer",
           variantStyles[variant],
           sizeStyles[size],
           className

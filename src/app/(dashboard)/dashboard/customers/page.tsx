@@ -155,25 +155,25 @@ export default function CustomersPage() {
       {/* Header & Main Actions */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <div className="flex items-center gap-2">
-            <h1 className="text-xl font-bold text-slate-900 tracking-tight">Debtor Directory</h1>
+          <div className="flex items-center gap-2.5">
+            <h1 className="text-2xl font-bold text-gray-900 tracking-tight">Debtor Directory</h1>
             <Badge variant="blue" size="sm">
               {customers.length} Accounts
             </Badge>
           </div>
-          <p className="mt-0.5 text-xs text-slate-500">
+          <p className="mt-1 text-sm text-gray-600">
             Unified debtor accounts, GSTIN verification, delinquency scores, and historical payment timelines.
           </p>
         </div>
 
         <div className="flex items-center gap-2.5">
           <Button
-            variant="outline"
+            variant="secondary"
             size="sm"
             onClick={() => setRetryKey((k) => k + 1)}
-            className="gap-1.5 shadow-2xs"
+            className="gap-1.5"
           >
-            <RefreshCw className="h-3.5 w-3.5 text-slate-500" />
+            <RefreshCw className="h-4 w-4 text-gray-500" strokeWidth={1.5} />
             <span>Refresh</span>
           </Button>
 
@@ -183,9 +183,9 @@ export default function CustomersPage() {
               setCreateError(null);
               setShowCreate(true);
             }}
-            className="gap-1.5 shadow-2xs"
+            className="gap-1.5"
           >
-            <Plus className="h-3.5 w-3.5" />
+            <Plus className="h-4 w-4" strokeWidth={1.5} />
             <span>Add Customer</span>
           </Button>
         </div>
@@ -236,15 +236,15 @@ export default function CustomersPage() {
       {error && (
         <div
           role="alert"
-          className="rounded-2xl border border-rose-200 bg-rose-50 p-4 text-xs text-rose-800 flex items-start gap-3 shadow-2xs"
+          className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-800 flex items-start gap-3 shadow-xs"
         >
-          <AlertCircle className="h-4 w-4 text-rose-600 shrink-0 mt-0.5" />
+          <AlertCircle className="h-5 w-5 text-red-600 shrink-0 mt-0.5" strokeWidth={1.5} />
           <div className="flex-1">
             <p className="font-bold">Failed to load debtor records</p>
-            <p className="mt-0.5 text-rose-700">{error}</p>
+            <p className="mt-0.5 text-red-700">{error}</p>
             <button
               onClick={() => setRetryKey((n) => n + 1)}
-              className="mt-2 text-xs font-semibold text-rose-900 underline hover:text-rose-950"
+              className="mt-2 text-xs font-semibold text-red-900 underline hover:text-red-950"
             >
               Try reloading
             </button>
@@ -256,9 +256,9 @@ export default function CustomersPage() {
         <>
           {/* Duplicate Customers Merge Banner */}
           {duplicates.length > 0 && (
-            <div className="rounded-3xl border border-amber-200/90 bg-amber-50/70 p-5 shadow-2xs space-y-3">
+            <div className="rounded-xl border border-amber-200 bg-amber-50/70 p-5 shadow-xs space-y-3">
               <div className="flex items-center gap-2">
-                <Merge className="h-4 w-4 text-amber-700" />
+                <Merge className="h-4 w-4 text-amber-700" strokeWidth={1.5} />
                 <h2 className="text-xs font-bold uppercase tracking-wider text-amber-950">
                   Possible Duplicate Customer Accounts ({duplicates.length})
                 </h2>
@@ -267,7 +267,7 @@ export default function CustomersPage() {
                 Accounts with identical names or phone numbers can be merged to combine all invoices, promises, and communication timelines into a single record.
               </p>
 
-              <div className="divide-y divide-amber-200/60 rounded-2xl bg-white/80 border border-amber-200/80 overflow-hidden">
+              <div className="divide-y divide-amber-200/60 rounded-xl bg-white border border-amber-200/80 overflow-hidden">
                 {duplicates.map((group) => {
                   const keeper = [...group.members].sort(
                     (a, b) => b.invoicesCount - a.invoicesCount
@@ -284,14 +284,14 @@ export default function CustomersPage() {
                         {group.members.map((m) => (
                           <span
                             key={m.id}
-                            className={`rounded-xl border px-3 py-1 text-xs font-medium flex items-center gap-1.5 ${
+                            className={`rounded-lg border px-3 py-1 text-xs font-medium flex items-center gap-1.5 ${
                               m.id === keeper.id
-                                ? "border-blue-300 bg-blue-50 text-blue-900 shadow-2xs"
-                                : "border-slate-200 bg-white text-slate-700"
+                                ? "border-blue-300 bg-blue-50 text-blue-900 shadow-xs"
+                                : "border-gray-200 bg-white text-gray-700"
                             }`}
                           >
                             <span>{m.name}</span>
-                            <span className="text-[10px] text-slate-400 font-mono">
+                            <span className="text-[10px] text-gray-400 font-mono">
                               ({m.invoicesCount} inv)
                             </span>
                             {m.id === keeper.id && (
@@ -305,11 +305,11 @@ export default function CustomersPage() {
 
                       <Button
                         size="sm"
-                        variant="outline"
+                        variant="secondary"
                         loading={isMerging}
                         disabled={rest.length === 0}
                         onClick={() => applyMerge(keeper.id, rest.map((m) => m.id), group.key)}
-                        className="border-amber-300 bg-amber-100/60 text-amber-900 hover:bg-amber-200/80 text-xs shrink-0 self-end sm:self-auto"
+                        className="border-amber-300 bg-amber-100/60 text-amber-900 hover:bg-amber-200 text-xs shrink-0 self-end sm:self-auto"
                       >
                         Merge into {keeper.name}
                       </Button>
@@ -321,41 +321,41 @@ export default function CustomersPage() {
           )}
 
           {/* Search, Filter & Sort Bar */}
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white p-3.5 rounded-2xl border border-slate-200/90 shadow-2xs">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white p-4 rounded-xl border border-gray-200 shadow-sm">
             <form onSubmit={handleSearchSubmit} className="flex items-center gap-2 flex-1 max-w-md">
               <div className="relative flex-1">
-                <Search className="h-3.5 w-3.5 text-slate-400 absolute left-3 top-3 pointer-events-none" />
+                <Search className="h-4 w-4 text-gray-400 absolute left-3.5 top-3 pointer-events-none" strokeWidth={1.5} />
                 <input
                   type="text"
                   placeholder="Search customer name, GSTIN, email, phone…"
                   value={searchInput}
                   onChange={(e) => setSearchInput(e.target.value)}
-                  className="w-full rounded-xl border border-slate-200 bg-slate-50/60 pl-8 pr-8 py-2 text-xs font-medium text-slate-900 placeholder-slate-400 focus:bg-white focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 transition-all"
+                  className="w-full h-10 rounded-lg border border-gray-300 bg-white pl-9 pr-8 py-2 text-sm font-medium text-gray-900 placeholder-gray-400 focus:border-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-600/30 transition-all shadow-xs"
                 />
                 {searchInput && (
                   <button
                     type="button"
                     onClick={handleClearSearch}
-                    className="absolute right-2.5 top-2.5 text-slate-400 hover:text-slate-600"
+                    className="absolute right-2.5 top-2.5 text-gray-400 hover:text-gray-600 p-1"
                   >
-                    <X className="h-3.5 w-3.5" />
+                    <X className="h-4 w-4" strokeWidth={1.5} />
                   </button>
                 )}
               </div>
-              <Button type="submit" size="sm" variant="outline">
+              <Button type="submit" size="sm" variant="secondary">
                 Search
               </Button>
             </form>
 
             <div className="flex items-center gap-2">
-              <span className="text-xs font-bold text-slate-500 flex items-center gap-1 shrink-0">
-                <ArrowUpDown className="h-3.5 w-3.5" />
+              <span className="text-xs font-bold text-gray-500 flex items-center gap-1 shrink-0">
+                <ArrowUpDown className="h-3.5 w-3.5" strokeWidth={1.5} />
                 Sort:
               </span>
               <select
                 value={sortBy}
                 onChange={(e) => setSortBy(e.target.value as typeof sortBy)}
-                className="rounded-xl border border-slate-200 bg-slate-50/60 px-3 py-2 text-xs font-semibold text-slate-700 focus:bg-white focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 transition-all"
+                className="h-10 rounded-lg border border-gray-300 bg-white px-3 py-2 text-xs font-semibold text-gray-700 focus:border-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-600/30 transition-all shadow-xs"
               >
                 <option value="outstanding">Highest Outstanding</option>
                 <option value="overdue">Highest Overdue</option>
@@ -365,7 +365,7 @@ export default function CustomersPage() {
           </div>
 
           {/* Main Customers Table Card */}
-          <div className="rounded-3xl border border-slate-200/90 bg-white shadow-2xs overflow-hidden">
+          <div className="rounded-xl border border-gray-200 bg-white shadow-sm overflow-hidden">
             {sortedCustomers.length === 0 ? (
               customers.length === 0 ? (
                 <EmptyState
@@ -392,17 +392,17 @@ export default function CustomersPage() {
               <div className="overflow-x-auto">
                 <table className="min-w-full text-xs">
                   <thead>
-                    <tr className="border-b border-slate-100 bg-slate-50/80 text-slate-500">
-                      <th className="px-5 py-3 text-left font-bold uppercase tracking-wider">Customer / Debtor</th>
-                      <th className="px-5 py-3 text-right font-bold uppercase tracking-wider">Total Outstanding</th>
-                      <th className="px-5 py-3 text-right font-bold uppercase tracking-wider">Overdue Balance</th>
-                      <th className="px-5 py-3 text-center font-bold uppercase tracking-wider">Risk Score</th>
-                      <th className="px-5 py-3 text-center font-bold uppercase tracking-wider">Invoices</th>
-                      <th className="px-5 py-3 text-left font-bold uppercase tracking-wider">Last Payment</th>
-                      <th className="px-5 py-3 text-right font-bold uppercase tracking-wider">Action</th>
+                    <tr className="border-b border-gray-200 bg-gray-50 text-gray-500 text-[11px]">
+                      <th className="px-5 py-3.5 text-left font-bold uppercase tracking-wider">Customer / Debtor</th>
+                      <th className="px-5 py-3.5 text-right font-bold uppercase tracking-wider">Total Outstanding</th>
+                      <th className="px-5 py-3.5 text-right font-bold uppercase tracking-wider">Overdue Balance</th>
+                      <th className="px-5 py-3.5 text-center font-bold uppercase tracking-wider">Risk Score</th>
+                      <th className="px-5 py-3.5 text-center font-bold uppercase tracking-wider">Invoices</th>
+                      <th className="px-5 py-3.5 text-left font-bold uppercase tracking-wider">Last Payment</th>
+                      <th className="px-5 py-3.5 text-right font-bold uppercase tracking-wider">Action</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-slate-100">
+                  <tbody className="divide-y divide-gray-100">
                     {sortedCustomers.map((customer) => {
                       const isHighRisk = customer.riskScore > 70;
                       const isMedRisk = customer.riskScore > 40;
@@ -410,20 +410,20 @@ export default function CustomersPage() {
                       return (
                         <tr
                           key={customer.id}
-                          className="hover:bg-slate-50/80 transition-colors group cursor-pointer"
+                          className="hover:bg-gray-50/80 transition-colors group cursor-pointer"
                           onClick={() => {
                             router.push(`/dashboard/customers/${customer.id}`);
                           }}
                         >
-                          <td className="px-5 py-3.5">
+                          <td className="px-5 py-4">
                             <div className="flex items-center gap-3">
                               <div
-                                className={`flex h-9 w-9 items-center justify-center rounded-xl font-bold text-xs shrink-0 border ${
+                                className={`flex h-10 w-10 items-center justify-center rounded-xl font-bold text-xs shrink-0 border ${
                                   isHighRisk
-                                    ? "bg-rose-100 text-rose-800 border-rose-200"
+                                    ? "bg-red-100 text-red-700 border-red-200"
                                     : isMedRisk
-                                    ? "bg-amber-100 text-amber-900 border-amber-200"
-                                    : "bg-emerald-100 text-emerald-800 border-emerald-200"
+                                    ? "bg-amber-100 text-amber-800 border-amber-200"
+                                    : "bg-green-100 text-green-700 border-green-200"
                                 }`}
                               >
                                 {customer.initials}
@@ -432,16 +432,16 @@ export default function CustomersPage() {
                                 <Link
                                   href={`/dashboard/customers/${customer.id}`}
                                   onClick={(e) => e.stopPropagation()}
-                                  className="font-bold text-slate-900 text-xs hover:text-blue-600 transition-colors truncate block"
+                                  className="font-bold text-gray-900 text-sm hover:text-blue-600 transition-colors truncate block"
                                 >
                                   {customer.name}
                                 </Link>
-                                <div className="flex items-center gap-2 mt-0.5 text-[11px] text-slate-500">
+                                <div className="flex items-center gap-2 mt-0.5 text-xs text-gray-500">
                                   <span>{customer.email ?? customer.phone ?? "No contact details"}</span>
                                   {customer.gstin && (
                                     <>
                                       <span>•</span>
-                                      <span className="font-mono text-slate-600 font-medium">
+                                      <span className="font-mono text-gray-600 font-medium">
                                         {customer.gstin}
                                       </span>
                                     </>
@@ -451,23 +451,23 @@ export default function CustomersPage() {
                             </div>
                           </td>
 
-                          <td className="px-5 py-3.5 text-right">
-                            <span className="font-mono font-bold text-slate-900 text-xs">
+                          <td className="px-5 py-4 text-right">
+                            <span className="font-mono font-bold text-gray-900 text-sm">
                               {formatINR(customer.totalOutstanding)}
                             </span>
                           </td>
 
-                          <td className="px-5 py-3.5 text-right">
+                          <td className="px-5 py-4 text-right">
                             <span
-                              className={`font-mono font-bold text-xs ${
-                                customer.totalOverdue > 0 ? "text-rose-600" : "text-slate-400"
+                              className={`font-mono font-bold text-sm ${
+                                customer.totalOverdue > 0 ? "text-red-600" : "text-gray-400"
                               }`}
                             >
                               {customer.totalOverdue > 0 ? formatINR(customer.totalOverdue) : "₹0"}
                             </span>
                           </td>
 
-                          <td className="px-5 py-3.5 text-center">
+                          <td className="px-5 py-4 text-center">
                             <Badge
                               variant={isHighRisk ? "danger" : isMedRisk ? "warning" : "success"}
                               size="sm"
@@ -476,11 +476,11 @@ export default function CustomersPage() {
                             </Badge>
                           </td>
 
-                          <td className="px-5 py-3.5 text-center font-mono font-semibold text-slate-700">
+                          <td className="px-5 py-4 text-center font-mono font-semibold text-gray-700 text-xs">
                             {customer.invoicesCount}
                           </td>
 
-                          <td className="px-5 py-3.5 text-slate-500 text-[11px]">
+                          <td className="px-5 py-4 text-gray-500 text-xs">
                             {customer.lastPaymentAt
                               ? new Date(customer.lastPaymentAt).toLocaleDateString("en-IN", {
                                   day: "numeric",
@@ -490,11 +490,11 @@ export default function CustomersPage() {
                               : "No prior payments"}
                           </td>
 
-                          <td className="px-5 py-3.5 text-right" onClick={(e) => e.stopPropagation()}>
+                          <td className="px-5 py-4 text-right" onClick={(e) => e.stopPropagation()}>
                             <Link href={`/dashboard/customers/${customer.id}`}>
-                              <Button variant="ghost" size="sm" className="h-7 px-2 text-slate-500 hover:text-blue-600">
+                              <Button variant="ghost" size="sm" className="h-8 px-2.5 text-gray-500 hover:text-blue-600">
                                 <span>360 View</span>
-                                <ChevronRight className="h-3.5 w-3.5 ml-1" />
+                                <ChevronRight className="h-4 w-4 ml-1 text-gray-400" strokeWidth={1.5} />
                               </Button>
                             </Link>
                           </td>
@@ -518,36 +518,36 @@ export default function CustomersPage() {
           onKeyDown={(e) => {
             if (e.key === "Escape") setShowCreate(false);
           }}
-          className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/40 p-4 backdrop-blur-xs animate-in fade-in duration-150"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 p-4 backdrop-blur-xs animate-in fade-in duration-150"
         >
-          <div className="w-full max-w-md rounded-3xl bg-white shadow-2xl border border-slate-200/90 overflow-hidden">
-            <div className="p-5 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
+          <div className="w-full max-w-md rounded-xl bg-white shadow-2xl border border-gray-200 overflow-hidden">
+            <div className="p-5 border-b border-gray-100 flex items-center justify-between bg-gray-50/60">
               <div>
-                <h3 id="create-customer-title" className="font-bold text-slate-900 text-base">
+                <h3 id="create-customer-title" className="font-bold text-gray-900 text-base">
                   Add New Debtor Account
                 </h3>
-                <p className="text-xs text-slate-500 mt-0.5">
+                <p className="text-xs text-gray-500 mt-0.5">
                   Creates a customer master profile with zero initial ledger dues.
                 </p>
               </div>
               <button
                 onClick={() => setShowCreate(false)}
-                className="rounded-xl p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-600 transition"
+                className="rounded-lg p-1.5 text-gray-400 hover:bg-gray-100 hover:text-gray-600 transition"
               >
-                <X className="h-4 w-4" />
+                <X className="h-4 w-4" strokeWidth={1.5} />
               </button>
             </div>
 
             {createError && (
-              <div className="mx-5 mt-4 rounded-xl bg-rose-50 p-3 text-xs text-rose-800 border border-rose-200 flex items-center gap-2">
-                <AlertCircle className="h-4 w-4 text-rose-600 shrink-0" />
+              <div className="mx-5 mt-4 rounded-xl bg-red-50 p-3 text-xs text-red-800 border border-red-200 flex items-center gap-2">
+                <AlertCircle className="h-4 w-4 text-red-600 shrink-0" strokeWidth={1.5} />
                 <span>{createError}</span>
               </div>
             )}
 
             <form onSubmit={submitCreate} className="p-5 space-y-3.5">
               <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">
+                <label className="block text-xs font-bold text-gray-700 mb-1">
                   Customer / Business Name *
                 </label>
                 <input
@@ -557,58 +557,58 @@ export default function CustomersPage() {
                   value={createForm.name}
                   onChange={(e) => setCreateForm({ ...createForm, name: e.target.value })}
                   placeholder="e.g. Acme Industrial Solutions Pvt Ltd"
-                  className="w-full rounded-xl border border-slate-200 bg-slate-50/50 px-3.5 py-2 text-xs font-medium focus:bg-white focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 transition-all"
+                  className="w-full h-10 rounded-lg border border-gray-300 bg-white px-3.5 py-2 text-sm font-medium text-gray-900 placeholder-gray-400 focus:border-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-600/30 transition-all shadow-xs"
                 />
               </div>
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1">Email Address</label>
+                  <label className="block text-xs font-bold text-gray-700 mb-1">Email Address</label>
                   <input
                     type="email"
                     value={createForm.email}
                     onChange={(e) => setCreateForm({ ...createForm, email: e.target.value })}
                     placeholder="accounts@acme.com"
-                    className="w-full rounded-xl border border-slate-200 bg-slate-50/50 px-3.5 py-2 text-xs font-medium focus:bg-white focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 transition-all"
+                    className="w-full h-10 rounded-lg border border-gray-300 bg-white px-3.5 py-2 text-sm font-medium text-gray-900 placeholder-gray-400 focus:border-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-600/30 transition-all shadow-xs"
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1">Phone Number</label>
+                  <label className="block text-xs font-bold text-gray-700 mb-1">Phone Number</label>
                   <input
                     type="tel"
                     value={createForm.phone}
                     onChange={(e) => setCreateForm({ ...createForm, phone: e.target.value })}
                     placeholder="+91 98765 43210"
-                    className="w-full rounded-xl border border-slate-200 bg-slate-50/50 px-3.5 py-2 text-xs font-medium focus:bg-white focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 transition-all"
+                    className="w-full h-10 rounded-lg border border-gray-300 bg-white px-3.5 py-2 text-sm font-medium text-gray-900 placeholder-gray-400 focus:border-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-600/30 transition-all shadow-xs"
                   />
                 </div>
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">GSTIN Number</label>
+                <label className="block text-xs font-bold text-gray-700 mb-1">GSTIN Number</label>
                 <input
                   value={createForm.gstin}
                   onChange={(e) => setCreateForm({ ...createForm, gstin: e.target.value })}
                   placeholder="27ABCDE1234F1Z5"
-                  className="w-full rounded-xl border border-slate-200 bg-slate-50/50 px-3.5 py-2 text-xs font-mono font-medium uppercase focus:bg-white focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 transition-all"
+                  className="w-full h-10 rounded-lg border border-gray-300 bg-white px-3.5 py-2 text-sm font-mono font-medium uppercase text-gray-900 placeholder-gray-400 focus:border-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-600/30 transition-all shadow-xs"
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">Internal Notes</label>
+                <label className="block text-xs font-bold text-gray-700 mb-1">Internal Notes</label>
                 <textarea
                   rows={2}
                   value={createForm.notes}
                   onChange={(e) => setCreateForm({ ...createForm, notes: e.target.value })}
                   placeholder="Billing terms, verified contact person, or credit limit details…"
-                  className="w-full rounded-xl border border-slate-200 bg-slate-50/50 p-3 text-xs font-medium focus:bg-white focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 resize-none transition-all"
+                  className="w-full rounded-lg border border-gray-300 bg-white p-3 text-sm font-medium text-gray-900 placeholder-gray-400 focus:border-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-600/30 resize-none transition-all shadow-xs"
                 />
               </div>
 
-              <div className="flex items-center justify-end gap-2.5 pt-3 border-t border-slate-100">
+              <div className="flex items-center justify-end gap-2.5 pt-3 border-t border-gray-100">
                 <Button
                   type="button"
-                  variant="outline"
+                  variant="secondary"
                   size="sm"
                   onClick={() => setShowCreate(false)}
                   disabled={createSaving}

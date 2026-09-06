@@ -33,6 +33,7 @@
 | `/dashboard/settings` | `(dashboard)/settings/page.tsx` | Client | `(dashboard)` | settings GET/PATCH; `/api/export`; `/api/account`; `/api/team`; `/api/audit`; `/api/billing/*` | Protected | Organization profile, business hours, Team management, Audit Log viewer, Billing & Plan tier portal, and Danger Zone |
 | `/dashboard/communications` | `(dashboard)/communications/page.tsx` | Client | `(dashboard)` | `GET/POST /api/messages`, `GET /api/messages/templates` | Protected | Multi-channel outreach hub (Email/WhatsApp/SMS), template variable preview, live gateway status, and delivery receipt logs |
 | `/dashboard/workflows` | `(dashboard)/workflows/page.tsx` | Client | `(dashboard)` | `GET/POST /api/workflows`, `POST /api/jobs/workflows-runner` | Protected | Automated Dunning Cadences management, milestone rule toggling, custom escalation rule creation, dry-run simulation table, and batch dispatch execution |
+| `/dashboard/reconciliation` | `(dashboard)/reconciliation/page.tsx` | Client | `(dashboard)` | `GET/POST /api/reconciliation` | Protected | Bank Statement 4-Tier Automated Reconciliation Hub (HDFC, ICICI, SBI, Axis, generic CSVs), UTR extraction, confidence tier match badges, and 1-click FIFO settlements |
 | `/privacy` | `privacy/page.tsx` | Server | `root` | Static legal disclosure | Public | DPDP Act 2023 & statutory privacy policy |
 | `/terms` | `terms/page.tsx` | Server | `root` | Static legal terms | Public | Commercial terms of service & MSMED recovery disclaimer |
 
@@ -54,13 +55,16 @@
 | --- | --- | --- | --- | --- |
 | `Sidebar` | `src/components/layout/Sidebar.tsx` | Client | lucide icons; nav groups (Overview, Collections, Automation, Master data, Settings); NotificationBell; GlobalSearch trigger; **logout action** | `(dashboard)/layout.tsx` |
 | `GlobalSearchModal` | `src/components/layout/GlobalSearchModal.tsx` | Client | `Ctrl+K` global command palette; instant query across customers, invoices, promises, disputes; keyboard navigation | `(dashboard)/layout.tsx` |
-| `NotificationBell` | sidebar scope | Client | `aria-haspopup`/`aria-expanded`, `role=menu`; derived feed (broken promises/disputes/due) | Sidebar |
+| `NotificationBell` | `src/components/layout/NotificationBell.tsx` | Client | `aria-haspopup`/`aria-expanded`, `role=menu`; derived feed (broken promises/disputes/due) | Sidebar |
 | `PaymentPlanModal` | `src/components/promises/payment-plan-modal.tsx` | Client | Multi-installment schedule generator, calendar frequency options, whole-INR rounding, milestone promise creation | Customer Detail, Promises |
 | `LegalNoticeModal` | `src/components/legal/legal-notice-modal.tsx` | Client | MSMED Act 2006 Section 15/16 3x RBI interest calculator & Section 138 NI Act formal demand notice generator | Customer Detail, Invoices |
-| `SendReminderModal` | `src/components/queue/send-reminder-modal.tsx` | Client | Multi-channel outreach dialog (Email/WhatsApp), template selector, 1-click dynamic UPI payment link toggle | Queue, Invoices, Customer Detail |
+| `SendReminderModal` | `src/components/queue/send-reminder-modal.tsx` | Client | Multi-channel outreach dialog (Email/WhatsApp/SMS), template selector, 1-click dynamic UPI payment link toggle | Queue, Invoices, Customer Detail |
+| `ManageModal` | `src/components/queue/manage-modal.tsx` | Client | Queue action drawer: call log, quick promise recording, dispute flagging, and customer history | Queue |
+| `AICopilotModal` | `src/components/copilot/ai-copilot-modal.tsx` | Client | AI promise extraction from call notes/emails and contextual tone-calibrated dunning generator | Queue, Customer Detail, Invoices |
 | `AuditTab` | `src/components/settings/audit-tab.tsx` | Client | Immutable organization audit trail with event filtering and JSON metadata inspector | Settings |
 | `BillingTab` | `src/components/settings/billing-tab.tsx` | Client | Subscription plan cards (`FREE`, `STARTER`, `GROWTH`, `PRO`), quota progress bars, and Stripe Checkout triggers | Settings |
 | `PlanCard` | `src/components/billing/plan-card.tsx` | Client | Tier pricing display, feature entitlement checklist, and upgrade CTA | BillingTab |
+| `UI Primitives` | `src/components/ui/*.tsx` | Client/Server | Standardized accessible primitives: `Button`, `Badge`, `Card`, `StatCard`, `Input`, `EmptyState`, `Skeleton` | Across all dashboard pages & modals |
 | `AllActionsModal` | queue page | Local | `role=dialog`/`aria-modal`/`aria-labelledby`; Escape-close + initial focus; call/log/promise-mark tabs | Queue |
 | Customer quick-actions + manage-contacts modals | customer detail | Local | dialogs w/ a11y attrs; contacts CRUD + primary | Customer detail |
 | Record-payment modal | payments page | Local | optional allocation selector | Payments |
@@ -89,6 +93,9 @@
 | `api/invoices/export/route.ts` | GET | No | Secure CSV export of invoices with CWE-1236 sanitization |
 | `api/payments/route.ts` | POST | No | Allocation (FIFO/explicit), reversal, dup-guard |
 | `api/payments/[id]/allocate/route.ts` | POST | No | Manual allocation of unallocated payments |
+| `api/reconciliation/route.ts` | GET/POST | No | 4-tier bank statement reconciliation (HDFC, ICICI, SBI, Axis, generic CSVs) |
+| `api/copilot/extract/route.ts` | POST | No | Smart promise extraction from call logs/emails/notes |
+| `api/copilot/draft/route.ts` | POST | No | Tone-calibrated contextual collections drafting |
 | `api/promises/route.ts`, `api/promises/[id]/route.ts` | POST/PATCH | No | Promise create + manage |
 | `api/payment-plans/route.ts` | GET/POST | No | Multi-installment payment plan schedule engine |
 | `api/payment-links/route.ts` | POST | No | Dynamic 1-click payment links & NPCI UPI URIs |
@@ -131,6 +138,12 @@
 | `src/lib/legal-notices.ts` | Formal statutory demand notice generator for MSMED Act 2006 and Section 138 Negotiable Instruments Act claims |
 | `src/lib/email.ts` | Multi-transport Email adapter (Resend API provider with deterministic mock simulation) |
 | `src/lib/whatsapp.ts` | Multi-gateway WhatsApp adapter (Meta Cloud API, Interakt, Gupshup, Twilio with simulation mode) |
+| `src/lib/sms.ts` | Indian TRAI DLT compliant SMS gateway adapter (Fast2SMS/MSG91/Twilio with 19-digit entity/template ID verification) |
+| `src/lib/bank-reconciliation.ts` | 4-tier automated bank statement reconciliation engine (HDFC, ICICI, SBI, Axis, generic CSVs), UTR regex extraction |
+| `src/lib/payment-webhooks.ts` | Timing-safe HMAC-SHA256 signature verification (`crypto.timingSafeEqual`) for Razorpay, Cashfree & Stripe |
+| `src/lib/copilot.ts` | AI and heuristic promise extraction & tone-calibrated dunning drafting |
+| `src/lib/security.ts` | CWE-1236 CSV spreadsheet formula injection defense and payload sanitization |
+| `src/lib/prisma.ts` | Dual-pooler Prisma 7 client initialization (transaction PgBouncer + direct migration) |
 | `src/lib/templates.ts` | Template interpolation engine (`{{customerName}}`, `{{amountDue}}`, `{{paymentLink}}`, `{{upiQrString}}`) |
 | `src/lib/billing.ts` | Subscription quotas (`FREE`, `STARTER`, `GROWTH`, `PRO`), monthly usage tracking, Stripe Checkout integration |
 | `src/lib/crypto.ts` | AES-256-GCM envelope encryption with unique IV and authentication tags for integration credentials |
@@ -149,7 +162,7 @@
 
 ## Key Findings
 
-1. **No mock data remains.** Every dashboard screen and every domain API operates on real, tenant-scoped database data (verified `tsc`/lint/build + 51/51 tests).
+1. **No mock data remains.** Every dashboard screen and every domain API operates on real, tenant-scoped database data (verified `tsc`/lint/build + 209/209 unit tests across 27 suites).
 2. **Customer detail respects the route param** — `/customers/[id]` fetches by id and 404s when absent.
 3. **Promise page uses the schema enum contract** (ACTIVE/KEPT/BROKEN/RENEGOTIATED via `statusView`) — the old `active/kept/broken` mismatch is gone.
 4. **Loading/error/empty/retry states present** on dashboard, invoices, customers, queue, analytics, promises, payments, disputes, settings; destructive actions use confirmations.

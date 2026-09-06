@@ -47,6 +47,20 @@ describe("PLAN_DEFINITIONS", () => {
     expect(PLAN_DEFINITIONS.PRO.limits.allowedChannels).toContain("CALL");
   });
 
+  it("configures AI copilot quotas monotonically across tiers", () => {
+    expect(PLAN_DEFINITIONS.FREE.limits.hasAiCopilot).toBe(false);
+    expect(PLAN_DEFINITIONS.FREE.limits.monthlyAiDraftQuota).toBe(0);
+
+    expect(PLAN_DEFINITIONS.STARTER.limits.hasAiCopilot).toBe(true);
+    expect(PLAN_DEFINITIONS.STARTER.limits.monthlyAiDraftQuota).toBe(100);
+
+    expect(PLAN_DEFINITIONS.GROWTH.limits.hasAiCopilot).toBe(true);
+    expect(PLAN_DEFINITIONS.GROWTH.limits.monthlyAiDraftQuota).toBe(1000);
+
+    expect(PLAN_DEFINITIONS.PRO.limits.hasAiCopilot).toBe(true);
+    expect(PLAN_DEFINITIONS.PRO.limits.monthlyAiDraftQuota).toBeGreaterThanOrEqual(999999);
+  });
+
   it("calculates annual pricing with appropriate discounts", () => {
     for (const tier of ["STARTER", "GROWTH", "PRO"] as const) {
       const p = PLAN_DEFINITIONS[tier];

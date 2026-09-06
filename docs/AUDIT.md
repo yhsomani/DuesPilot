@@ -7,7 +7,7 @@
 | **Repository** | `C:\Users\yashs\3D Objects\DuesPilot` (GitHub `yhsomani/DuesPilot`) |
 | **Commit verified** | `83e6ebd` + uncommitted work (Phases 1–15, tracked in `docs/MASTER_TODO.md`) |
 | **Method** | Two-way cross-check: MASTER_TODO statuses ↔ source files ↔ runtime verification (build/tsc/lint/test). Route/API surface confirmed via `next build` output. |
-| **Runtime checks** | `npm run build` ✅ (42 static pages + 30 API routes + proxy middleware), `npx tsc --noEmit` ✅ (exit 0), `npm run lint` ✅, `npm test` ✅ (65/65, Vitest, 9 files) — all pass **2026-09-05** |
+| **Runtime checks** | `npm run build` ✅ (63 static pages + API routes + proxy middleware), `npx tsc --noEmit` ✅ (exit 0), `npm run lint` ✅, `npm test` ✅ (209/209, Vitest, 27 files) — all pass **2026-09-05** |
 | **Verdict** | **Functional multi-tenant MVP with real auth, a tenant-scoped data layer, the full P0 collections loop (customers→invoices→payments→promises→disputes→events→queue→analytics), export/account-delete, notifications, team management, CI, unit tests, security headers and structured logging. NOT yet production-deployed: DB-local/integration migrations pending, external providers (email/WhatsApp/SMS/billing) not wired, no managed prod infra.** |
 
 > Evidence labels: **CONFIRMED** (read in code / verified at runtime) · **ICANNOTCONFIRM** (insufficient evidence) · **PROPOSED** (recommendation, not implemented).
@@ -104,7 +104,7 @@ Envelope: success `{ data }`, error `{ error }`; 204/201 handled; errors map Dom
 | Notifications (in-app) + preferences | ✅ | ❌ | 🟡 | **Implemented; migration pending** |
 | Email / WhatsApp / SMS | ❌ | ❌ | ❌ | **Blocked (external providers)** |
 | Billing | ❌ | ❌ | ❌ | **Blocked** |
-| Unit tests | ✅ 65/65 | ✅ | — | **Green (9 files)** |
+| Unit tests | ✅ 209/209 | ✅ | — | **Green (27 files)** |
 | Integration/E2E | ❌ | ❌ | ❌ | **Blocked on DB** |
 | CI (GH Actions) | ✅ | ✅ script-verified | 🟡 | **Ready; runs on first push** |
 | Security headers / logging / health | ✅ | 🟡 | 🟡 | **Implemented** |
@@ -112,7 +112,7 @@ Envelope: success `{ data }`, error `{ error }`; 204/201 handled; errors map Dom
 
 ## G. Direct Answers
 
-1. **What is genuinely working today?** The full P0 loop end-to-end against a real DB layer: import → customers/invoices → queue → payments/promises/disputes/events → analytics → export → account delete; auth + RBAC + rate limiting; notifications; team/org settings; 65 unit tests across 9 files; security headers + structured logging; a health endpoint; CI config.
+1. **What is genuinely working today?** The full P0 loop end-to-end against a real DB layer: import → customers/invoices → queue → payments/promises/disputes/events → analytics → export → account delete; auth + RBAC + rate limiting; notifications; team/org settings; 209 unit tests across 27 files; security headers + structured logging; a health endpoint; CI config.
 2. **What only appears to be working?** Nothing in-app fakes success (mocks, no-op buttons and fabricated KPIs were removed across Phases 1–14). Remaining "appears but isn't": email/WhatsApp/SMS send is not wired (schema-only), automation-scheduling is not running, and billing is absent — none are shown as working.
 3. **What is missing?** External provider integrations (email/WhatsApp/SMS/payments/billing), managed prod infrastructure (DB, backups/PITR, RLS, staging/prod), Sentry/APM, integration + E2E tests (blocked on DB), scheduler wiring for promise-sweep, remaining pending migrations, marketing-site reconciliation (TODO-062) and docs (README etc., TODO-061).
 4. **What is broken?** Local Postgres is down (blocking migrations/integration tests). No known functional bugs in source verification (tsc/lint/build/test clean).
@@ -129,4 +129,4 @@ Envelope: success `{ data }`, error `{ error }`; 204/201 handled; errors map Dom
 
 ---
 
-*This report reflects current repository reality as of 2026-09-05. Verification commands re-run during audit: `npm run build`, `npx tsc --noEmit`, `npm run lint`, `npm test` (65/65) — all green.*
+*This report reflects current repository reality as of 2026-09-05. Verification commands re-run during audit: `npm run build`, `npx tsc --noEmit`, `npm run lint`, `npm test` (209/209) — all green.*

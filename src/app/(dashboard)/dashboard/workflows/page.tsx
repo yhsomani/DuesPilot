@@ -17,6 +17,9 @@ import {
   FileCheck,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { StatCard } from "@/components/ui/stat-card";
 
 interface WorkflowRule {
   id: string;
@@ -280,110 +283,102 @@ export default function WorkflowsPage() {
       {/* Page Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <div className="flex items-center gap-2">
-            <h1 className="text-xl font-bold text-slate-900 tracking-tight">
+          <div className="flex items-center gap-2.5">
+            <h1 className="text-2xl font-bold text-gray-900 tracking-tight">
               Automated Dunning Cadences
             </h1>
-            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200/60">
-              <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
+            <Badge variant="success" size="sm">
               Active Engine
-            </span>
+            </Badge>
           </div>
-          <p className="text-xs text-slate-500 mt-1">
+          <p className="text-sm text-gray-600 mt-1">
             Configure multi-channel automated collection workflows, time-relative milestones, and statutory MSME escalation steps.
           </p>
         </div>
 
-        <div className="flex items-center gap-2">
-          <button
-            type="button"
+        <div className="flex items-center gap-2.5">
+          <Button
+            variant="secondary"
+            size="sm"
             onClick={handleDryRun}
             disabled={dryRunLoading}
-            className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 shadow-2xs transition disabled:opacity-50"
+            className="gap-1.5"
           >
-            <Play className={cn("h-3.5 w-3.5 text-blue-600", dryRunLoading && "animate-spin")} />
+            <Play className={cn("h-4 w-4 text-blue-600", dryRunLoading && "animate-spin")} strokeWidth={1.5} />
             <span>Test Run (Dry Run)</span>
-          </button>
+          </Button>
 
-          <button
-            type="button"
+          <Button
+            size="sm"
             onClick={() => setLiveModalOpen(true)}
-            className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold bg-blue-600 text-white hover:bg-blue-700 shadow-xs transition"
+            className="gap-1.5 bg-blue-600 hover:bg-blue-700 text-white"
           >
-            <Send className="h-3.5 w-3.5" />
+            <Send className="h-4 w-4" strokeWidth={1.5} />
             <span>Execute Cadence Batch</span>
-          </button>
+          </Button>
 
-          <button
-            type="button"
+          <Button
+            size="sm"
             onClick={() => setAddRuleModalOpen(true)}
-            className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold bg-slate-900 text-white hover:bg-slate-800 shadow-xs transition"
+            className="gap-1.5 bg-gray-900 hover:bg-gray-800 text-white"
           >
-            <Plus className="h-3.5 w-3.5" />
+            <Plus className="h-4 w-4" strokeWidth={1.5} />
             <span>Add Rule</span>
-          </button>
+          </Button>
         </div>
       </div>
 
       {/* Security & Guard KPI Strip */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <div className="bg-white p-4 rounded-2xl border border-slate-200/80 shadow-2xs flex items-center gap-3.5">
-          <div className="h-10 w-10 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center shrink-0">
-            <Workflow className="h-5 w-5" />
-          </div>
-          <div>
-            <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">Active Cadence Plan</span>
-            <span className="text-sm font-bold text-slate-900">MSME 45-Day Statutory</span>
-          </div>
-        </div>
-
-        <div className="bg-white p-4 rounded-2xl border border-slate-200/80 shadow-2xs flex items-center gap-3.5">
-          <div className="h-10 w-10 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0">
-            <ShieldCheck className="h-5 w-5" />
-          </div>
-          <div>
-            <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">Dispute & Promise Guard</span>
-            <span className="text-sm font-bold text-emerald-700">100% Guarded</span>
-          </div>
-        </div>
-
-        <div className="bg-white p-4 rounded-2xl border border-slate-200/80 shadow-2xs flex items-center gap-3.5">
-          <div className="h-10 w-10 rounded-xl bg-purple-50 text-purple-600 flex items-center justify-center shrink-0">
-            <Clock className="h-5 w-5" />
-          </div>
-          <div>
-            <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">Outreach Throttle</span>
-            <span className="text-sm font-bold text-slate-900">24h Customer Cooldown</span>
-          </div>
-        </div>
+        <StatCard
+          title="Active Cadence Plan"
+          value="MSME 45-Day"
+          subtitle="Standard statutory schedule"
+          icon={Workflow}
+          variant="blue"
+        />
+        <StatCard
+          title="Dispute & Promise Guard"
+          value="100% Guarded"
+          subtitle="Zero dunning to disputed accounts"
+          icon={ShieldCheck}
+          variant="success"
+        />
+        <StatCard
+          title="Outreach Throttle"
+          value="24h Cooldown"
+          subtitle="Maximum 1 automated touch / 24 hrs"
+          icon={Clock}
+          variant="purple"
+        />
       </div>
 
       {/* Live Run Completion Banner */}
       {liveRunResult && (
-        <div className="bg-emerald-50 border border-emerald-200 rounded-2xl p-4 text-emerald-900 flex items-start gap-3 shadow-2xs animate-fadeIn">
-          <CheckCircle2 className="h-5 w-5 text-emerald-600 mt-0.5 shrink-0" />
+        <div className="bg-green-50 border border-green-200 rounded-xl p-4 text-green-900 flex items-start gap-3 shadow-xs animate-in fade-in">
+          <CheckCircle2 className="h-5 w-5 text-green-600 mt-0.5 shrink-0" strokeWidth={1.5} />
           <div className="flex-1">
-            <h4 className="text-sm font-bold text-emerald-900">Cadence Execution Complete</h4>
-            <p className="text-xs text-emerald-700 mt-0.5">
-              Evaluated {liveRunResult.evaluatedCount} invoices and Dispatched {liveRunResult.sentCount} automated outreach messages across tenant debtors.
+            <h4 className="text-sm font-bold text-green-900">Cadence Execution Complete</h4>
+            <p className="text-xs text-green-700 mt-0.5">
+              Evaluated {liveRunResult.evaluatedCount} invoices and dispatched {liveRunResult.sentCount} automated outreach messages across tenant debtors.
             </p>
           </div>
           <button
             type="button"
             onClick={() => setLiveRunResult(null)}
-            className="text-emerald-700 hover:text-emerald-900"
+            className="text-green-700 hover:text-green-900 p-1"
           >
-            <X className="h-4 w-4" />
+            <X className="h-4 w-4" strokeWidth={1.5} />
           </button>
         </div>
       )}
 
       {/* Dry Run Simulation Result */}
       {dryRunResult && (
-        <div className="bg-blue-50/60 border border-blue-200/80 rounded-2xl p-4 text-blue-900 space-y-3 shadow-2xs animate-fadeIn">
+        <div className="bg-blue-50/60 border border-blue-200/80 rounded-xl p-4 text-blue-900 space-y-3 shadow-xs animate-in fade-in">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <FileCheck className="h-5 w-5 text-blue-600 shrink-0" />
+              <FileCheck className="h-5 w-5 text-blue-600 shrink-0" strokeWidth={1.5} />
               <div>
                 <h4 className="text-sm font-bold text-blue-900">Simulation Complete (Dry Run)</h4>
                 <p className="text-xs text-blue-700 mt-0.5">
@@ -394,17 +389,17 @@ export default function WorkflowsPage() {
             <button
               type="button"
               onClick={() => setDryRunResult(null)}
-              className="text-blue-700 hover:text-blue-900"
+              className="text-blue-700 hover:text-blue-900 p-1"
             >
-              <X className="h-4 w-4" />
+              <X className="h-4 w-4" strokeWidth={1.5} />
             </button>
           </div>
 
           {dryRunResult.matches && dryRunResult.matches.length > 0 && (
-            <div className="bg-white rounded-xl border border-blue-100 overflow-hidden shadow-2xs">
+            <div className="bg-white rounded-xl border border-blue-100 overflow-hidden shadow-xs">
               <div className="overflow-x-auto">
                 <table className="w-full text-left text-xs">
-                  <thead className="bg-slate-50 border-b border-slate-100 text-slate-500 font-semibold">
+                  <thead className="bg-gray-50 border-b border-gray-100 text-gray-600 font-semibold">
                     <tr>
                       <th className="px-3.5 py-2.5">Invoice #</th>
                       <th className="px-3.5 py-2.5">Customer</th>
@@ -414,28 +409,24 @@ export default function WorkflowsPage() {
                       <th className="px-3.5 py-2.5">Recipient</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-slate-100">
+                  <tbody className="divide-y divide-gray-100">
                     {dryRunResult.matches.map((m, idx) => (
-                      <tr key={idx} className="hover:bg-slate-50/80 transition">
-                        <td className="px-3.5 py-2.5 font-bold text-slate-900">{m.invoiceNumber}</td>
-                        <td className="px-3.5 py-2.5 font-medium text-slate-700">{m.customerName}</td>
-                        <td className="px-3.5 py-2.5 font-semibold text-slate-900">
+                      <tr key={idx} className="hover:bg-gray-50/80 transition">
+                        <td className="px-3.5 py-2.5 font-bold font-mono text-gray-900">{m.invoiceNumber}</td>
+                        <td className="px-3.5 py-2.5 font-medium text-gray-700">{m.customerName}</td>
+                        <td className="px-3.5 py-2.5 font-semibold font-mono text-gray-900">
                           ₹{m.outstandingAmount.toLocaleString("en-IN")}
                         </td>
                         <td className="px-3.5 py-2.5 text-blue-700 font-medium">{m.ruleName}</td>
                         <td className="px-3.5 py-2.5">
-                          <span
-                            className={cn(
-                              "inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold",
-                              m.channel === "WHATSAPP"
-                                ? "bg-emerald-50 text-emerald-700"
-                                : "bg-blue-50 text-blue-700"
-                            )}
+                          <Badge
+                            variant={m.channel === "WHATSAPP" ? "success" : "blue"}
+                            size="sm"
                           >
                             {m.channel}
-                          </span>
+                          </Badge>
                         </td>
-                        <td className="px-3.5 py-2.5 text-slate-500 font-mono text-[11px]">
+                        <td className="px-3.5 py-2.5 text-gray-500 font-mono text-[11px]">
                           {m.recipient || "—"}
                         </td>
                       </tr>
@@ -449,90 +440,74 @@ export default function WorkflowsPage() {
       )}
 
       {/* Cadence Rules Table */}
-      <div className="bg-white rounded-2xl border border-slate-200/80 shadow-2xs overflow-hidden">
-        <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between">
+      <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+        <div className="px-5 py-4 border-b border-gray-100 flex items-center justify-between">
           <div>
-            <h3 className="text-sm font-bold text-slate-900">Configured Cadence Rules</h3>
-            <p className="text-xs text-slate-500 mt-0.5">
+            <h3 className="text-sm font-bold text-gray-900">Configured Cadence Rules</h3>
+            <p className="text-xs text-gray-500 mt-0.5">
               Rules execute automatically in sequential priority order when invoices cross relative aging milestones.
             </p>
           </div>
-          <button
-            type="button"
+          <Button
+            variant="secondary"
+            size="sm"
             onClick={() => setRefreshKey((k) => k + 1)}
-            className="p-1.5 text-slate-400 hover:text-slate-600 rounded-lg hover:bg-slate-50 transition"
+            className="p-1.5 h-8 w-8"
           >
-            <RefreshCw className={cn("h-4 w-4", loading && "animate-spin")} />
-          </button>
+            <RefreshCw className={cn("h-4 w-4 text-gray-500", loading && "animate-spin")} strokeWidth={1.5} />
+          </Button>
         </div>
 
-        <div className="divide-y divide-slate-100">
+        <div className="divide-y divide-gray-100">
           {activeRules.map((rule, idx) => (
             <div
               key={rule.id || idx}
-              className="p-4 sm:px-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 hover:bg-slate-50/60 transition"
+              className="p-4 sm:px-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 hover:bg-gray-50/60 transition"
             >
               <div className="flex items-start sm:items-center gap-3.5">
                 <div
                   className={cn(
-                    "h-9 w-9 rounded-xl flex items-center justify-center shrink-0",
+                    "h-9 w-9 rounded-xl flex items-center justify-center shrink-0 border",
                     rule.channel === "WHATSAPP"
-                      ? "bg-emerald-50 text-emerald-600 border border-emerald-100"
-                      : "bg-blue-50 text-blue-600 border border-blue-100"
+                      ? "bg-green-50 text-green-600 border-green-200"
+                      : "bg-blue-50 text-blue-600 border-blue-200"
                   )}
                 >
                   {rule.channel === "WHATSAPP" ? (
-                    <MessageSquare className="h-4 w-4" />
+                    <MessageSquare className="h-4 w-4" strokeWidth={1.5} />
                   ) : (
-                    <Mail className="h-4 w-4" />
+                    <Mail className="h-4 w-4" strokeWidth={1.5} />
                   )}
                 </div>
 
                 <div>
                   <div className="flex items-center gap-2 flex-wrap">
-                    <h4 className="text-xs font-bold text-slate-900">{rule.name}</h4>
-                    <span
-                      className={cn(
-                        "px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider",
-                        rule.triggerType === "DUE_SOON"
-                          ? "bg-amber-50 text-amber-700 border border-amber-200/60"
-                          : "bg-rose-50 text-rose-700 border border-rose-200/60"
-                      )}
+                    <h4 className="text-xs font-bold text-gray-900">{rule.name}</h4>
+                    <Badge
+                      variant={rule.triggerType === "DUE_SOON" ? "warning" : "danger"}
+                      size="sm"
                     >
                       {rule.daysRelative < 0
                         ? `T${rule.daysRelative} Days (Pre-Due)`
                         : `T+${rule.daysRelative} Days (Overdue)`}
-                    </span>
+                    </Badge>
                     {rule.includePaymentLink && (
-                      <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-slate-100 text-slate-600">
+                      <Badge variant="neutral" size="sm">
                         Dynamic Payment Link
-                      </span>
+                      </Badge>
                     )}
                   </div>
-                  <p className="text-[11px] text-slate-500 mt-1">
-                    Channel: <span className="font-semibold text-slate-700">{rule.channel}</span> · Minimum:{" "}
-                    <span className="font-semibold text-slate-700">₹{rule.minAmount || 500}</span>
+                  <p className="text-[11px] text-gray-500 mt-1">
+                    Channel: <span className="font-semibold text-gray-700">{rule.channel}</span> · Minimum:{" "}
+                    <span className="font-semibold text-gray-700 font-mono">₹{rule.minAmount || 500}</span>
                   </p>
                 </div>
               </div>
 
               <div className="flex items-center gap-3 self-end sm:self-center">
-                <span
-                  className={cn(
-                    "inline-flex items-center gap-1 px-2.5 py-1 rounded-xl text-xs font-semibold",
-                    rule.enabled
-                      ? "bg-emerald-50 text-emerald-700 border border-emerald-200/80"
-                      : "bg-slate-100 text-slate-500"
-                  )}
-                >
-                  <span
-                    className={cn(
-                      "h-1.5 w-1.5 rounded-full",
-                      rule.enabled ? "bg-emerald-500" : "bg-slate-400"
-                    )}
-                  />
+                <Badge variant={rule.enabled ? "success" : "neutral"} size="sm">
                   {rule.enabled ? "Active" : "Paused"}
-                </span>
+                </Badge>
               </div>
             </div>
           ))}
@@ -541,48 +516,51 @@ export default function WorkflowsPage() {
 
       {/* Live Cadence Batch Confirmation Modal */}
       {liveModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/40 backdrop-blur-xs">
-          <div role="dialog" className="w-full max-w-md bg-white rounded-2xl shadow-2xl border border-slate-200 p-6 space-y-4 animate-scaleUp">
-            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-              <div className="flex items-center gap-2 text-slate-900">
-                <Send className="h-5 w-5 text-blue-600" />
-                <h3 className="text-sm font-bold">Execute Live Cadence Batch</h3>
+        <div
+          role="dialog"
+          aria-modal="true"
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-xs animate-in fade-in"
+        >
+          <div className="w-full max-w-md bg-white rounded-xl shadow-xl border border-gray-200 p-6 space-y-4">
+            <div className="flex items-center justify-between border-b border-gray-100 pb-3">
+              <div className="flex items-center gap-2 text-gray-900">
+                <Send className="h-5 w-5 text-blue-600" strokeWidth={1.5} />
+                <h3 className="text-base font-bold">Execute Live Cadence Batch</h3>
               </div>
               <button
                 type="button"
                 onClick={() => setLiveModalOpen(false)}
-                className="text-slate-400 hover:text-slate-600"
+                className="text-gray-400 hover:text-gray-600 p-1"
               >
-                <X className="h-4 w-4" />
+                <X className="h-4 w-4" strokeWidth={1.5} />
               </button>
             </div>
 
-            <p className="text-xs text-slate-600 leading-relaxed">
+            <p className="text-xs text-gray-600 leading-relaxed">
               This will evaluate all active customer invoices across your organization against the 45-day cadence rules and dispatch live Email and WhatsApp outreach with dynamic payment links.
             </p>
 
             <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 text-[11px] text-amber-800 flex items-start gap-2">
-              <AlertTriangle className="h-4 w-4 text-amber-600 shrink-0 mt-0.5" />
+              <AlertTriangle className="h-4 w-4 text-amber-600 shrink-0 mt-0.5" strokeWidth={1.5} />
               <span>Invoices with active disputes or unexpired promises to pay are safely bypassed.</span>
             </div>
 
-            <div className="flex items-center justify-end gap-2 pt-2">
-              <button
-                type="button"
+            <div className="flex items-center justify-end gap-2.5 pt-2">
+              <Button
+                variant="secondary"
+                size="sm"
                 onClick={() => setLiveModalOpen(false)}
-                className="px-3.5 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-100 rounded-xl transition"
               >
                 Cancel
-              </button>
-              <button
-                type="button"
+              </Button>
+              <Button
+                size="sm"
                 onClick={handleExecuteLive}
-                disabled={liveRunning}
-                className="px-4 py-2 text-xs font-semibold bg-blue-600 text-white hover:bg-blue-700 rounded-xl shadow-xs transition disabled:opacity-50 flex items-center gap-1.5"
+                loading={liveRunning}
+                className="gap-1.5 bg-blue-600 hover:bg-blue-700 text-white"
               >
-                {liveRunning && <RefreshCw className="h-3.5 w-3.5 animate-spin" />}
                 <span>Confirm & Dispatch</span>
-              </button>
+              </Button>
             </div>
           </div>
         </div>
@@ -590,26 +568,30 @@ export default function WorkflowsPage() {
 
       {/* Add Escalation Rule Modal */}
       {addRuleModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/40 backdrop-blur-xs">
-          <div role="dialog" className="w-full max-w-md bg-white rounded-2xl shadow-2xl border border-slate-200 p-6 space-y-4 animate-scaleUp">
-            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-              <div className="flex items-center gap-2 text-slate-900">
-                <Plus className="h-5 w-5 text-blue-600" />
-                <h3 className="text-sm font-bold">Add Cadence Escalation Rule</h3>
+        <div
+          role="dialog"
+          aria-modal="true"
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-xs animate-in fade-in"
+        >
+          <div className="w-full max-w-md bg-white rounded-xl shadow-xl border border-gray-200 p-6 space-y-4">
+            <div className="flex items-center justify-between border-b border-gray-100 pb-3">
+              <div className="flex items-center gap-2 text-gray-900">
+                <Plus className="h-5 w-5 text-blue-600" strokeWidth={1.5} />
+                <h3 className="text-base font-bold">Add Cadence Escalation Rule</h3>
               </div>
               <button
                 type="button"
                 onClick={() => setAddRuleModalOpen(false)}
-                className="text-slate-400 hover:text-slate-600"
+                className="text-gray-400 hover:text-gray-600 p-1"
               >
-                <X className="h-4 w-4" />
+                <X className="h-4 w-4" strokeWidth={1.5} />
               </button>
             </div>
 
             <form onSubmit={handleSaveRule} className="space-y-3.5">
               <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">
-                  Rule Name
+                <label className="block text-xs font-bold text-gray-700 mb-1">
+                  Rule Name *
                 </label>
                 <input
                   type="text"
@@ -617,14 +599,14 @@ export default function WorkflowsPage() {
                   value={newRule.name}
                   onChange={(e) => setNewRule({ ...newRule, name: e.target.value })}
                   placeholder="3-Day Overdue Courtesy Ping"
-                  className="w-full rounded-xl border border-slate-200 px-3 py-2 text-xs text-slate-900 focus:outline-hidden focus:ring-2 focus:ring-blue-500"
+                  className="w-full h-10 rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm font-medium text-gray-900 focus:border-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-600/30 transition-all shadow-xs"
                 />
               </div>
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-xs font-semibold text-slate-700 mb-1">
-                    Trigger Type
+                  <label className="block text-xs font-bold text-gray-700 mb-1">
+                    Trigger Type *
                   </label>
                   <select
                     value={newRule.triggerType}
@@ -634,7 +616,7 @@ export default function WorkflowsPage() {
                         triggerType: e.target.value as "DUE_SOON" | "OVERDUE" | "PROMISE_BROKEN" | "HIGH_RISK",
                       })
                     }
-                    className="w-full rounded-xl border border-slate-200 px-3 py-2 text-xs text-slate-900 focus:outline-hidden focus:ring-2 focus:ring-blue-500"
+                    className="w-full h-10 rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm font-medium text-gray-900 focus:border-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-600/30 transition-all shadow-xs"
                   >
                     <option value="OVERDUE">OVERDUE</option>
                     <option value="DUE_SOON">DUE_SOON</option>
@@ -644,8 +626,8 @@ export default function WorkflowsPage() {
                 </div>
 
                 <div>
-                  <label className="block text-xs font-semibold text-slate-700 mb-1">
-                    Channel
+                  <label className="block text-xs font-bold text-gray-700 mb-1">
+                    Channel *
                   </label>
                   <select
                     value={newRule.channel}
@@ -655,7 +637,7 @@ export default function WorkflowsPage() {
                         channel: e.target.value as "WHATSAPP" | "EMAIL" | "SMS",
                       })
                     }
-                    className="w-full rounded-xl border border-slate-200 px-3 py-2 text-xs text-slate-900 focus:outline-hidden focus:ring-2 focus:ring-blue-500"
+                    className="w-full h-10 rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm font-medium text-gray-900 focus:border-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-600/30 transition-all shadow-xs"
                   >
                     <option value="WHATSAPP">WHATSAPP</option>
                     <option value="EMAIL">EMAIL</option>
@@ -666,8 +648,8 @@ export default function WorkflowsPage() {
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-xs font-semibold text-slate-700 mb-1">
-                    Days Relative
+                  <label className="block text-xs font-bold text-gray-700 mb-1">
+                    Days Relative *
                   </label>
                   <input
                     type="number"
@@ -675,13 +657,13 @@ export default function WorkflowsPage() {
                     onChange={(e) =>
                       setNewRule({ ...newRule, daysRelative: Number(e.target.value) })
                     }
-                    className="w-full rounded-xl border border-slate-200 px-3 py-2 text-xs text-slate-900 focus:outline-hidden focus:ring-2 focus:ring-blue-500"
+                    className="w-full h-10 rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm font-medium text-gray-900 focus:border-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-600/30 transition-all shadow-xs"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-xs font-semibold text-slate-700 mb-1">
-                    Min Amount (₹)
+                  <label className="block text-xs font-bold text-gray-700 mb-1">
+                    Min Amount (₹) *
                   </label>
                   <input
                     type="number"
@@ -689,7 +671,7 @@ export default function WorkflowsPage() {
                     onChange={(e) =>
                       setNewRule({ ...newRule, minAmount: Number(e.target.value) })
                     }
-                    className="w-full rounded-xl border border-slate-200 px-3 py-2 text-xs text-slate-900 focus:outline-hidden focus:ring-2 focus:ring-blue-500"
+                    className="w-full h-10 rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm font-medium text-gray-900 focus:border-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-600/30 transition-all shadow-xs font-mono"
                   />
                 </div>
               </div>
@@ -702,28 +684,30 @@ export default function WorkflowsPage() {
                   onChange={(e) =>
                     setNewRule({ ...newRule, includePaymentLink: e.target.checked })
                   }
-                  className="rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+                  className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
                 />
-                <label htmlFor="incPlink" className="text-xs text-slate-700">
+                <label htmlFor="incPlink" className="text-xs font-medium text-gray-700">
                   Include Dynamic UPI & NetBanking payment link
                 </label>
               </div>
 
-              <div className="flex items-center justify-end gap-2 pt-3">
-                <button
+              <div className="flex items-center justify-end gap-2.5 pt-3 border-t border-gray-100">
+                <Button
                   type="button"
+                  variant="secondary"
+                  size="sm"
                   onClick={() => setAddRuleModalOpen(false)}
-                  className="px-3.5 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-100 rounded-xl transition"
                 >
                   Cancel
-                </button>
-                <button
+                </Button>
+                <Button
                   type="submit"
-                  disabled={submittingRule}
-                  className="px-4 py-2 text-xs font-semibold bg-blue-600 text-white hover:bg-blue-700 rounded-xl shadow-xs transition disabled:opacity-50"
+                  size="sm"
+                  loading={submittingRule}
+                  className="bg-blue-600 hover:bg-blue-700 text-white"
                 >
                   Save Rule
-                </button>
+                </Button>
               </div>
             </form>
           </div>

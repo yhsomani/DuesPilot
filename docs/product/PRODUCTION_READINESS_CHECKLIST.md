@@ -6,7 +6,7 @@
 | **Analysis date** | 2026-09-04 |
 | **Overall verdict** | **NOT YET FULLY PRODUCTION READY** — functional core is real and tested, but external/infra items remain blocked |
 
-**Quality gate (verified 2026-09-05):** `npx tsc --noEmit` ✅ · `npm run lint` ✅ · `npm test` 65/65 (9 files) ✅ · `npm run build` ✅
+**Quality gate (verified 2026-09-05):** `npx tsc --noEmit` ✅ · `npm run lint` ✅ · `npm test` 209/209 (27 files) ✅ · `npm run build` ✅
 
 Legend: ✅ Ready · 🟡 Partial / needs verification · ❌ Not ready · 🚫 Blocked (external dependency)
 
@@ -66,7 +66,7 @@ Legend: ✅ Ready · 🟡 Partial / needs verification · ❌ Not ready · 🚫 
 
 | Check | Status | Notes |
 | --- | --- | --- |
-| Unit tests | ✅ | 65/65 Vitest 3.2.7 across 9 files (`src/lib/__tests__` + `rbac.test.ts`) |
+| Unit tests | ✅ | 209/209 Vitest 3.2.7 across 27 files (`src/lib/__tests__` + `rbac.test.ts`) |
 | Integration / API tests | 🟡 | Specs authored (`src/**/*.integration.test.ts`); execution verified in CI via `postgres:17` container |
 | E2E tests | 🚫 | **Blocked (TODO-052)** — Playwright not yet added |
 | Test framework configured | ✅ | Vitest; scripts `test`, `test:watch`, `test:integration` |

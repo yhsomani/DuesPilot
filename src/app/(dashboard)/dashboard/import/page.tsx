@@ -169,7 +169,6 @@ export default function ImportPage() {
   };
 
   const isMappingValid = REQUIRED_FIELDS.every((f) => Boolean(mapping[f]));
-
   const mappedCount = Object.values(mapping).filter(Boolean).length;
 
   const handlePreview = () => {
@@ -209,13 +208,13 @@ export default function ImportPage() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <div className="flex items-center gap-2">
-            <h1 className="text-xl font-bold text-slate-900 tracking-tight">Import Receivables</h1>
-            <Badge variant="blue" size="sm">
+          <div className="flex items-center gap-2.5">
+            <h1 className="text-2xl font-bold text-gray-900 tracking-tight">Import Receivables</h1>
+            <Badge variant="primary" size="sm">
               Batch Ingestion
             </Badge>
           </div>
-          <p className="mt-0.5 text-xs text-slate-500">
+          <p className="mt-1 text-sm text-gray-600">
             Ingest invoices from Tally, Busy, QuickBooks, SAP, Zoho Books, or custom CSV/Excel exports.
           </p>
         </div>
@@ -223,15 +222,15 @@ export default function ImportPage() {
         <a
           href="/api/import/sample"
           download
-          className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200/90 bg-white px-3.5 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 shadow-2xs transition-colors self-start sm:self-auto"
+          className="inline-flex items-center gap-1.5 rounded-lg border border-gray-200 bg-white px-3.5 py-2 text-xs font-semibold text-gray-700 hover:bg-gray-50 shadow-xs transition-colors self-start sm:self-auto"
         >
-          <Download className="h-3.5 w-3.5 text-slate-500" />
+          <Download className="h-3.5 w-3.5 text-gray-500" strokeWidth={1.5} />
           <span>Download Sample CSV</span>
         </a>
       </div>
 
       {/* Stepper Wizard Bar */}
-      <div className="rounded-2xl border border-slate-200/90 bg-white p-3 sm:p-4 shadow-2xs">
+      <div className="rounded-xl border border-gray-200 bg-white p-3.5 sm:p-4 shadow-sm">
         <div className="flex items-center justify-between">
           {stepsList.map((s, idx) => {
             const isDone = idx < currentStepIndex;
@@ -241,19 +240,19 @@ export default function ImportPage() {
               <div key={s.id} className="flex items-center flex-1 last:flex-none">
                 <div className="flex items-center gap-2.5">
                   <div
-                    className={`h-7 w-7 rounded-xl flex items-center justify-center text-xs font-bold transition-all shadow-2xs ${
+                    className={`h-7 w-7 rounded-lg flex items-center justify-center text-xs font-bold transition-all shadow-xs ${
                       isCurrent
                         ? "bg-blue-600 text-white shadow-blue-500/20"
                         : isDone
-                        ? "bg-emerald-600 text-white"
-                        : "bg-slate-100 text-slate-400"
+                        ? "bg-green-600 text-white"
+                        : "bg-gray-100 text-gray-400"
                     }`}
                   >
-                    {isDone ? <Check className="h-3.5 w-3.5 stroke-[3]" /> : idx + 1}
+                    {isDone ? <Check className="h-3.5 w-3.5" strokeWidth={3} /> : idx + 1}
                   </div>
                   <span
                     className={`text-xs font-bold hidden sm:inline ${
-                      isCurrent ? "text-slate-900" : isDone ? "text-emerald-700" : "text-slate-400"
+                      isCurrent ? "text-gray-900" : isDone ? "text-green-700" : "text-gray-400"
                     }`}
                   >
                     {s.label}
@@ -263,7 +262,7 @@ export default function ImportPage() {
                 {idx < stepsList.length - 1 && (
                   <div
                     className={`flex-1 mx-3 h-0.5 rounded-full transition-colors ${
-                      idx < currentStepIndex ? "bg-emerald-500" : "bg-slate-100"
+                      idx < currentStepIndex ? "bg-green-500" : "bg-gray-100"
                     }`}
                   />
                 )}
@@ -279,7 +278,7 @@ export default function ImportPage() {
           <div
             onDragOver={(e) => e.preventDefault()}
             onDrop={handleDrop}
-            className="rounded-3xl border-2 border-dashed border-slate-300/80 bg-white p-12 text-center hover:border-blue-500 hover:bg-blue-50/20 transition-all cursor-pointer shadow-2xs group"
+            className="rounded-xl border-2 border-dashed border-gray-300 bg-white p-12 text-center hover:border-blue-500 hover:bg-blue-50/20 transition-all cursor-pointer shadow-xs group"
           >
             <input
               type="file"
@@ -289,31 +288,31 @@ export default function ImportPage() {
               id="file-upload"
             />
             <label htmlFor="file-upload" className="cursor-pointer block space-y-4">
-              <div className="mx-auto h-16 w-16 rounded-2xl bg-blue-50 border border-blue-100 flex items-center justify-center group-hover:scale-105 transition-transform">
-                <UploadCloud className="h-8 w-8 text-blue-600" />
+              <div className="mx-auto h-16 w-16 rounded-xl bg-blue-50 border border-blue-100 flex items-center justify-center group-hover:scale-105 transition-transform">
+                <UploadCloud className="h-8 w-8 text-blue-600" strokeWidth={1.5} />
               </div>
               <div>
-                <p className="text-base font-bold text-slate-900">
+                <p className="text-base font-bold text-gray-900">
                   Drag & drop your receivables CSV here, or{" "}
                   <span className="text-blue-600 underline underline-offset-4 hover:text-blue-700">
                     browse files
                   </span>
                 </p>
-                <p className="mt-1 text-xs text-slate-500 max-w-md mx-auto">
+                <p className="mt-1 text-xs text-gray-500 max-w-md mx-auto">
                   Automatic header detection for Customer Name, Invoice #, Due Date, and Amounts. Supports up to 5,000 rows per batch.
                 </p>
               </div>
             </label>
           </div>
 
-          <div className="rounded-2xl border border-blue-100 bg-blue-50/60 p-4.5 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-2xs">
+          <div className="rounded-xl border border-blue-100 bg-blue-50/60 p-4.5 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-xs">
             <div className="flex items-start gap-3">
-              <div className="h-8 w-8 rounded-xl bg-blue-100 text-blue-700 flex items-center justify-center shrink-0 mt-0.5">
-                <Sparkles className="h-4 w-4" />
+              <div className="h-8 w-8 rounded-lg bg-blue-100 text-blue-700 flex items-center justify-center shrink-0 mt-0.5">
+                <Sparkles className="h-4 w-4" strokeWidth={1.5} />
               </div>
               <div>
-                <p className="text-xs font-bold text-slate-900">Need standard headers or sample test data?</p>
-                <p className="text-[11px] text-slate-600">
+                <p className="text-xs font-bold text-gray-900">Need standard headers or sample test data?</p>
+                <p className="text-[11px] text-gray-600">
                   Download our verified sample CSV configured for Indian GST receivables and ledger reconciliation.
                 </p>
               </div>
@@ -321,9 +320,9 @@ export default function ImportPage() {
             <a
               href="/api/import/sample"
               download
-              className="inline-flex items-center gap-1.5 rounded-xl bg-blue-600 text-white px-3.5 py-1.5 text-xs font-bold hover:bg-blue-700 transition shadow-2xs shrink-0 self-start sm:self-auto"
+              className="inline-flex items-center gap-1.5 rounded-lg bg-blue-600 text-white px-3.5 py-1.5 text-xs font-bold hover:bg-blue-700 transition shadow-xs shrink-0 self-start sm:self-auto"
             >
-              <Download className="h-3.5 w-3.5" />
+              <Download className="h-3.5 w-3.5" strokeWidth={1.5} />
               <span>Get Sample CSV</span>
             </a>
           </div>
@@ -331,12 +330,12 @@ export default function ImportPage() {
           {error && (
             <div
               role="alert"
-              className="rounded-2xl border border-rose-200 bg-rose-50 p-4 text-xs text-rose-800 flex items-start gap-3 shadow-2xs"
+              className="rounded-xl border border-red-200 bg-red-50 p-4 text-xs text-red-900 flex items-start gap-3 shadow-xs"
             >
-              <AlertCircle className="h-4 w-4 text-rose-600 shrink-0 mt-0.5" />
+              <AlertCircle className="h-4 w-4 text-red-600 shrink-0 mt-0.5" strokeWidth={1.5} />
               <div className="flex-1">
                 <p className="font-bold">File Parsing Error</p>
-                <p className="mt-0.5 text-rose-700">{error}</p>
+                <p className="mt-0.5 text-red-700">{error}</p>
               </div>
             </div>
           )}
@@ -346,11 +345,11 @@ export default function ImportPage() {
       {/* Step 2: Column Mapping */}
       {step === "mapping" && (
         <div className="space-y-6">
-          <div className="rounded-3xl border border-slate-200/90 bg-white p-6 shadow-2xs">
+          <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-4">
               <div>
-                <h2 className="text-sm font-bold text-slate-900">Map File Columns</h2>
-                <p className="text-xs text-slate-500">
+                <h2 className="text-sm font-bold text-gray-900">Map File Columns</h2>
+                <p className="text-xs text-gray-500">
                   Match your CSV headers to DuesPilot fields. Fields marked with * are required.
                 </p>
               </div>
@@ -370,23 +369,23 @@ export default function ImportPage() {
                 return (
                   <div
                     key={field}
-                    className={`p-3.5 rounded-2xl border transition-colors ${
+                    className={`p-3.5 rounded-xl border transition-colors ${
                       isMapped
-                        ? "border-blue-200/80 bg-blue-50/30"
+                        ? "border-blue-200 bg-blue-50/30"
                         : isRequired
-                        ? "border-amber-200/80 bg-amber-50/30"
-                        : "border-slate-200/70 bg-slate-50/40"
+                        ? "border-amber-200 bg-amber-50/30"
+                        : "border-gray-200 bg-gray-50/40"
                     }`}
                   >
                     <div className="flex items-center justify-between mb-1">
-                      <label className="text-xs font-bold text-slate-800">{info.label}</label>
+                      <label className="text-xs font-bold text-gray-800">{info.label}</label>
                       {isRequired && (
                         <span className="text-[10px] font-bold text-amber-700 uppercase">
                           Required
                         </span>
                       )}
                     </div>
-                    <p className="text-[10px] text-slate-500 mb-2 truncate">{info.desc}</p>
+                    <p className="text-[10px] text-gray-500 mb-2 truncate">{info.desc}</p>
                     <select
                       value={mapping[field]}
                       onChange={(e) =>
@@ -395,7 +394,7 @@ export default function ImportPage() {
                           [field]: e.target.value,
                         }))
                       }
-                      className="w-full rounded-xl border border-slate-200 bg-white px-2.5 py-1.5 text-xs font-medium focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 transition-all"
+                      className="w-full rounded-lg border border-gray-300 bg-white px-2.5 py-1.5 text-xs font-medium text-gray-900 focus:border-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-600/30 transition-all"
                     >
                       <option value="">-- Do Not Import --</option>
                       {headers.map((h) => (
@@ -412,37 +411,37 @@ export default function ImportPage() {
 
           {/* Data Sample Preview */}
           {rows.length > 0 && (
-            <div className="rounded-3xl border border-slate-200/90 bg-white shadow-2xs overflow-hidden">
-              <div className="px-6 py-3.5 border-b border-slate-100 bg-slate-50/50 flex items-center justify-between">
+            <div className="rounded-xl border border-gray-200 bg-white shadow-sm overflow-hidden">
+              <div className="px-6 py-3.5 border-b border-gray-100 bg-gray-50/75 flex items-center justify-between">
                 <div>
-                  <p className="text-xs font-bold text-slate-900">
+                  <p className="text-xs font-bold text-gray-900">
                     Data Sample Preview ({Math.min(rows.length, 5)} of {rows.length} rows)
                   </p>
-                  <p className="text-[11px] text-slate-500">File: {fileName}</p>
+                  <p className="text-[11px] text-gray-500">File: {fileName}</p>
                 </div>
-                <span className="text-[11px] text-slate-500 font-mono font-bold">
+                <span className="text-[11px] text-gray-500 font-mono font-bold">
                   {headers.length} headers detected
                 </span>
               </div>
               <div className="overflow-x-auto">
                 <table className="min-w-full text-xs">
                   <thead>
-                    <tr className="bg-slate-50 border-b border-slate-100">
+                    <tr className="bg-gray-50 border-b border-gray-200 text-gray-600">
                       {headers.slice(0, 7).map((h) => (
                         <th
                           key={h}
-                          className="px-4 py-2.5 text-left font-bold text-slate-600 whitespace-nowrap"
+                          className="px-4 py-2.5 text-left font-bold whitespace-nowrap uppercase tracking-wider"
                         >
                           {h}
                         </th>
                       ))}
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-slate-100 font-mono">
+                  <tbody className="divide-y divide-gray-100 font-mono">
                     {rows.slice(0, 5).map((row, i) => (
-                      <tr key={i} className="hover:bg-slate-50/60">
+                      <tr key={i} className="hover:bg-gray-50/60">
                         {headers.slice(0, 7).map((h) => (
-                          <td key={h} className="px-4 py-2 text-slate-700 whitespace-nowrap">
+                          <td key={h} className="px-4 py-2 text-gray-800 whitespace-nowrap">
                             {row[h] || "—"}
                           </td>
                         ))}
@@ -457,12 +456,12 @@ export default function ImportPage() {
           {/* Stepper Navigation */}
           <div className="flex items-center justify-between pt-2">
             <Button
-              variant="outline"
+              variant="secondary"
               size="sm"
               onClick={() => setStep("upload")}
               className="gap-1.5 text-xs font-bold"
             >
-              <ArrowLeft className="h-3.5 w-3.5" />
+              <ArrowLeft className="h-3.5 w-3.5" strokeWidth={1.5} />
               <span>Back to Upload</span>
             </Button>
 
@@ -470,10 +469,10 @@ export default function ImportPage() {
               size="sm"
               onClick={handlePreview}
               disabled={!isMappingValid}
-              className="gap-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold shadow-2xs"
+              className="gap-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold shadow-xs"
             >
               <span>Review & Validate</span>
-              <ArrowRight className="h-3.5 w-3.5" />
+              <ArrowRight className="h-3.5 w-3.5" strokeWidth={1.5} />
             </Button>
           </div>
         </div>
@@ -482,21 +481,21 @@ export default function ImportPage() {
       {/* Step 3: Review & Validation Plan */}
       {step === "preview" && (
         <div className="space-y-6">
-          <div className="rounded-3xl border border-slate-200/90 bg-white p-6 shadow-2xs">
-            <h2 className="text-sm font-bold text-slate-900 mb-1">Execution & Binding Summary</h2>
-            <p className="text-xs text-slate-500 mb-6">
+          <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
+            <h2 className="text-sm font-bold text-gray-900 mb-1">Execution & Binding Summary</h2>
+            <p className="text-xs text-gray-500 mb-6">
               Review active column mappings for{" "}
-              <strong className="text-slate-800">{rows.length} records</strong> before committing to the database.
+              <strong className="text-gray-800">{rows.length} records</strong> before committing to the database.
             </p>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
               {REQUIRED_FIELDS.map((field) => (
                 <div
                   key={field}
-                  className="flex items-center justify-between rounded-xl bg-blue-50/70 border border-blue-100 px-3.5 py-2.5 text-xs"
+                  className="flex items-center justify-between rounded-lg bg-blue-50/70 border border-blue-100 px-3.5 py-2.5 text-xs"
                 >
                   <span className="font-bold text-blue-950">{FIELD_LABELS[field].label}</span>
-                  <span className="font-mono text-blue-700 font-bold bg-white px-2 py-0.5 rounded-lg border border-blue-200 shadow-2xs">
+                  <span className="font-mono text-blue-700 font-bold bg-white px-2 py-0.5 rounded-md border border-blue-200 shadow-xs">
                     {mapping[field]}
                   </span>
                 </div>
@@ -506,10 +505,10 @@ export default function ImportPage() {
                 .map((field) => (
                   <div
                     key={field}
-                    className="flex items-center justify-between rounded-xl bg-slate-50 border border-slate-200/80 px-3.5 py-2.5 text-xs"
+                    className="flex items-center justify-between rounded-lg bg-gray-50 border border-gray-200 px-3.5 py-2.5 text-xs"
                   >
-                    <span className="font-medium text-slate-700">{FIELD_LABELS[field].label}</span>
-                    <span className="font-mono text-slate-800 bg-white px-2 py-0.5 rounded-lg border border-slate-200">
+                    <span className="font-medium text-gray-700">{FIELD_LABELS[field].label}</span>
+                    <span className="font-mono text-gray-800 bg-white px-2 py-0.5 rounded-md border border-gray-200">
                       {mapping[field]}
                     </span>
                   </div>
@@ -520,25 +519,25 @@ export default function ImportPage() {
           {error && (
             <div
               role="alert"
-              className="rounded-2xl border border-rose-200 bg-rose-50 p-4 text-xs text-rose-800 flex items-start gap-3 shadow-2xs"
+              className="rounded-xl border border-red-200 bg-red-50 p-4 text-xs text-red-900 flex items-start gap-3 shadow-xs"
             >
-              <AlertCircle className="h-4 w-4 text-rose-600 shrink-0 mt-0.5" />
+              <AlertCircle className="h-4 w-4 text-red-600 shrink-0 mt-0.5" strokeWidth={1.5} />
               <div className="flex-1">
                 <p className="font-bold">Ingestion Blocked</p>
-                <p className="mt-0.5 text-rose-700">{error}</p>
+                <p className="mt-0.5 text-red-700">{error}</p>
               </div>
             </div>
           )}
 
           <div className="flex items-center justify-between pt-2">
             <Button
-              variant="outline"
+              variant="secondary"
               size="sm"
               onClick={() => setStep("mapping")}
               disabled={uploading}
               className="gap-1.5 text-xs font-bold"
             >
-              <ArrowLeft className="h-3.5 w-3.5" />
+              <ArrowLeft className="h-3.5 w-3.5" strokeWidth={1.5} />
               <span>Edit Mapping</span>
             </Button>
 
@@ -546,10 +545,10 @@ export default function ImportPage() {
               size="sm"
               onClick={handleImport}
               loading={uploading}
-              className="gap-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold shadow-2xs"
+              className="gap-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold shadow-xs"
             >
               <span>Confirm & Import {rows.length} Invoices</span>
-              <ArrowRight className="h-3.5 w-3.5" />
+              <ArrowRight className="h-3.5 w-3.5" strokeWidth={1.5} />
             </Button>
           </div>
         </div>
@@ -559,34 +558,34 @@ export default function ImportPage() {
       {step === "done" && result && (
         <div className="space-y-6">
           <div
-            className={`rounded-3xl border p-8 shadow-2xs text-center ${
+            className={`rounded-xl border p-8 shadow-sm text-center ${
               result.invoicesCreated > 0
-                ? "border-emerald-200 bg-emerald-50/40"
+                ? "border-green-200 bg-green-50/40"
                 : "border-amber-200 bg-amber-50/40"
             }`}
           >
             <div
-              className={`mx-auto h-14 w-14 rounded-2xl flex items-center justify-center mb-4 border shadow-2xs ${
+              className={`mx-auto h-14 w-14 rounded-xl flex items-center justify-center mb-4 border shadow-xs ${
                 result.invoicesCreated > 0
-                  ? "bg-emerald-100 text-emerald-700 border-emerald-200"
+                  ? "bg-green-100 text-green-700 border-green-200"
                   : "bg-amber-100 text-amber-700 border-amber-200"
               }`}
             >
               {result.invoicesCreated > 0 ? (
-                <CheckCircle2 className="h-8 w-8" />
+                <CheckCircle2 className="h-8 w-8" strokeWidth={1.5} />
               ) : (
-                <AlertTriangle className="h-8 w-8" />
+                <AlertTriangle className="h-8 w-8" strokeWidth={1.5} />
               )}
             </div>
 
-            <h2 className="text-lg font-bold text-slate-900">
+            <h2 className="text-lg font-bold text-gray-900">
               {result.invoicesCreated > 0
                 ? result.skippedRows > 0
                   ? "Import Completed with Partial Skips"
                   : "Receivables Ingested Successfully!"
                 : "No Invoices Were Imported"}
             </h2>
-            <p className="text-xs text-slate-500 mt-1 max-w-md mx-auto">
+            <p className="text-xs text-gray-500 mt-1 max-w-md mx-auto">
               {result.invoicesCreated > 0
                 ? `${result.invoicesCreated} invoices have been parsed and linked to debtor accounts for dunning and reconciliation.`
                 : "The uploaded rows contained structural format errors or duplicate entries."}
@@ -625,25 +624,25 @@ export default function ImportPage() {
 
             {/* Skipped Diagnostics */}
             {result.issues.length > 0 && (
-              <div className="mt-6 rounded-2xl border border-amber-200 bg-white text-left shadow-2xs overflow-hidden">
+              <div className="mt-6 rounded-xl border border-amber-200 bg-white text-left shadow-sm overflow-hidden">
                 <div className="px-5 py-3 border-b border-amber-100 bg-amber-50/80 flex items-center justify-between">
                   <div className="flex items-center gap-2">
-                    <AlertTriangle className="h-4 w-4 text-amber-700" />
+                    <AlertTriangle className="h-4 w-4 text-amber-700" strokeWidth={1.5} />
                     <p className="text-xs font-bold text-amber-900">
                       Skipped Row Diagnostics ({result.issues.length} reasons logged)
                     </p>
                   </div>
                 </div>
-                <div className="max-h-60 overflow-y-auto divide-y divide-slate-100">
+                <div className="max-h-60 overflow-y-auto divide-y divide-gray-100">
                   {result.issues.map((issue, i) => (
                     <div
                       key={i}
-                      className="flex items-start gap-3 px-5 py-2.5 text-xs hover:bg-slate-50"
+                      className="flex items-start gap-3 px-5 py-2.5 text-xs hover:bg-gray-50"
                     >
                       <Badge variant="warning" size="sm" className="font-mono">
                         Row {issue.row}
                       </Badge>
-                      <span className="text-slate-800 font-medium">{issue.reason}</span>
+                      <span className="text-gray-800 font-medium">{issue.reason}</span>
                     </div>
                   ))}
                 </div>
@@ -653,7 +652,7 @@ export default function ImportPage() {
             {/* Action CTAs */}
             <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
               <Button
-                variant="outline"
+                variant="secondary"
                 size="sm"
                 onClick={() => {
                   setResult(null);
@@ -663,7 +662,7 @@ export default function ImportPage() {
                 }}
                 className="gap-1.5 text-xs font-bold"
               >
-                <RotateCcw className="h-3.5 w-3.5" />
+                <RotateCcw className="h-3.5 w-3.5" strokeWidth={1.5} />
                 <span>Upload Another File</span>
               </Button>
 
@@ -671,10 +670,10 @@ export default function ImportPage() {
                 <Link href="/dashboard/queue">
                   <Button
                     size="sm"
-                    className="gap-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold shadow-2xs"
+                    className="gap-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold shadow-xs"
                   >
                     <span>Open Collection Queue</span>
-                    <ArrowRight className="h-3.5 w-3.5" />
+                    <ArrowRight className="h-3.5 w-3.5" strokeWidth={1.5} />
                   </Button>
                 </Link>
               )}

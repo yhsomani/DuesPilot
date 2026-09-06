@@ -25,15 +25,15 @@ test.describe("Payment Promises (PTP) & Structured Payment Plans", () => {
     await expect(page.getByText("ABC Engineering Works")).toBeVisible();
 
     // Status filter - Active
-    await page.getByRole("button", { name: /^Active \(/i }).click();
+    await page.getByRole("button", { name: /^Active \d+/i }).click();
     await expect(page.getByText("Raj Steel & Forgings Pvt Ltd")).toBeVisible();
 
     // Status filter - Kept (should show empty state since mock data is ACTIVE)
-    await page.getByRole("button", { name: /^Kept \(/i }).click();
+    await page.getByRole("button", { name: /^Kept \d+/i }).click();
     await expect(page.getByText("No payment promises found")).toBeVisible();
 
     // Status filter - All
-    await page.getByRole("button", { name: /^All \(/i }).click();
+    await page.getByRole("button", { name: /^All Promises/i }).click();
     await expect(page.getByText("Raj Steel & Forgings Pvt Ltd")).toBeVisible();
     await expect(page.getByText("ABC Engineering Works")).toBeVisible();
   });

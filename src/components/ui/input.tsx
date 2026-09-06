@@ -3,16 +3,18 @@ import { cn } from "@/lib/utils";
 
 export interface InputProps extends React.InputHTMLAttributes<HTMLInputElement> {
   error?: boolean;
+  sizeVariant?: "md" | "lg";
 }
 
 export const Input = React.forwardRef<HTMLInputElement, InputProps>(
-  ({ className, type, error, ...props }, ref) => {
+  ({ className, type, error, sizeVariant = "md", ...props }, ref) => {
     return (
       <input
         type={type}
         className={cn(
-          "flex h-9.5 w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-xs text-slate-900 placeholder:text-slate-400 transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:border-blue-500 disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-400 shadow-2xs",
-          error && "border-rose-400 focus-visible:ring-rose-500 focus-visible:border-rose-500 bg-rose-50/20",
+          "flex w-full rounded-lg border border-gray-300 bg-white text-sm text-gray-900 placeholder:text-gray-400 transition-colors duration-150 focus-visible:outline-none focus-visible:border-blue-600 focus-visible:ring-2 focus-visible:ring-blue-600/30 disabled:cursor-not-allowed disabled:bg-gray-100 disabled:text-gray-400 shadow-sm",
+          sizeVariant === "lg" ? "h-12 px-4 py-3 text-base" : "h-10 px-4 py-2 text-sm",
+          error && "border-red-500 focus-visible:border-red-500 focus-visible:ring-red-500/30 bg-red-50/20",
           className
         )}
         ref={ref}

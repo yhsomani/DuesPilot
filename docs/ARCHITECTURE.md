@@ -68,6 +68,10 @@ Browser ─► Next.js (App Router, Turbopack)
 | `src/lib/payment-links.ts` | Dynamic 1-click payment link generator (Razorpay/Cashfree + NPCI-compliant `upi://pay` deep link URIs). |
 | `src/lib/msme-interest.ts` | Statutory Section 15 & 16 MSMED Act 2006 compound monthly interest calculator at 3x the RBI Bank Rate (default 20.25% p.a.). |
 | `src/lib/legal-notices.ts` | Statutory legal notice generator for MSMED Act 2006 and Section 138 Negotiable Instruments Act formal demands. |
+| `src/lib/bank-reconciliation.ts` | 4-tier automated bank statement reconciliation engine (HDFC, ICICI, SBI, Axis, generic CSVs), UTR/IMPS/NEFT/Cheque extraction, and FIFO settlements. |
+| `src/lib/payment-webhooks.ts` | Timing-safe HMAC-SHA256 signature verification (`crypto.timingSafeEqual`) for Razorpay, Cashfree, and Stripe webhooks with transactional settlement. |
+| `src/lib/copilot.ts` | AI and heuristic promise extraction (date, amount, confidence) and tone-calibrated dunning drafting. |
+| `src/lib/sms.ts` | Indian TRAI DLT SMS gateway adapter with 19-digit entity/template ID verification, 6-char alpha headers (`DUESPL`), and segment calculation. |
 | `src/lib/email.ts` | Multi-transport Email adapter (Resend API provider with deterministic mock simulation). |
 | `src/lib/whatsapp.ts` | Multi-gateway WhatsApp adapter (Meta Cloud API, Interakt, Gupshup, Twilio with deterministic mock simulation). |
 | `src/lib/templates.ts` | Template interpolation engine (`{{customerName}}`, `{{amountDue}}`, `{{paymentLink}}`, `{{upiQrString}}`, `{{installmentSummary}}`). |
@@ -106,7 +110,7 @@ Browser ─► Next.js (App Router, Turbopack)
 
 ## 8. Testing & CI
 
-- Unit: `npm test` — 145 tests across 22 suites in `src/lib/__tests__` + `rbac.test.ts` (Vitest; pure modules, calculation engines, and adapters).
+- Unit: `npm test` — 209 tests across 27 suites in `src/lib/__tests__` + `rbac.test.ts` (Vitest; pure modules, calculation engines, and adapters).
 - Integration: `npm run test:integration` — harness + config ready (`vitest.integration.config.ts`), specs authored (`src/**/*.integration.test.ts`), Postgres-17-backed in CI; execution against local DB is pending live Postgres (TODO-051).
 - CI: `.github/workflows/ci.yml` — quality → integration → build.
 

@@ -299,9 +299,9 @@ export default function SettingsPage() {
   if (loading) {
     return (
       <div className="space-y-6 max-w-5xl">
-        <div className="h-8 w-64 bg-slate-200 rounded-xl animate-pulse" />
-        <div className="h-12 w-full bg-slate-100 rounded-2xl animate-pulse" />
-        <div className="h-96 w-full bg-slate-100 rounded-3xl animate-pulse" />
+        <div className="h-8 w-64 bg-gray-200 rounded-xl animate-pulse" />
+        <div className="h-12 w-full bg-gray-100 rounded-xl animate-pulse" />
+        <div className="h-96 w-full bg-gray-100 rounded-xl animate-pulse" />
       </div>
     );
   }
@@ -312,27 +312,27 @@ export default function SettingsPage() {
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <div className="flex items-center gap-2">
-            <h1 className="text-xl font-bold text-slate-900 tracking-tight">
+            <h1 className="text-xl font-bold text-gray-900 tracking-tight">
               Settings & Workspace Administration
             </h1>
-            <Badge variant="blue" size="sm">
+            <Badge variant="primary" size="sm">
               Tenant Control Plane
             </Badge>
           </div>
-          <p className="mt-0.5 text-xs text-slate-500">
+          <p className="mt-0.5 text-xs text-gray-500">
             Manage organization configurations, team access, subscription tiers, and compliance audit logs.
           </p>
         </div>
       </div>
 
       {/* Tabs */}
-      <div className="flex items-center gap-1.5 bg-white p-1.5 rounded-2xl border border-slate-200/90 shadow-2xs w-fit overflow-x-auto">
+      <div className="flex items-center gap-1.5 bg-white p-1.5 rounded-xl border border-gray-200 shadow-xs w-fit overflow-x-auto">
         <button
           onClick={() => setActiveTab("general")}
-          className={`flex items-center gap-2 rounded-xl px-4 py-2 text-xs font-semibold transition-all ${
+          className={`flex items-center gap-2 rounded-lg px-4 py-2 text-xs font-semibold transition-all ${
             activeTab === "general"
-              ? "bg-blue-600 text-white shadow-2xs"
-              : "text-slate-600 hover:text-slate-900 hover:bg-slate-50"
+              ? "bg-blue-600 text-white shadow-xs"
+              : "text-gray-600 hover:text-gray-900 hover:bg-gray-50"
           }`}
         >
           <Building2 className="h-3.5 w-3.5" />
@@ -341,17 +341,17 @@ export default function SettingsPage() {
 
         <button
           onClick={() => setActiveTab("team")}
-          className={`flex items-center gap-2 rounded-xl px-4 py-2 text-xs font-semibold transition-all ${
+          className={`flex items-center gap-2 rounded-lg px-4 py-2 text-xs font-semibold transition-all ${
             activeTab === "team"
-              ? "bg-blue-600 text-white shadow-2xs"
-              : "text-slate-600 hover:text-slate-900 hover:bg-slate-50"
+              ? "bg-blue-600 text-white shadow-xs"
+              : "text-gray-600 hover:text-gray-900 hover:bg-gray-50"
           }`}
         >
           <Users className="h-3.5 w-3.5" />
           <span>Team & Access</span>
           <span
             className={`text-[10px] px-1.5 py-0.5 rounded-md font-bold ${
-              activeTab === "team" ? "bg-white/20 text-white" : "bg-slate-100 text-slate-600"
+              activeTab === "team" ? "bg-white/20 text-white" : "bg-gray-100 text-gray-600"
             }`}
           >
             {members.length}
@@ -360,10 +360,10 @@ export default function SettingsPage() {
 
         <button
           onClick={() => setActiveTab("billing")}
-          className={`flex items-center gap-2 rounded-xl px-4 py-2 text-xs font-semibold transition-all ${
+          className={`flex items-center gap-2 rounded-lg px-4 py-2 text-xs font-semibold transition-all ${
             activeTab === "billing"
-              ? "bg-blue-600 text-white shadow-2xs"
-              : "text-slate-600 hover:text-slate-900 hover:bg-slate-50"
+              ? "bg-blue-600 text-white shadow-xs"
+              : "text-gray-600 hover:text-gray-900 hover:bg-gray-50"
           }`}
         >
           <CreditCard className="h-3.5 w-3.5" />
@@ -372,10 +372,10 @@ export default function SettingsPage() {
 
         <button
           onClick={() => setActiveTab("audit")}
-          className={`flex items-center gap-2 rounded-xl px-4 py-2 text-xs font-semibold transition-all ${
+          className={`flex items-center gap-2 rounded-lg px-4 py-2 text-xs font-semibold transition-all ${
             activeTab === "audit"
-              ? "bg-blue-600 text-white shadow-2xs"
-              : "text-slate-600 hover:text-slate-900 hover:bg-slate-50"
+              ? "bg-blue-600 text-white shadow-xs"
+              : "text-gray-600 hover:text-gray-900 hover:bg-gray-50"
           }`}
         >
           <ShieldCheck className="h-3.5 w-3.5" />
@@ -387,15 +387,15 @@ export default function SettingsPage() {
       {error && (
         <div
           role="alert"
-          className="rounded-2xl border border-rose-200 bg-rose-50 p-4 text-xs text-rose-800 flex items-start gap-3 shadow-2xs"
+          className="rounded-xl border border-red-200 bg-red-50 p-4 text-xs text-red-800 flex items-start gap-3 shadow-xs"
         >
-          <AlertCircle className="h-4 w-4 text-rose-600 shrink-0 mt-0.5" />
+          <AlertCircle className="h-4 w-4 text-red-600 shrink-0 mt-0.5" />
           <div className="flex-1">
             <p className="font-bold">Settings Action Error</p>
-            <p className="mt-0.5 text-rose-700">{error}</p>
+            <p className="mt-0.5 text-red-700">{error}</p>
             <button
               onClick={() => setRetryKey((n) => n + 1)}
-              className="mt-2 text-xs font-semibold text-rose-900 underline hover:text-rose-950"
+              className="mt-2 text-xs font-semibold text-red-900 underline hover:text-red-950"
             >
               Try reloading
             </button>
@@ -407,22 +407,22 @@ export default function SettingsPage() {
       {activeTab === "general" && (
         <div className="space-y-6 max-w-3xl">
           {/* Organization Details */}
-          <div className="rounded-3xl border border-slate-200/90 bg-white p-6 shadow-2xs">
+          <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-xs">
             <div className="flex items-center justify-between mb-4">
               <div>
-                <h2 className="text-sm font-bold text-slate-900">Organization Profile</h2>
-                <p className="text-xs text-slate-500">
+                <h2 className="text-sm font-bold text-gray-900">Organization Profile</h2>
+                <p className="text-xs text-gray-500">
                   Legal entity name, GSTIN, and operational jurisdiction
                 </p>
               </div>
-              <Badge variant="blue" size="sm">
+              <Badge variant="primary" size="sm">
                 Primary Identity
               </Badge>
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
-                <label htmlFor="company-name" className="block text-xs font-bold text-slate-700 mb-1">Company Name *</label>
+                <label htmlFor="company-name" className="block text-xs font-bold text-gray-700 mb-1">Company Name *</label>
                 <input
                   id="company-name"
                   aria-label="Company Name *"
@@ -430,12 +430,12 @@ export default function SettingsPage() {
                   required
                   value={name}
                   onChange={(e) => setName(e.target.value)}
-                  className="w-full rounded-xl border border-slate-200 bg-slate-50/50 px-3 py-2 text-xs font-medium focus:bg-white focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 transition-all"
+                  className="w-full rounded-lg border border-gray-200 bg-gray-50/50 px-3 py-2 text-xs font-medium focus:bg-white focus:border-blue-600 focus:outline-none focus:ring-1 focus:ring-blue-600 transition-all"
                 />
               </div>
 
               <div>
-                <label htmlFor="gstin" className="block text-xs font-bold text-slate-700 mb-1">GSTIN (India)</label>
+                <label htmlFor="gstin" className="block text-xs font-bold text-gray-700 mb-1">GSTIN (India)</label>
                 <input
                   id="gstin"
                   aria-label="GSTIN (India)"
@@ -443,18 +443,18 @@ export default function SettingsPage() {
                   placeholder="27AABCU9603R1ZM"
                   value={gstin}
                   onChange={(e) => setGstin(e.target.value)}
-                  className="w-full rounded-xl border border-slate-200 bg-slate-50/50 px-3 py-2 text-xs font-mono font-bold focus:bg-white focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 transition-all"
+                  className="w-full rounded-lg border border-gray-200 bg-gray-50/50 px-3 py-2 text-xs font-mono font-bold focus:bg-white focus:border-blue-600 focus:outline-none focus:ring-1 focus:ring-blue-600 transition-all"
                 />
               </div>
 
               <div>
-                <label htmlFor="industry" className="block text-xs font-bold text-slate-700 mb-1">Industry Sector</label>
+                <label htmlFor="industry" className="block text-xs font-bold text-gray-700 mb-1">Industry Sector</label>
                 <select
                   id="industry"
                   aria-label="Industry Sector"
                   value={industry}
                   onChange={(e) => setIndustry(e.target.value)}
-                  className="w-full rounded-xl border border-slate-200 bg-slate-50/50 px-3 py-2 text-xs font-medium focus:bg-white focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 transition-all"
+                  className="w-full rounded-lg border border-gray-200 bg-gray-50/50 px-3 py-2 text-xs font-medium focus:bg-white focus:border-blue-600 focus:outline-none focus:ring-1 focus:ring-blue-600 transition-all"
                 >
                   <option value="">Select industry</option>
                   <option value="Manufacturing">Manufacturing & Engineering</option>
@@ -467,26 +467,26 @@ export default function SettingsPage() {
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">Operating City</label>
+                <label className="block text-xs font-bold text-gray-700 mb-1">Operating City</label>
                 <input
                   type="text"
                   placeholder="Mumbai, Bangalore, Delhi..."
                   value={city}
                   onChange={(e) => setCity(e.target.value)}
-                  className="w-full rounded-xl border border-slate-200 bg-slate-50/50 px-3 py-2 text-xs font-medium focus:bg-white focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 transition-all"
+                  className="w-full rounded-lg border border-gray-200 bg-gray-50/50 px-3 py-2 text-xs font-medium focus:bg-white focus:border-blue-600 focus:outline-none focus:ring-1 focus:ring-blue-600 transition-all"
                 />
               </div>
             </div>
           </div>
 
           {/* Collections Schedule & Working Hours */}
-          <div className="rounded-3xl border border-slate-200/90 bg-white p-6 shadow-2xs">
+          <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-xs">
             <div className="flex items-center justify-between mb-4">
               <div>
-                <h2 className="text-sm font-bold text-slate-900">
+                <h2 className="text-sm font-bold text-gray-900">
                   Dunning Window & Working Schedule
                 </h2>
-                <p className="text-xs text-slate-500">
+                <p className="text-xs text-gray-500">
                   Defines permissible hours and working days for automated communication dispatch
                 </p>
               </div>
@@ -497,32 +497,32 @@ export default function SettingsPage() {
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">
+                <label className="block text-xs font-bold text-gray-700 mb-1">
                   Business Hours Start (IST)
                 </label>
                 <input
                   type="time"
                   value={businessHoursStart}
                   onChange={(e) => setBusinessHoursStart(e.target.value)}
-                  className="w-full rounded-xl border border-slate-200 bg-slate-50/50 px-3 py-2 text-xs font-medium focus:bg-white focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 transition-all"
+                  className="w-full rounded-lg border border-gray-200 bg-gray-50/50 px-3 py-2 text-xs font-medium focus:bg-white focus:border-blue-600 focus:outline-none focus:ring-1 focus:ring-blue-600 transition-all"
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">
+                <label className="block text-xs font-bold text-gray-700 mb-1">
                   Business Hours End (IST)
                 </label>
                 <input
                   type="time"
                   value={businessHoursEnd}
                   onChange={(e) => setBusinessHoursEnd(e.target.value)}
-                  className="w-full rounded-xl border border-slate-200 bg-slate-50/50 px-3 py-2 text-xs font-medium focus:bg-white focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 transition-all"
+                  className="w-full rounded-lg border border-gray-200 bg-gray-50/50 px-3 py-2 text-xs font-medium focus:bg-white focus:border-blue-600 focus:outline-none focus:ring-1 focus:ring-blue-600 transition-all"
                 />
               </div>
             </div>
 
             <div className="mt-4">
-              <label className="block text-xs font-bold text-slate-700 mb-2">
+              <label className="block text-xs font-bold text-gray-700 mb-2">
                 Active Working Days
               </label>
               <div className="flex flex-wrap gap-2">
@@ -547,10 +547,10 @@ export default function SettingsPage() {
                             : [...prev, day as number]
                         )
                       }
-                      className={`rounded-xl px-3.5 py-1.5 text-xs font-bold transition-all shadow-2xs ${
+                      className={`rounded-lg px-3.5 py-1.5 text-xs font-bold transition-all shadow-xs ${
                         isSelected
                           ? "bg-blue-600 text-white"
-                          : "bg-slate-50 text-slate-600 border border-slate-200 hover:bg-slate-100"
+                          : "bg-gray-50 text-gray-600 border border-gray-200 hover:bg-gray-100"
                       }`}
                     >
                       {label}
@@ -561,7 +561,7 @@ export default function SettingsPage() {
             </div>
 
             <div className="mt-4">
-              <label className="block text-xs font-bold text-slate-700 mb-1">
+              <label className="block text-xs font-bold text-gray-700 mb-1">
                 Calendar Holidays (One ISO date per line: YYYY-MM-DD)
               </label>
               <textarea
@@ -569,14 +569,14 @@ export default function SettingsPage() {
                 onChange={(e) => setHolidaysText(e.target.value)}
                 rows={3}
                 placeholder="2026-01-26&#10;2026-08-15&#10;2026-10-02"
-                className="w-full rounded-xl border border-slate-200 bg-slate-50/50 p-3 text-xs font-mono focus:bg-white focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 transition-all resize-none"
+                className="w-full rounded-lg border border-gray-200 bg-gray-50/50 p-3 text-xs font-mono focus:bg-white focus:border-blue-600 focus:outline-none focus:ring-1 focus:ring-blue-600 transition-all resize-none"
               />
             </div>
 
-            <div className="mt-5 flex items-center justify-between rounded-2xl border border-slate-200/80 bg-slate-50/60 p-4">
+            <div className="mt-5 flex items-center justify-between rounded-xl border border-gray-200 bg-gray-50/60 p-4">
               <div>
-                <p className="text-xs font-bold text-slate-900">Pause All Dunning Automations</p>
-                <p className="text-[11px] text-slate-500">
+                <p className="text-xs font-bold text-gray-900">Pause All Dunning Automations</p>
+                <p className="text-[11px] text-gray-500">
                   Emergency switch: halts scheduled WhatsApp, Email, and SMS reminders organization-wide.
                 </p>
               </div>
@@ -586,11 +586,11 @@ export default function SettingsPage() {
                 aria-checked={automationsPaused}
                 onClick={() => setAutomationsPaused((p) => !p)}
                 className={`relative h-6 w-11 shrink-0 rounded-full transition-colors ${
-                  automationsPaused ? "bg-rose-600" : "bg-slate-200"
+                  automationsPaused ? "bg-red-600" : "bg-gray-200"
                 }`}
               >
                 <span
-                  className={`absolute top-0.5 h-5 w-5 rounded-full bg-white shadow-2xs transition-all ${
+                  className={`absolute top-0.5 h-5 w-5 rounded-full bg-white shadow-xs transition-all ${
                     automationsPaused ? "left-[22px]" : "left-0.5"
                   }`}
                 />
@@ -600,63 +600,63 @@ export default function SettingsPage() {
 
           {/* Preferences */}
           {prefs && prefs.available && (
-            <div className="rounded-3xl border border-slate-200/90 bg-white p-6 shadow-2xs">
+            <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-xs">
               <div className="flex items-center justify-between mb-4">
                 <div>
-                  <h2 className="text-sm font-bold text-slate-900">Collector Workspace Preferences</h2>
-                  <p className="text-xs text-slate-500">
+                  <h2 className="text-sm font-bold text-gray-900">Collector Workspace Preferences</h2>
+                  <p className="text-xs text-gray-500">
                     Personalized visual cues and notification defaults
                   </p>
                 </div>
-                <Badge variant="default" size="sm">
+                <Badge variant="neutral" size="sm">
                   Personal
                 </Badge>
               </div>
 
               <div className="space-y-3.5">
-                <label className="flex items-start gap-3 cursor-pointer p-3 rounded-2xl hover:bg-slate-50/70 border border-transparent hover:border-slate-100 transition-colors">
+                <label className="flex items-start gap-3 cursor-pointer p-3 rounded-lg hover:bg-gray-50/70 border border-transparent hover:border-gray-100 transition-colors">
                   <input
                     type="checkbox"
                     checked={prefs.showBrokenPromiseBanner}
                     disabled={prefsSaving}
                     onChange={(e) => togglePref("showBrokenPromiseBanner", e.target.checked)}
-                    className="mt-0.5 h-4 w-4 rounded-md border-slate-300 text-blue-600 focus:ring-blue-500"
+                    className="mt-0.5 h-4 w-4 rounded-md border-gray-300 text-blue-600 focus:ring-blue-500"
                   />
                   <div>
-                    <p className="text-xs font-bold text-slate-900">Show Broken Promise Warning Banner</p>
-                    <p className="text-[11px] text-slate-500">
+                    <p className="text-xs font-bold text-gray-900">Show Broken Promise Warning Banner</p>
+                    <p className="text-[11px] text-gray-500">
                       Prominently highlight delinquent PTP accounts at the top of the collection queue.
                     </p>
                   </div>
                 </label>
 
-                <label className="flex items-start gap-3 cursor-pointer p-3 rounded-2xl hover:bg-slate-50/70 border border-transparent hover:border-slate-100 transition-colors">
+                <label className="flex items-start gap-3 cursor-pointer p-3 rounded-lg hover:bg-gray-50/70 border border-transparent hover:border-gray-100 transition-colors">
                   <input
                     type="checkbox"
                     checked={prefs.showQueueWhy}
                     disabled={prefsSaving}
                     onChange={(e) => togglePref("showQueueWhy", e.target.checked)}
-                    className="mt-0.5 h-4 w-4 rounded-md border-slate-300 text-blue-600 focus:ring-blue-500"
+                    className="mt-0.5 h-4 w-4 rounded-md border-gray-300 text-blue-600 focus:ring-blue-500"
                   />
                   <div>
-                    <p className="text-xs font-bold text-slate-900">Show AI / Algorithmic Priority Reason</p>
-                    <p className="text-[11px] text-slate-500">
+                    <p className="text-xs font-bold text-gray-900">Show AI / Algorithmic Priority Reason</p>
+                    <p className="text-[11px] text-gray-500">
                       Display rule-based justification badges for queue rankings (e.g. Broken PTP, &gt;90d Aging).
                     </p>
                   </div>
                 </label>
 
-                <label className="flex items-start gap-3 cursor-pointer p-3 rounded-2xl hover:bg-slate-50/70 border border-transparent hover:border-slate-100 transition-colors">
+                <label className="flex items-start gap-3 cursor-pointer p-3 rounded-lg hover:bg-gray-50/70 border border-transparent hover:border-gray-100 transition-colors">
                   <input
                     type="checkbox"
                     checked={prefs.emailDailyDigest}
                     disabled={prefsSaving}
                     onChange={(e) => togglePref("emailDailyDigest", e.target.checked)}
-                    className="mt-0.5 h-4 w-4 rounded-md border-slate-300 text-blue-600 focus:ring-blue-500"
+                    className="mt-0.5 h-4 w-4 rounded-md border-gray-300 text-blue-600 focus:ring-blue-500"
                   />
                   <div>
-                    <p className="text-xs font-bold text-slate-900">Daily Morning Briefing Email</p>
-                    <p className="text-[11px] text-slate-500">
+                    <p className="text-xs font-bold text-gray-900">Daily Morning Briefing Email</p>
+                    <p className="text-[11px] text-gray-500">
                       Receive an executive summary of pending promises, high-exposure debtors, and disputes at 08:30 AM IST.
                     </p>
                   </div>
@@ -670,13 +670,13 @@ export default function SettingsPage() {
             <Button
               onClick={handleSave}
               loading={saving}
-              className="gap-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold shadow-2xs"
+              className="gap-1.5"
             >
               <Save className="h-3.5 w-3.5" />
               <span>Save Workspace Settings</span>
             </Button>
             {saved && (
-              <span className="text-xs font-bold text-emerald-600 flex items-center gap-1.5 animate-in fade-in">
+              <span className="text-xs font-bold text-green-600 flex items-center gap-1.5 animate-in fade-in">
                 <CheckCircle2 className="h-4 w-4" />
                 <span>Saved successfully!</span>
               </span>
@@ -684,16 +684,16 @@ export default function SettingsPage() {
           </div>
 
           {/* Danger Zone */}
-          <div className="rounded-3xl border border-rose-200 bg-rose-50/40 p-6 shadow-2xs">
-            <div className="flex items-center gap-2 text-rose-900 mb-1">
-              <AlertTriangle className="h-4 w-4 text-rose-600" />
+          <div className="rounded-xl border border-red-200 bg-red-50/40 p-6 shadow-xs">
+            <div className="flex items-center gap-2 text-red-900 mb-1">
+              <AlertTriangle className="h-4 w-4 text-red-600" />
               <h2 className="font-bold text-sm">Danger Zone — Organization Teardown</h2>
             </div>
-            <p className="text-xs text-rose-700 mb-4">
+            <p className="text-xs text-red-700 mb-4">
               Permanently delete this organization, customers, invoices, communication logs, and payment records. This action cannot be undone.
             </p>
             <div className="space-y-3 max-w-md">
-              <label className="block text-[11px] font-bold text-rose-900">
+              <label className="block text-[11px] font-bold text-red-900">
                 Type <strong>delete my organization</strong> to confirm:
               </label>
               <input
@@ -701,7 +701,7 @@ export default function SettingsPage() {
                 value={confirmDelete}
                 onChange={(e) => setConfirmDelete(e.target.value)}
                 placeholder="delete my organization"
-                className="w-full rounded-xl border border-rose-300 bg-white px-3 py-2 text-xs font-medium focus:border-rose-500 focus:outline-none focus:ring-1 focus:ring-rose-500"
+                className="w-full rounded-lg border border-red-300 bg-white px-3 py-2 text-xs font-medium focus:border-red-500 focus:outline-none focus:ring-1 focus:ring-red-500"
               />
               <Button
                 variant="danger"
@@ -709,7 +709,7 @@ export default function SettingsPage() {
                 onClick={handleDelete}
                 loading={deleting}
                 disabled={deleting || confirmDelete !== "delete my organization"}
-                className="gap-1.5 text-xs font-bold shadow-2xs"
+                className="gap-1.5 text-xs font-bold shadow-xs"
               >
                 <Trash2 className="h-3.5 w-3.5" />
                 <span>Permanently Delete Organization</span>
@@ -723,62 +723,62 @@ export default function SettingsPage() {
       {activeTab === "team" && (
         <div className="space-y-6 max-w-4xl">
           {/* Invite Member Card */}
-          <div className="rounded-3xl border border-slate-200/90 bg-white p-6 shadow-2xs">
+          <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-xs">
             <div className="flex items-center justify-between mb-2">
               <div>
-                <h2 className="text-sm font-bold text-slate-900">Invite Team Member</h2>
-                <p className="text-xs text-slate-500">
+                <h2 className="text-sm font-bold text-gray-900">Invite Team Member</h2>
+                <p className="text-xs text-gray-500">
                   Provision accounts for credit controllers, collectors, sales reps, or executives.
                 </p>
               </div>
-              <Badge variant="blue" size="sm">
+              <Badge variant="primary" size="sm">
                 RBAC Access
               </Badge>
             </div>
 
             {teamMessage && (
-              <div className="my-3 rounded-xl bg-blue-50 p-3 text-xs text-blue-700 border border-blue-100 flex items-center gap-2">
+              <div className="my-3 rounded-lg bg-blue-50 p-3 text-xs text-blue-700 border border-blue-100 flex items-center gap-2">
                 <CheckCircle2 className="h-4 w-4 text-blue-600 shrink-0" />
                 <span>{teamMessage}</span>
               </div>
             )}
 
             {teamError && (
-              <div className="my-3 rounded-xl bg-rose-50 p-3 text-xs text-rose-700 border border-rose-100 flex items-center gap-2">
-                <AlertCircle className="h-4 w-4 text-rose-600 shrink-0" />
+              <div className="my-3 rounded-lg bg-red-50 p-3 text-xs text-red-700 border border-red-100 flex items-center gap-2">
+                <AlertCircle className="h-4 w-4 text-red-600 shrink-0" />
                 <span>{teamError}</span>
               </div>
             )}
 
             {inviteResult && (
-              <div className="my-3 rounded-2xl bg-emerald-50 p-4 text-xs text-emerald-900 border border-emerald-200 space-y-2">
+              <div className="my-3 rounded-xl bg-green-50 p-4 text-xs text-green-900 border border-green-200 space-y-2">
                 <div className="flex items-center justify-between">
-                  <p className="font-bold flex items-center gap-1.5 text-emerald-800">
-                    <CheckCircle2 className="h-4 w-4 text-emerald-600" />
+                  <p className="font-bold flex items-center gap-1.5 text-green-800">
+                    <CheckCircle2 className="h-4 w-4 text-green-600" />
                     Temporary Credentials Generated
                   </p>
                   <Button
-                    variant="outline"
+                    variant="secondary"
                     size="sm"
                     onClick={() =>
                       copyToClipboard(
                         `Email: ${inviteResult.email}\nPassword: ${inviteResult.tempPassword}`
                       )
                     }
-                    className="h-7 px-2 text-[11px] gap-1 text-emerald-800 border-emerald-300 bg-white hover:bg-emerald-100"
+                    className="h-7 px-2 text-[11px] gap-1 text-green-800 border-green-300 bg-white hover:bg-green-100"
                   >
                     {copiedPass ? <Check className="h-3 w-3" /> : <Copy className="h-3 w-3" />}
                     <span>{copiedPass ? "Copied" : "Copy Credentials"}</span>
                   </Button>
                 </div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 font-mono">
-                  <div className="bg-white/80 p-2 rounded-xl border border-emerald-200">
-                    <span className="text-[10px] text-emerald-600 block">Login Email</span>
+                  <div className="bg-white/80 p-2 rounded-lg border border-green-200">
+                    <span className="text-[10px] text-green-600 block">Login Email</span>
                     <span className="font-bold">{inviteResult.email}</span>
                   </div>
-                  <div className="bg-white/80 p-2 rounded-xl border border-emerald-200">
-                    <span className="text-[10px] text-emerald-600 block">Temp Password</span>
-                    <span className="font-bold text-emerald-700">{inviteResult.tempPassword}</span>
+                  <div className="bg-white/80 p-2 rounded-lg border border-green-200">
+                    <span className="text-[10px] text-green-600 block">Temp Password</span>
+                    <span className="font-bold text-green-700">{inviteResult.tempPassword}</span>
                   </div>
                 </div>
               </div>
@@ -790,7 +790,7 @@ export default function SettingsPage() {
                 placeholder="Full Name (e.g. Ramesh Kumar)"
                 value={inviteName}
                 onChange={(e) => setInviteName(e.target.value)}
-                className="rounded-xl border border-slate-200 bg-slate-50/50 px-3 py-2 text-xs font-medium focus:bg-white focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 transition-all"
+                className="rounded-lg border border-gray-200 bg-gray-50/50 px-3 py-2 text-xs font-medium focus:bg-white focus:border-blue-600 focus:outline-none focus:ring-1 focus:ring-blue-600 transition-all"
               />
               <input
                 type="email"
@@ -798,12 +798,12 @@ export default function SettingsPage() {
                 placeholder="Work Email *"
                 value={inviteEmail}
                 onChange={(e) => setInviteEmail(e.target.value)}
-                className="rounded-xl border border-slate-200 bg-slate-50/50 px-3 py-2 text-xs font-medium focus:bg-white focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 transition-all"
+                className="rounded-lg border border-gray-200 bg-gray-50/50 px-3 py-2 text-xs font-medium focus:bg-white focus:border-blue-600 focus:outline-none focus:ring-1 focus:ring-blue-600 transition-all"
               />
               <select
                 value={inviteRole}
                 onChange={(e) => setInviteRole(e.target.value)}
-                className="rounded-xl border border-slate-200 bg-slate-50/50 px-3 py-2 text-xs font-bold text-slate-700 focus:bg-white focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 transition-all"
+                className="rounded-lg border border-gray-200 bg-gray-50/50 px-3 py-2 text-xs font-bold text-gray-700 focus:bg-white focus:border-blue-600 focus:outline-none focus:ring-1 focus:ring-blue-600 transition-all"
               >
                 {TEAM_ROLES.map((r) => (
                   <option key={r} value={r}>
@@ -814,7 +814,7 @@ export default function SettingsPage() {
               <Button
                 type="submit"
                 size="sm"
-                className="gap-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold shadow-2xs"
+                className="gap-1.5"
               >
                 <Plus className="h-3.5 w-3.5" />
                 <span>Send Invite</span>
@@ -823,30 +823,30 @@ export default function SettingsPage() {
           </div>
 
           {/* Members Table */}
-          <div className="rounded-3xl border border-slate-200/90 bg-white shadow-2xs overflow-hidden">
-            <div className="px-6 py-4 border-b border-slate-100 bg-slate-50/50 flex items-center justify-between">
+          <div className="rounded-xl border border-gray-200 bg-white shadow-xs overflow-hidden">
+            <div className="px-6 py-4 border-b border-gray-100 bg-gray-50/50 flex items-center justify-between">
               <div>
-                <h2 className="font-bold text-slate-900 text-sm">Active Workspace Team Members</h2>
-                <p className="text-xs text-slate-500">
+                <h2 className="font-bold text-gray-900 text-sm">Active Workspace Team Members</h2>
+                <p className="text-xs text-gray-500">
                   Manage permissions, role assignments, and member access.
                 </p>
               </div>
-              <Badge variant="blue" size="sm">
+              <Badge variant="primary" size="sm">
                 {members.length} Total Users
               </Badge>
             </div>
 
             <div className="overflow-x-auto">
-              <table className="min-w-full text-xs divide-y divide-slate-100">
-                <thead className="bg-slate-50/80">
+              <table className="min-w-full text-xs divide-y divide-gray-100">
+                <thead className="bg-gray-50/80">
                   <tr>
-                    <th className="px-6 py-3 text-left font-bold text-slate-600">Member</th>
-                    <th className="px-6 py-3 text-left font-bold text-slate-600">Role</th>
-                    <th className="px-6 py-3 text-left font-bold text-slate-600">Joined On</th>
-                    <th className="px-6 py-3 text-right font-bold text-slate-600">Actions</th>
+                    <th className="px-6 py-3 text-left font-bold text-gray-600">Member</th>
+                    <th className="px-6 py-3 text-left font-bold text-gray-600">Role</th>
+                    <th className="px-6 py-3 text-left font-bold text-gray-600">Joined On</th>
+                    <th className="px-6 py-3 text-right font-bold text-gray-600">Actions</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-100 bg-white">
+                <tbody className="divide-y divide-gray-100 bg-white">
                   {members.map((m) => {
                     const initials = (m.name || m.email)
                       .split(" ")
@@ -856,15 +856,15 @@ export default function SettingsPage() {
                       .toUpperCase();
 
                     return (
-                      <tr key={m.id} className="hover:bg-slate-50/70 transition-colors">
+                      <tr key={m.id} className="hover:bg-gray-50/70 transition-colors">
                         <td className="px-6 py-3.5">
                           <div className="flex items-center gap-3">
-                            <div className="h-8 w-8 rounded-xl bg-blue-100 text-blue-700 flex items-center justify-center font-bold text-xs shrink-0">
+                            <div className="h-8 w-8 rounded-lg bg-blue-100 text-blue-700 flex items-center justify-center font-bold text-xs shrink-0">
                               {initials}
                             </div>
                             <div>
-                              <p className="font-bold text-slate-900">{m.name || "Team Member"}</p>
-                              <p className="text-[11px] text-slate-400 font-medium">{m.email}</p>
+                              <p className="font-bold text-gray-900">{m.name || "Team Member"}</p>
+                              <p className="text-[11px] text-gray-400 font-medium">{m.email}</p>
                             </div>
                           </div>
                         </td>
@@ -872,7 +872,7 @@ export default function SettingsPage() {
                           <select
                             value={m.role}
                             onChange={(e) => handleChangeRole(m.id, e.target.value)}
-                            className="rounded-xl border border-slate-200 bg-slate-50/50 px-2.5 py-1 text-xs font-bold text-slate-700 focus:bg-white focus:border-blue-500 focus:outline-none"
+                            className="rounded-lg border border-gray-200 bg-gray-50/50 px-2.5 py-1 text-xs font-bold text-gray-700 focus:bg-white focus:border-blue-600 focus:outline-none"
                           >
                             {TEAM_ROLES.map((r) => (
                               <option key={r} value={r}>
@@ -881,7 +881,7 @@ export default function SettingsPage() {
                             ))}
                           </select>
                         </td>
-                        <td className="px-6 py-3.5 text-slate-500 whitespace-nowrap font-medium">
+                        <td className="px-6 py-3.5 text-gray-500 whitespace-nowrap font-medium">
                           {new Date(m.createdAt).toLocaleDateString("en-IN", {
                             day: "numeric",
                             month: "short",
@@ -890,10 +890,10 @@ export default function SettingsPage() {
                         </td>
                         <td className="px-6 py-3.5 text-right">
                           <Button
-                            variant="outline"
+                            variant="secondary"
                             size="sm"
                             onClick={() => handleRemoveMember(m.id, m.email)}
-                            className="h-7 px-2 text-rose-600 border-rose-200 hover:bg-rose-50 text-xs font-bold"
+                            className="h-7 px-2 text-red-600 border-red-200 hover:bg-red-50 text-xs font-bold"
                           >
                             <Trash2 className="h-3 w-3 mr-1" />
                             <span>Remove</span>

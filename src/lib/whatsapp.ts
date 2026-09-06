@@ -225,7 +225,20 @@ export async function sendWhatsAppMessage(
   // 5. Deterministic Mock / Simulation Provider
   const mockId = `mock_wa_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
 
-  if (process.env.NODE_ENV !== "test") {
+  if (process.env.NODE_ENV === "production") {
+    console.warn(
+      JSON.stringify({
+        level: "warn",
+        alert: "PRODUCTION_SIMULATION_WARNING",
+        message: "WhatsApp dispatch running in simulation mode because no live WhatsApp gateway credentials are configured.",
+        event: "whatsapp_sent_mock",
+        messageId: mockId,
+        to: normalizedTo,
+        messagePreview: options.message.slice(0, 80),
+        timestamp: new Date().toISOString(),
+      })
+    );
+  } else if (process.env.NODE_ENV !== "test") {
     console.info(
       JSON.stringify({
         level: "info",

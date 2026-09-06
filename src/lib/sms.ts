@@ -340,6 +340,20 @@ export async function sendSms(input: SmsMessageInput): Promise<SmsSendResult> {
   // Deterministic Mock Simulation for Development, Sandbox, and Tests
   const mockMessageId = `sms_dlt_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`;
 
+  if (process.env.NODE_ENV === "production") {
+    console.warn(
+      JSON.stringify({
+        level: "warn",
+        alert: "PRODUCTION_SIMULATION_WARNING",
+        message: "SMS dispatch running in simulation mode because no live Indian SMS gateway credentials are configured.",
+        event: "sms_sent_mock",
+        messageId: mockMessageId,
+        recipient: phoneValidation.e164,
+        dltHeader: dltVerification.header,
+      })
+    );
+  }
+
   return {
     success: true,
     messageId: mockMessageId,

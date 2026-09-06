@@ -12,6 +12,8 @@ export interface PlanLimits {
   hasCustomExports: boolean;
   hasApiAccess: boolean;
   auditRetentionDays: number;
+  hasAiCopilot: boolean;
+  monthlyAiDraftQuota: number;
 }
 
 export interface PlanDefinition {
@@ -42,6 +44,8 @@ export const PLAN_DEFINITIONS: Record<PlanTier, PlanDefinition> = {
       hasCustomExports: false,
       hasApiAccess: false,
       auditRetentionDays: 7,
+      hasAiCopilot: false,
+      monthlyAiDraftQuota: 0,
     },
     features: [
       "Up to 50 active invoices",
@@ -68,11 +72,14 @@ export const PLAN_DEFINITIONS: Record<PlanTier, PlanDefinition> = {
       hasCustomExports: true,
       hasApiAccess: false,
       auditRetentionDays: 90,
+      hasAiCopilot: true,
+      monthlyAiDraftQuota: 100,
     },
     features: [
       "Up to 500 active invoices",
       "3 team seats",
       "Email & WhatsApp reminders",
+      "AI Collections Copilot (100 drafts/mo)",
       "Automated cadence scheduling",
       "Payment promise auto-sweep",
       "CSV Data export with sanitization",
@@ -96,11 +103,14 @@ export const PLAN_DEFINITIONS: Record<PlanTier, PlanDefinition> = {
       hasCustomExports: true,
       hasApiAccess: true,
       auditRetentionDays: 365,
+      hasAiCopilot: true,
+      monthlyAiDraftQuota: 1000,
     },
     features: [
       "Up to 2,500 active invoices",
       "10 team seats with granular RBAC",
       "Email, WhatsApp & SMS reminders",
+      "AI Collections Copilot (1,000 drafts/mo)",
       "Multi-step dunning workflows",
       "Advanced aging & DSO analytics",
       "Collector performance tracking",
@@ -124,11 +134,14 @@ export const PLAN_DEFINITIONS: Record<PlanTier, PlanDefinition> = {
       hasCustomExports: true,
       hasApiAccess: true,
       auditRetentionDays: 2555, // 7 years
+      hasAiCopilot: true,
+      monthlyAiDraftQuota: 999999,
     },
     features: [
       "Unlimited active invoices",
       "Unlimited team seats",
       "All channels (Email, WhatsApp, SMS, Call logs)",
+      "Unlimited AI Collections Copilot",
       "Autonomous AI collection priority",
       "Multi-entity consolidation",
       "Dedicated account manager & SLA",
@@ -230,7 +243,7 @@ export async function getOrganizationSubscription(
  */
 export async function checkPlanQuota(
   organizationId: string,
-  resource: "invoices" | "seats" | "channels" | "automation",
+  resource: "invoices" | "seats" | "channels" | "automation" | "copilot",
   requestedChannel?: "EMAIL" | "WHATSAPP" | "SMS" | "CALL"
 ): Promise<{ allowed: boolean; limit: number; current: number; reason?: string }> {
   const sub = await getOrganizationSubscription(organizationId);
@@ -287,6 +300,18 @@ export async function checkPlanQuota(
         };
       }
       return { allowed: true, limit: 1, current: 1 };
+    }
+
+    case "copilot": {
+      if (!limits.hasAiCopilot) {
+        return {
+          allowed: false,
+          limit: limits.monthlyAiDraftQuota,
+          current: 0,
+          reason: `AI Collections Copilot is not included in the ${sub.plan.name} plan. Please upgrade to Starter or higher.`,
+        };
+      }
+      return { allowed: true, limit: limits.monthlyAiDraftQuota, current: 0 };
     }
 
     default:
